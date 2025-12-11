@@ -13,8 +13,7 @@ const Index = () => {
       title: "Redirecionando para pagamento...",
       description: "Você será redirecionado em instantes.",
     });
-    // Aqui você colocaria o link de checkout
-    // window.location.href = "SEU_LINK_DE_CHECKOUT";
+    window.location.href = "https://pay.cakto.com.br/qxutn33";
   };
 
   return (
