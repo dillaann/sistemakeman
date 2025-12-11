@@ -2,6 +2,7 @@ import AlertBar from "@/components/AlertBar";
 import OfferBox from "@/components/OfferBox";
 import CTAButton from "@/components/CTAButton";
 import GuaranteeSection from "@/components/GuaranteeSection";
+import TestimonialSection from "@/components/TestimonialSection";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
@@ -38,6 +39,9 @@ const Index = () => {
               entre você e o seu corpo dos sonhos.
             </p>
           </header>
+
+          {/* Testimonial Section */}
+          <TestimonialSection />
 
           {/* Offer Box */}
           <OfferBox />
