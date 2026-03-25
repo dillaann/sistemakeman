@@ -1,0 +1,193 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, FileText, ClipboardList, DollarSign, Package, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const Dashboard = () => {
+  const { data: clients } = useQuery({
+    queryKey: ["clients-count"],
+    queryFn: async () => {
+      const { count } = await supabase.from("clients").select("*", { count: "exact", head: true });
+      return count ?? 0;
+    },
+  });
+
+  const { data: quotes } = useQuery({
+    queryKey: ["quotes-summary"],
+    queryFn: async () => {
+      const { data } = await supabase.from("quotes").select("status, total");
+      return data ?? [];
+    },
+  });
+
+  const { data: workOrders } = useQuery({
+    queryKey: ["work-orders-summary"],
+    queryFn: async () => {
+      const { data } = await supabase.from("work_orders").select("status, total");
+      return data ?? [];
+    },
+  });
+
+  const { data: transactions } = useQuery({
+    queryKey: ["financial-summary"],
+    queryFn: async () => {
+      const { data } = await supabase.from("financial_transactions").select("type, status, amount");
+      return data ?? [];
+    },
+  });
+
+  const { data: lowStockMaterials } = useQuery({
+    queryKey: ["low-stock"],
+    queryFn: async () => {
+      const { data } = await supabase.from("materials").select("*");
+      return (data ?? []).filter(m => m.quantity <= m.min_quantity);
+    },
+  });
+
+  const pendingQuotes = quotes?.filter(q => q.status === "pendente").length ?? 0;
+  const quotesTotal = quotes?.filter(q => q.status === "aprovado").reduce((s, q) => s + Number(q.total), 0) ?? 0;
+
+  const woByStatus = {
+    aguardando: workOrders?.filter(w => w.status === "aguardando").length ?? 0,
+    em_producao: workOrders?.filter(w => w.status === "em_producao").length ?? 0,
+    concluido: workOrders?.filter(w => w.status === "concluido").length ?? 0,
+    entregue: workOrders?.filter(w => w.status === "entregue").length ?? 0,
+  };
+
+  const totalReceivable = transactions?.filter(t => t.type === "a_receber" && t.status === "pendente").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
+  const totalPayable = transactions?.filter(t => t.type === "a_pagar" && t.status === "pendente").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
+  const totalReceived = transactions?.filter(t => t.type === "a_receber" && t.status === "pago").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
+  const totalPaid = transactions?.filter(t => t.type === "a_pagar" && t.status === "pago").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
+
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const statusLabels: Record<string, string> = {
+    aguardando: "Aguardando",
+    em_producao: "Em Produção",
+    concluido: "Concluído",
+    entregue: "Entregue",
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Dashboard</h1>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{clients ?? 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Orçamentos Pendentes</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingQuotes}</div>
+            <p className="text-xs text-muted-foreground">Aprovados: {fmt(quotesTotal)}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">A Receber</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{fmt(totalReceivable)}</div>
+            <p className="text-xs text-muted-foreground">Recebido: {fmt(totalReceived)}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">A Pagar</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{fmt(totalPayable)}</div>
+            <p className="text-xs text-muted-foreground">Pago: {fmt(totalPaid)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardList className="h-4 w-4" /> Ordens de Serviço
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(woByStatus).map(([status, count]) => (
+                <div key={status} className="flex items-center justify-between">
+                  <span className="text-sm">{statusLabels[status]}</span>
+                  <Badge variant={status === "em_producao" ? "default" : "secondary"}>{count}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Package className="h-4 w-4" /> Estoque Baixo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lowStockMaterials && lowStockMaterials.length > 0 ? (
+              <div className="space-y-2">
+                {lowStockMaterials.slice(0, 5).map(m => (
+                  <div key={m.id} className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2">
+                      <AlertTriangle className="h-3 w-3 text-orange-500" />
+                      {m.name}
+                    </span>
+                    <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum material com estoque baixo.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Fluxo de Caixa</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-sm text-muted-foreground">Entradas</p>
+              <p className="text-xl font-bold text-green-600">{fmt(totalReceived)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Saídas</p>
+              <p className="text-xl font-bold text-red-600">{fmt(totalPaid)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Saldo</p>
+              <p className={`text-xl font-bold ${totalReceived - totalPaid >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {fmt(totalReceived - totalPaid)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Dashboard;

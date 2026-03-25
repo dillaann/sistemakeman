@@ -1,0 +1,138 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Search } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+
+const statusColors: Record<string, string> = {
+  aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+  em_producao: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  concluido: "bg-green-500/10 text-green-700 border-green-500/20",
+  entregue: "bg-purple-500/10 text-purple-700 border-purple-500/20",
+};
+const statusLabels: Record<string, string> = { aguardando: "Aguardando", em_producao: "Em Produção", concluido: "Concluído", entregue: "Entregue" };
+
+const WorkOrders = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ client_id: "", description: "", total: "", status: "aguardando" as string });
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => { const { data } = await supabase.from("clients").select("id, name").order("name"); return data ?? []; },
+  });
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ["work-orders"],
+    queryFn: async () => {
+      const { data } = await supabase.from("work_orders").select("*, clients(name)").order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("work_orders").insert({
+        client_id: form.client_id, description: form.description,
+        total: parseFloat(form.total) || 0, status: form.status as any,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["work-orders"] }); setOpen(false); toast({ title: "OS criada!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const updates: any = { status };
+      if (status === "em_producao") updates.started_at = new Date().toISOString();
+      if (status === "concluido") updates.completed_at = new Date().toISOString();
+      if (status === "entregue") updates.delivered_at = new Date().toISOString();
+      const { error } = await supabase.from("work_orders").update(updates).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["work-orders"] }); toast({ title: "Status atualizado!" }); },
+  });
+
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const nextStatus: Record<string, string> = { aguardando: "em_producao", em_producao: "concluido", concluido: "entregue" };
+
+  const filtered = orders.filter(o =>
+    (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
+    (o.description ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Ordens de Serviço</h1>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Nova Ordem de Serviço</DialogTitle></DialogHeader>
+            <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-3">
+              <div><Label>Cliente *</Label>
+                <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              <div><Label>Valor Total (R$)</Label><Input type="number" step="0.01" value={form.total} onChange={e => setForm({ ...form, total: e.target.value })} required /></div>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Buscar ordens..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+      </div>
+
+      <div className="border rounded-lg overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Cliente</TableHead>
+              <TableHead className="hidden md:table-cell">Descrição</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-32">Ação</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map(o => (
+              <TableRow key={o.id}>
+                <TableCell className="font-medium">{(o.clients as any)?.name}</TableCell>
+                <TableCell className="hidden md:table-cell max-w-[200px] truncate">{o.description}</TableCell>
+                <TableCell>{fmt(Number(o.total))}</TableCell>
+                <TableCell><Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge></TableCell>
+                <TableCell>
+                  {nextStatus[o.status] && (
+                    <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: o.id, status: nextStatus[o.status] })}>
+                      → {statusLabels[nextStatus[o.status]]}
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
+export default WorkOrders;
