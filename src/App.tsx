@@ -12,7 +12,7 @@ import Clients from "@/pages/Clients";
 import Quotes from "@/pages/Quotes";
 import WorkOrders from "@/pages/WorkOrders";
 import Financial from "@/pages/Financial";
-import Materials from "@/pages/Materials";
+import Production from "@/pages/Production";
 import Employees from "@/pages/Employees";
 import NotFound from "./pages/NotFound";
 
@@ -47,8 +47,8 @@ const App = () => (
                 <Route path="clientes" element={<Clients />} />
                 <Route path="orcamentos" element={<Quotes />} />
                 <Route path="ordens" element={<WorkOrders />} />
+                <Route path="producao" element={<Production />} />
                 <Route path="financeiro" element={<Financial />} />
-                <Route path="estoque" element={<Materials />} />
                 <Route path="funcionarios" element={<Employees />} />
               </Route>
               <Route path="*" element={<NotFound />} />
