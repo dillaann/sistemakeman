@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, ClipboardList, DollarSign, Package, AlertTriangle } from "lucide-react";
+import { Users, FileText, ClipboardList, DollarSign, Factory } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
@@ -37,13 +37,6 @@ const Dashboard = () => {
     },
   });
 
-  const { data: lowStockMaterials } = useQuery({
-    queryKey: ["low-stock"],
-    queryFn: async () => {
-      const { data } = await supabase.from("materials").select("*");
-      return (data ?? []).filter(m => m.quantity <= m.min_quantity);
-    },
-  });
 
   const pendingQuotes = quotes?.filter(q => q.status === "pendente").length ?? 0;
   const quotesTotal = quotes?.filter(q => q.status === "aprovado").reduce((s, q) => s + Number(q.total), 0) ?? 0;
@@ -140,25 +133,24 @@ const Dashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Package className="h-4 w-4" /> Estoque Baixo
+              <Factory className="h-4 w-4" /> Produção
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {lowStockMaterials && lowStockMaterials.length > 0 ? (
-              <div className="space-y-2">
-                {lowStockMaterials.slice(0, 5).map(m => (
-                  <div key={m.id} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <AlertTriangle className="h-3 w-3 text-orange-500" />
-                      {m.name}
-                    </span>
-                    <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhum material com estoque baixo.</p>
-            )}
+            <div className="space-y-3">
+              {[
+                { key: "aguardando", label: "Fila de Produção" },
+                { key: "em_producao", label: "Em Andamento" },
+                { key: "concluido", label: "Finalizado" },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-sm">{label}</span>
+                  <Badge variant={key === "em_producao" ? "default" : "secondary"}>
+                    {workOrders?.filter(w => w.status === key).length ?? 0}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

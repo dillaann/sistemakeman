@@ -381,6 +381,8 @@ export type Database = {
           delivered_at: string | null
           description: string | null
           id: string
+          internal_notes: string | null
+          priority: string
           quote_id: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["work_order_status"]
@@ -395,6 +397,8 @@ export type Database = {
           delivered_at?: string | null
           description?: string | null
           id?: string
+          internal_notes?: string | null
+          priority?: string
           quote_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["work_order_status"]
@@ -409,6 +413,8 @@ export type Database = {
           delivered_at?: string | null
           description?: string | null
           id?: string
+          internal_notes?: string | null
+          priority?: string
           quote_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["work_order_status"]

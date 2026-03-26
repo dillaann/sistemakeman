@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Package, UserCog, LogOut, Moon, Sun, Wrench,
+  Factory, UserCog, LogOut, Moon, Sun, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -17,8 +17,8 @@ const menuItems = [
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Orçamentos", url: "/orcamentos", icon: FileText },
   { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList },
+  { title: "Produção", url: "/producao", icon: Factory },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Estoque", url: "/estoque", icon: Package },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog },
 ];
 
@@ -36,7 +36,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>
             <div className="flex items-center gap-2">
               <Wrench className="h-4 w-4" />
-              {!collapsed && <span className="font-bold">SerraGestão</span>}
+              {!collapsed && <span className="font-bold">SERRALHERIA KEMAN</span>}
             </div>
           </SidebarGroupLabel>
           <SidebarGroupContent>
