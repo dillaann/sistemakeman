@@ -65,13 +65,13 @@ const App = () => (
                 <Route index element={<DefaultRedirect />} />
                 <Route path="clientes" element={<RoleGuard allowed={["admin"]}><Clients /></RoleGuard>} />
                 <Route path="orcamentos" element={<RoleGuard allowed={["admin"]}><Quotes /></RoleGuard>} />
-                <Route path="ordens" element={<RoleGuard allowed={["admin", "producao"]}><WorkOrders /></RoleGuard>} />
+                <Route path="ordens" element={<RoleGuard allowed={["admin", "producao", "financeiro"]}><WorkOrders /></RoleGuard>} />
                 <Route path="producao" element={<RoleGuard allowed={["admin", "producao"]}><Production /></RoleGuard>} />
                 <Route path="financeiro" element={<RoleGuard allowed={["admin", "financeiro"]}><Financial /></RoleGuard>} />
                 <Route path="faturamento" element={<RoleGuard allowed={["admin", "financeiro"]}><Billing /></RoleGuard>} />
                 <Route path="dre" element={<RoleGuard allowed={["admin", "financeiro"]}><DREPage /></RoleGuard>} />
-                <Route path="funcionarios" element={<RoleGuard allowed={["admin"]}><Employees /></RoleGuard>} />
-                <Route path="rh" element={<RoleGuard allowed={["admin"]}><HR /></RoleGuard>} />
+                <Route path="funcionarios" element={<RoleGuard allowed={["admin", "financeiro"]}><Employees /></RoleGuard>} />
+                <Route path="rh" element={<RoleGuard allowed={["admin", "financeiro"]}><HR /></RoleGuard>} />
                 <Route path="usuarios" element={<RoleGuard allowed={["admin"]}><UserManagement /></RoleGuard>} />
               </Route>
               <Route path="*" element={<NotFound />} />
