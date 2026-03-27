@@ -424,6 +424,7 @@ const Purchases = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
 
         {/* COMPRAS */}
         <TabsContent value="compras" className="space-y-4">
