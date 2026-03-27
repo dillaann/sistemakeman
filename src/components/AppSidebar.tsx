@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Wrench,
+  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,6 +20,7 @@ const menuItems = [
   { title: "Produção", url: "/producao", icon: Factory },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog },
+  { title: "RH", url: "/rh", icon: Briefcase },
 ];
 
 export function AppSidebar() {
