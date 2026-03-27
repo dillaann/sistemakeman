@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, ClipboardList, DollarSign, Factory } from "lucide-react";
+import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
@@ -37,6 +37,34 @@ const Dashboard = () => {
     },
   });
 
+  const { data: billingOrders } = useQuery({
+    queryKey: ["billing-dashboard"],
+    queryFn: async () => {
+      const { data: orders } = await supabase
+        .from("work_orders")
+        .select("id, total, completed_at")
+        .in("status", ["concluido", "entregue"]);
+      const { data: txns } = await supabase
+        .from("financial_transactions")
+        .select("work_order_id, amount, status")
+        .eq("type", "a_receber")
+        .eq("status", "pago");
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const monthOrders = (orders ?? []).filter(o => {
+        if (!o.completed_at) return false;
+        const d = new Date(o.completed_at);
+        return d >= monthStart && d <= monthEnd;
+      });
+      const totalBilled = monthOrders.reduce((s, o) => s + Number(o.total), 0);
+      const monthOrderIds = new Set(monthOrders.map(o => o.id));
+      const totalReceived = (txns ?? [])
+        .filter(t => t.work_order_id && monthOrderIds.has(t.work_order_id))
+        .reduce((s, t) => s + Number(t.amount), 0);
+      return { totalBilled, totalReceived };
+    },
+  });
 
   const pendingQuotes = quotes?.filter(q => q.status === "pendente").length ?? 0;
   const quotesTotal = quotes?.filter(q => q.status === "aprovado").reduce((s, q) => s + Number(q.total), 0) ?? 0;
@@ -110,6 +138,25 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Faturamento do Mês</CardTitle>
+          <Receipt className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Faturado</p>
+              <p className="text-xl font-bold">{fmt(billingOrders.totalBilled ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Recebido</p>
+              <p className="text-xl font-bold text-green-600">{fmt(billingOrders.totalReceived ?? 0)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
