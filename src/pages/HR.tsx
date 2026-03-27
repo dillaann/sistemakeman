@@ -97,10 +97,10 @@ const HR = () => {
   const otMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === otForm.employee_id);
-      const rate = hourlyRate(Number(emp?.salary) || 0);
-      const pct = parseFloat(otForm.percentage) / 100;
+      const fixedRate = Number((emp as any)?.overtime_hourly_rate) || 0;
       const hrs = parseFloat(otForm.hours);
-      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(rate * (1 + pct) * hrs * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
+      const value = fixedRate > 0 ? fixedRate * hrs : (() => { const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; return rate * (1 + pct) * hrs; })();
+      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", percentage: "50", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Hora extra registrada!" }); },
@@ -113,9 +113,8 @@ const HR = () => {
   const satMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === satForm.employee_id);
-      const rate = hourlyRate(Number(emp?.salary) || 0);
-      const hrs = parseFloat(satForm.hours);
-      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: hrs, calculated_value: Math.round(rate * 1.5 * hrs * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
+      const fixedSatValue = Number((emp as any)?.saturday_value) || 0;
+      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: parseFloat(satForm.hours), calculated_value: fixedSatValue > 0 ? fixedSatValue : Math.round(hourlyRate(Number(emp?.salary) || 0) * 1.5 * parseFloat(satForm.hours) * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Sábado registrado!" }); },
@@ -324,7 +323,7 @@ const HR = () => {
                   <Button type="submit" className="w-full" disabled={advMutation.isPending}>Salvar</Button>
                 </form></DialogContent></Dialog>
           </div>
-          <Card><CardHeader><CardTitle className="text-base">Salários Base</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Função</TableHead><TableHead>Salário Base</TableHead><TableHead>Valor/Hora</TableHead></TableRow></TableHeader><TableBody>{employees.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{e.name}</TableCell><TableCell>{e.role || "-"}</TableCell><TableCell>{e.salary ? fmt(Number(e.salary)) : "-"}</TableCell><TableCell>{e.salary ? fmt(hourlyRate(Number(e.salary))) : "-"}</TableCell></TableRow>))}{employees.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Salários e Valores Fixos</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário Base</TableHead><TableHead>Vlr Sábado</TableHead><TableHead>Vlr H.Extra</TableHead><TableHead className="hidden md:table-cell">Obs. Pagamento</TableHead></TableRow></TableHeader><TableBody>{employees.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{e.name}</TableCell><TableCell>{e.salary ? fmt(Number(e.salary)) : "-"}</TableCell><TableCell>{fmt(Number((e as any).saturday_value) || 0)}</TableCell><TableCell>{fmt(Number((e as any).overtime_hourly_rate) || 0)}/h</TableCell><TableCell className="hidden md:table-cell text-xs">{(e as any).payment_notes || "-"}</TableCell></TableRow>))}{employees.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
           <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead></TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{new Date(a.date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell></TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </TabsContent>
 
