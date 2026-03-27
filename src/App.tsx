@@ -19,6 +19,7 @@ import Billing from "@/pages/Billing";
 import DREPage from "@/pages/DRE";
 import UserManagement from "@/pages/UserManagement";
 import Sales from "@/pages/Sales";
+import Purchases from "@/pages/Purchases";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
