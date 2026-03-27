@@ -45,8 +45,8 @@ const Purchases = () => {
   // Purchase dialog
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [pForm, setPForm] = useState({
-    supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", purchase_date: new Date().toISOString().split("T")[0],
-    invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", discount_percentage: "0", notes: "",
+    supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
+    invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
   });
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
@@ -92,11 +92,12 @@ const Purchases = () => {
   const savePurchase = useMutation({
     mutationFn: async () => {
       const qty = parseFloat(pForm.quantity) || 0;
-      const unitP = parseFloat(pForm.unit_price) || 0;
-      const discPct = parseFloat(pForm.discount_percentage) || 0;
-      const subtotal = qty * unitP;
-      const discountAmt = subtotal * (discPct / 100);
-      const total = subtotal - discountAmt;
+      const unitP = parseFloat(pForm.unit_price) || 0; // valor negociado unitário
+      const originalP = parseFloat(pForm.original_price) || 0; // valor original unitário
+      const total = qty * unitP; // total negociado
+      const originalTotal = qty * originalP;
+      const discountAmt = originalP > 0 ? originalTotal - total : 0;
+      const discPct = originalTotal > 0 ? (discountAmt / originalTotal) * 100 : 0;
 
       const payload: any = {
         supplier_id: pForm.supplier_id || null,
@@ -104,6 +105,7 @@ const Purchases = () => {
         quantity: qty,
         unit: pForm.unit,
         unit_price: unitP,
+        original_price: originalP > 0 ? originalP : null,
         total,
         purchase_date: pForm.purchase_date,
         invoice_number: pForm.invoice_number || null,
@@ -111,7 +113,7 @@ const Purchases = () => {
         payment_status: pForm.payment_status,
         due_date: pForm.due_date || null,
         discount_percentage: discPct,
-        discount_amount: discountAmt,
+        discount_amount: discountAmt > 0 ? discountAmt : 0,
         notes: pForm.notes || null,
       };
 
@@ -136,8 +138,8 @@ const Purchases = () => {
       qc.invalidateQueries({ queryKey: ["financial"] });
       setPurchaseOpen(false);
       setPForm({
-        supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", purchase_date: new Date().toISOString().split("T")[0],
-        invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", discount_percentage: "0", notes: "",
+        supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
+        invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
       });
       toast({ title: "Compra registrada!" });
     },
