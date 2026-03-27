@@ -11,12 +11,12 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield, ShoppingBag,
+  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor";
+type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras";
 
 const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin"] },
@@ -30,6 +30,8 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "DRE", url: "/dre", icon: BarChart3, roles: ["admin", "financeiro"] },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog, roles: ["admin", "financeiro"] },
   { title: "RH", url: "/rh", icon: Briefcase, roles: ["admin", "financeiro"] },
+  { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
+  { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
   { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
 ];
 
