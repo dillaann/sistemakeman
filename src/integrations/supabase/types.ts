@@ -598,6 +598,7 @@ export type Database = {
           client_id: string
           created_at: string
           created_by: string | null
+          delivery_deadline: string | null
           description: string | null
           down_payment: number | null
           down_payment_date: string | null
@@ -617,6 +618,7 @@ export type Database = {
           client_id: string
           created_at?: string
           created_by?: string | null
+          delivery_deadline?: string | null
           description?: string | null
           down_payment?: number | null
           down_payment_date?: string | null
@@ -636,6 +638,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           created_by?: string | null
+          delivery_deadline?: string | null
           description?: string | null
           down_payment?: number | null
           down_payment_date?: string | null
