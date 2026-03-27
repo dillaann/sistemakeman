@@ -66,8 +66,8 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route index element={<DefaultRedirect />} />
                 <Route path="clientes" element={<RoleGuard allowed={["admin"]}><Clients /></RoleGuard>} />
-                <Route path="orcamentos" element={<RoleGuard allowed={["admin"]}><Quotes /></RoleGuard>} />
-                <Route path="ordens" element={<RoleGuard allowed={["admin", "producao", "financeiro"]}><WorkOrders /></RoleGuard>} />
+                <Route path="orcamentos" element={<RoleGuard allowed={["admin", "vendedor"]}><Quotes /></RoleGuard>} />
+                <Route path="ordens" element={<RoleGuard allowed={["admin", "producao", "financeiro", "vendedor"]}><WorkOrders /></RoleGuard>} />
                 <Route path="producao" element={<RoleGuard allowed={["admin", "producao"]}><Production /></RoleGuard>} />
                 <Route path="financeiro" element={<RoleGuard allowed={["admin", "financeiro"]}><Financial /></RoleGuard>} />
                 <Route path="faturamento" element={<RoleGuard allowed={["admin", "financeiro"]}><Billing /></RoleGuard>} />
