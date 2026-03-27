@@ -552,27 +552,33 @@ const AdminSalesView = () => {
           <div className="border rounded-lg overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="hidden md:table-cell">Descrição</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell>{sellerName(s.seller_id)}</TableCell>
-                    <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
-                    <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
-                    <TableCell>{fmt(Number(s.amount))}</TableCell>
-                    <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
+                 <TableRow>
+                   <TableHead>Vendedor</TableHead>
+                   <TableHead>Cliente</TableHead>
+                   <TableHead className="hidden md:table-cell">Descrição</TableHead>
+                   <TableHead>Valor</TableHead>
+                   <TableHead>Data</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead className="w-16">Ação</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {filtered.map(s => (
+                   <TableRow key={s.id}>
+                     <TableCell>{sellerName(s.seller_id)}</TableCell>
+                     <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
+                     <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
+                     <TableCell>{fmt(Number(s.amount))}</TableCell>
+                     <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                     <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
+                     <TableCell>
+                       <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
+                         <Trash2 className="h-4 w-4 text-destructive" />
+                       </Button>
+                     </TableCell>
+                   </TableRow>
+                 ))}
+                 {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>
