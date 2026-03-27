@@ -72,9 +72,10 @@ const Dashboard = () => {
       const prevStart = new Date(n.getMonth() === 0 ? n.getFullYear() - 1 : n.getFullYear(), n.getMonth() === 0 ? 11 : n.getMonth() - 1, 1);
       const prevEnd = new Date(n.getFullYear(), n.getMonth(), 0, 23, 59, 59);
       const inRange = (ds: string | null, s: Date, e: Date) => { if (!ds) return false; const d = new Date(ds); return d >= s && d <= e; };
-      const { data: wos } = await supabase.from("work_orders").select("total, completed_at").in("status", ["concluido", "entregue"]);
-      const currRev = (wos ?? []).filter(w => inRange(w.completed_at, start, end)).reduce((s, w) => s + Number(w.total), 0);
-      const prevRev = (wos ?? []).filter(w => inRange(w.completed_at, prevStart, prevEnd)).reduce((s, w) => s + Number(w.total), 0);
+      // Revenue from approved quotes by approved_at
+      const { data: qs } = await supabase.from("quotes").select("total, approved_at").eq("status", "aprovado");
+      const currRev = (qs ?? []).filter((q: any) => inRange(q.approved_at, start, end)).reduce((s: number, q: any) => s + Number(q.total), 0);
+      const prevRev = (qs ?? []).filter((q: any) => inRange(q.approved_at, prevStart, prevEnd)).reduce((s: number, q: any) => s + Number(q.total), 0);
       const { data: txns } = await supabase.from("financial_transactions").select("amount, due_date, type").eq("type", "a_pagar");
       const currExp = (txns ?? []).filter(t => inRange(t.due_date, start, end)).reduce((s, t) => s + Number(t.amount), 0);
       const prevExp = (txns ?? []).filter(t => inRange(t.due_date, prevStart, prevEnd)).reduce((s, t) => s + Number(t.amount), 0);
