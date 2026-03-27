@@ -38,19 +38,28 @@ export function generateQuotePDF(data: QuotePDFData) {
   doc.rect(margin, margin, cw, 277);
 
   // ===== HEADER: Company Logo Area =====
-  // Draw roof/triangle logo
   const cx = pw / 2;
-  doc.setLineWidth(1.5);
-  // Outer triangle
-  doc.line(cx - 18, y + 28, cx, y + 12);
-  doc.line(cx, y + 12, cx + 18, y + 28);
-  // Inner triangle
-  doc.line(cx - 12, y + 28, cx, y + 18);
-  doc.line(cx, y + 18, cx + 12, y + 28);
-  // Base line
-  doc.line(cx - 20, y + 28, cx + 20, y + 28);
+  const logoBaseY = y + 26;
+  const logoTopY = y + 10;
+  const logoW = 18; // half-width
+  const logoInnerW = 11;
+  const logoInnerTopY = y + 16;
 
-  y += 34;
+  doc.setLineWidth(1.5);
+  doc.setDrawColor(0);
+
+  // Outer roof triangle
+  doc.line(cx - logoW, logoBaseY, cx, logoTopY);
+  doc.line(cx, logoTopY, cx + logoW, logoBaseY);
+
+  // Inner roof triangle
+  doc.line(cx - logoInnerW, logoBaseY, cx, logoInnerTopY);
+  doc.line(cx, logoInnerTopY, cx + logoInnerW, logoBaseY);
+
+  // Base line connecting both triangles
+  doc.line(cx - logoW - 2, logoBaseY, cx + logoW + 2, logoBaseY);
+
+  y = logoBaseY + 6;
 
   // Company name
   doc.setFont("helvetica", "bold");
