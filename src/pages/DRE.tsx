@@ -25,14 +25,14 @@ const DRE = () => {
   const [selectedMonth, setSelectedMonth] = useState(getMonthKey(now));
   const [compareMonth, setCompareMonth] = useState("");
 
-  // Fetch all completed work orders (revenue source)
-  const { data: workOrders = [] } = useQuery({
-    queryKey: ["dre-work-orders"],
+  // Fetch approved quotes (revenue source by approved_at date)
+  const { data: approvedQuotes = [] } = useQuery({
+    queryKey: ["dre-approved-quotes"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("work_orders")
-        .select("id, total, status, completed_at")
-        .in("status", ["concluido", "entregue"]);
+        .from("quotes")
+        .select("id, total, approved_at, payment_status, down_payment, remaining_amount")
+        .eq("status", "aprovado");
       return data ?? [];
     },
   });
