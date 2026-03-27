@@ -536,6 +536,11 @@ const Quotes = () => {
                           <DollarSign className="h-4 w-4 text-green-600" />
                         </Button>
                       )}
+                      {userRole === "admin" && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(q.id)} title="Excluir">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
