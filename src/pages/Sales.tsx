@@ -251,6 +251,34 @@ const SellerSalesView = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Read-only commissions list */}
+      <h2 className="text-lg font-semibold mt-6">Minhas Comissões</h2>
+      <div className="border rounded-lg overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Valor</TableHead>
+              <TableHead>Percentual</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {myCommissions.map((c, i) => (
+              <TableRow key={i}>
+                <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
+                <TableCell>—</TableCell>
+                <TableCell>
+                  <Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+            {myCommissions.length === 0 && (
+              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Nenhuma comissão atribuída.</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
