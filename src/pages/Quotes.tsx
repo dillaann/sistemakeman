@@ -504,13 +504,13 @@ const Quotes = () => {
                       <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {q.status === "pendente" && (
+                      {q.status === "pendente" && userRole === "admin" && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => handleApprove(q)} title="Aprovar"><Check className="h-4 w-4 text-green-600" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
                         </>
                       )}
-                      {q.status === "aprovado" && pStatus !== "pago_total" && (
+                      {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
                         <Button variant="ghost" size="icon" onClick={() => {
                           const rem = Number((q as any).remaining_amount || q.total);
                           setPayRegForm({ amount: String(rem), method: "pix", date: new Date().toISOString().split("T")[0] });

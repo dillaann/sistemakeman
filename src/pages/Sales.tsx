@@ -75,7 +75,7 @@ const SellerSalesView = () => {
   const { data: myCommissions = [] } = useQuery({
     queryKey: ["my-commissions"],
     queryFn: async () => {
-      const { data } = await supabase.from("sales_commissions").select("amount, status").eq("seller_id", user!.id);
+      const { data } = await supabase.from("sales_commissions").select("amount, percentage, status, sales(description, clients(name))").eq("seller_id", user!.id);
       return data ?? [];
     },
     enabled: !!user,
@@ -119,8 +119,8 @@ const SellerSalesView = () => {
       }).select("id").single();
       if (woErr) throw woErr;
 
-      // Create sale
-      const { data: sale, error: saleErr } = await supabase.from("sales").insert({
+      // Create sale (commission will be created by admin)
+      const { error: saleErr } = await supabase.from("sales").insert({
         seller_id: user!.id,
         client_id: form.client_id,
         work_order_id: wo.id,
@@ -129,19 +129,8 @@ const SellerSalesView = () => {
         delivery_deadline: form.delivery_deadline || null,
         notes: form.notes || null,
         status: "aguardando",
-      }).select("id").single();
-      if (saleErr) throw saleErr;
-
-      // Create commission
-      const { data: rate } = await supabase.from("seller_commission_rates").select("percentage").eq("seller_id", user!.id).maybeSingle();
-      const pct = rate?.percentage ? Number(rate.percentage) : 5;
-      await supabase.from("sales_commissions").insert({
-        sale_id: sale.id,
-        seller_id: user!.id,
-        amount: amount * (pct / 100),
-        percentage: pct,
-        status: "pendente",
       });
+      if (saleErr) throw saleErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-sales"] });
@@ -258,6 +247,38 @@ const SellerSalesView = () => {
             ))}
             {sales.length === 0 && (
               <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma venda registrada.</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Read-only commissions list */}
+      <h2 className="text-lg font-semibold mt-6">Minhas Comissões</h2>
+      <div className="border rounded-lg overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Venda</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Percentual</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {myCommissions.map((c: any, i: number) => (
+              <TableRow key={i}>
+                <TableCell className="max-w-[150px] truncate">{c.sales?.description || "—"}</TableCell>
+                <TableCell>{c.sales?.clients?.name || "—"}</TableCell>
+                <TableCell>{Number(c.percentage)}%</TableCell>
+                <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
+                <TableCell>
+                  <Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+            {myCommissions.length === 0 && (
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma comissão atribuída.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
