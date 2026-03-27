@@ -297,7 +297,6 @@ const AdminSalesView = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab, setTab] = useState<"sales" | "commissions" | "goals">("sales");
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
-  const [tab, setTab] = useState<"sales" | "commissions" | "goals">("sales");
 
   // Commission rate dialog
   const [rateOpen, setRateOpen] = useState(false);
