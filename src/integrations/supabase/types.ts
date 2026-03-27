@@ -332,9 +332,12 @@ export type Database = {
           hire_date: string | null
           id: string
           name: string
+          overtime_hourly_rate: number | null
+          payment_notes: string | null
           phone: string | null
           role: string | null
           salary: number | null
+          saturday_value: number | null
           updated_at: string
           user_id: string | null
         }
@@ -345,9 +348,12 @@ export type Database = {
           hire_date?: string | null
           id?: string
           name: string
+          overtime_hourly_rate?: number | null
+          payment_notes?: string | null
           phone?: string | null
           role?: string | null
           salary?: number | null
+          saturday_value?: number | null
           updated_at?: string
           user_id?: string | null
         }
@@ -358,9 +364,12 @@ export type Database = {
           hire_date?: string | null
           id?: string
           name?: string
+          overtime_hourly_rate?: number | null
+          payment_notes?: string | null
           phone?: string | null
           role?: string | null
           salary?: number | null
+          saturday_value?: number | null
           updated_at?: string
           user_id?: string | null
         }
