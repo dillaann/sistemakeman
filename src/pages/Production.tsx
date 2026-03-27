@@ -29,6 +29,7 @@ const nextColumnMap: Record<string, string[]> = {
 const Production = () => {
   const { toast } = useToast();
   const { userRole } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [notesText, setNotesText] = useState("");
 
