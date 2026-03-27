@@ -2,14 +2,15 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare, Clock } from "lucide-react";
+import { AlertTriangle, ArrowRight, MessageSquare } from "lucide-react";
+import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 
 const columns = [
   { key: "aguardando", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30" },
@@ -18,7 +19,6 @@ const columns = [
   { key: "concluido", label: "Finalizado", color: "bg-green-500/10 border-green-500/30" },
 ];
 
-// Map production columns to actual DB statuses for moving
 const nextColumnMap: Record<string, string[]> = {
   aguardando: ["em_producao", "aguardando_material"],
   em_producao: ["aguardando_material", "concluido"],
@@ -44,9 +44,6 @@ const Production = () => {
       return data ?? [];
     },
   });
-
-  // We'll use priority and internal_notes from the work_orders table
-  // Since types.ts is auto-generated and may not have them yet, we cast
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
@@ -75,32 +72,31 @@ const Production = () => {
   };
 
   const togglePriority = (order: any) => {
-    const newPriority = (order as any).priority === "urgente" ? "normal" : "urgente";
+    const newPriority = order.priority === "urgente" ? "normal" : "urgente";
     updateMutation.mutate({ id: order.id, updates: { priority: newPriority } });
   };
 
-  // Group orders by status. "aguardando_material" is stored as a status or we use internal_notes.
-  // For now, map DB statuses to columns. We treat "aguardando" status orders that have 
-  // internal_notes containing "aguardando material" could go there, but simpler: 
-  // we just use the 3 real statuses and show aguardando_material as a subset based on internal_notes
   const getColumnOrders = (columnKey: string) => {
     if (columnKey === "aguardando_material") {
-      // Show orders that have internal_notes indicating material wait
-      return orders.filter(o => 
+      // Show orders with material_status = aguardando_compra OR notes-based
+      return orders.filter(o =>
+        (o as any).material_status === "aguardando_compra" ||
         (o as any).internal_notes?.toLowerCase().includes("aguardando material") ||
         (o as any).internal_notes?.toLowerCase().includes("falta material")
       );
     }
     if (columnKey === "aguardando") {
-      return orders.filter(o => 
-        o.status === "aguardando" && 
+      return orders.filter(o =>
+        o.status === "aguardando" &&
+        (o as any).material_status !== "aguardando_compra" &&
         !(o as any).internal_notes?.toLowerCase().includes("aguardando material") &&
         !(o as any).internal_notes?.toLowerCase().includes("falta material")
       );
     }
     if (columnKey === "em_producao") {
-      return orders.filter(o => 
+      return orders.filter(o =>
         o.status === "em_producao" &&
+        (o as any).material_status !== "aguardando_compra" &&
         !(o as any).internal_notes?.toLowerCase().includes("aguardando material") &&
         !(o as any).internal_notes?.toLowerCase().includes("falta material")
       );
@@ -132,11 +128,7 @@ const Production = () => {
                         <span className="text-xs text-muted-foreground font-mono">
                           OS #{order.id.slice(0, 8)}
                         </span>
-                        <button
-                          onClick={() => togglePriority(order)}
-                          className="text-xs"
-                          title="Alternar prioridade"
-                        >
+                        <button onClick={() => togglePriority(order)} className="text-xs" title="Alternar prioridade">
                           {order.priority === "urgente" ? (
                             <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                               <AlertTriangle className="h-3 w-3 mr-1" /> URGENTE
@@ -151,9 +143,7 @@ const Production = () => {
                       <p className="text-xs text-muted-foreground line-clamp-2">{order.description}</p>
 
                       {order.employees?.name && (
-                        <p className="text-xs text-muted-foreground">
-                          👤 {order.employees.name}
-                        </p>
+                        <p className="text-xs text-muted-foreground">👤 {order.employees.name}</p>
                       )}
 
                       {order.internal_notes && (
@@ -162,15 +152,16 @@ const Production = () => {
                         </p>
                       )}
 
+                      {/* Material list - visible to admin/producao/compras */}
+                      <WorkOrderMaterials
+                        workOrderId={order.id}
+                        materialStatus={(order as any).material_status || "nao_solicitado"}
+                      />
+
                       <div className="flex items-center gap-1 pt-1">
                         <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setNotesText(order.internal_notes || "");
-                          }}
+                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          onClick={() => { setSelectedOrder(order); setNotesText(order.internal_notes || ""); }}
                         >
                           <MessageSquare className="h-3 w-3 mr-1" /> Notas
                         </Button>
@@ -192,9 +183,7 @@ const Production = () => {
 
                         {col.key === "concluido" && (
                           <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs flex-1"
+                            size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
                             onClick={() => moveToStatus(order.id, "entregue")}
                           >
                             <ArrowRight className="h-3 w-3 mr-1" /> Entregar
