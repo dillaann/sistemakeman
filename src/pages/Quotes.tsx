@@ -685,6 +685,14 @@ const Quotes = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteQuoteMutation.mutate(deleteTarget)}
+        isPending={deleteQuoteMutation.isPending}
+        description="Tem certeza que deseja excluir este orçamento? Todos os dados relacionados (itens, OS, vendas, comissões, transações financeiras) serão removidos."
+      />
     </div>
   );
 };
