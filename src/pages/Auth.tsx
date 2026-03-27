@@ -50,9 +50,7 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-14 w-14 rounded-xl bg-primary flex items-center justify-center">
-              <Wrench className="h-7 w-7 text-primary-foreground" />
-            </div>
+            <img src={logoKeman} alt="Serralheria Keman" className="h-20 w-auto" />
           </div>
           <CardTitle className="text-2xl">SERRALHERIA KEMAN</CardTitle>
           <CardDescription>
