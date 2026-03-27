@@ -37,7 +37,7 @@ const Dashboard = () => {
     },
   });
 
-  const { data: billingOrders = [] } = useQuery({
+  const { data: billingOrders } = useQuery({
     queryKey: ["billing-dashboard"],
     queryFn: async () => {
       const { data: orders } = await supabase
