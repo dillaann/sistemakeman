@@ -4,8 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Users } from "lucide-react";
+import { Shield, Users, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const roleLabels: Record<string, string> = {
   admin: "Administrador",
@@ -24,6 +27,7 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
 const UserManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["user-management"],
@@ -49,7 +53,6 @@ const UserManagement = () => {
 
   const updateRole = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: string }) => {
-      // Check if role exists
       const { data: existing } = await supabase
         .from("user_roles")
         .select("id")
@@ -78,6 +81,24 @@ const UserManagement = () => {
     },
   });
 
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-management"] });
+      toast({ title: "Usuário removido com sucesso!" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao remover usuário", description: err.message, variant: "destructive" });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -101,23 +122,24 @@ const UserManagement = () => {
                   <TableHead>Email</TableHead>
                   <TableHead>Perfil Atual</TableHead>
                   <TableHead>Alterar Perfil</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
+                {users?.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.name}</TableCell>
+                    <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Badge variant={roleBadgeVariant[user.role] ?? "secondary"}>
-                        {roleLabels[user.role] ?? user.role}
+                      <Badge variant={roleBadgeVariant[u.role] ?? "secondary"}>
+                        {roleLabels[u.role] ?? u.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={user.role}
+                        value={u.role}
                         onValueChange={(value) =>
-                          updateRole.mutate({ userId: user.id, newRole: value })
+                          updateRole.mutate({ userId: u.id, newRole: value })
                         }
                       >
                         <SelectTrigger className="w-[180px]">
@@ -130,6 +152,34 @@ const UserManagement = () => {
                           <SelectItem value="producao">Produção</SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {u.id !== user?.id && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover usuário</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja remover <strong>{u.name}</strong> ({u.email})? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteUser.mutate(u.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
