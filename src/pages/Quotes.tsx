@@ -300,6 +300,21 @@ const Quotes = () => {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["quotes"] }); toast({ title: "Status atualizado!" }); },
   });
 
+  const deleteQuoteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("quotes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      setDeleteTarget(null);
+      toast({ title: "Orçamento removido!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   // Register payment on approved quote
   const registerQuotePayment = useMutation({
     mutationFn: async (quote: any) => {
