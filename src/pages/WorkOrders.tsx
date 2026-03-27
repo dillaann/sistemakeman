@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,11 +92,11 @@ const WorkOrders = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Ordens de Serviço</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h1 className="text-xl md:text-2xl font-bold">Ordens de Serviço</h1>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
-          <DialogContent>
+          <DialogTrigger asChild><Button className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nova Ordem de Serviço</DialogTitle></DialogHeader>
             <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-3">
               <div><Label>Cliente *</Label>
@@ -117,12 +118,44 @@ const WorkOrders = () => {
         <Input placeholder="Buscar ordens..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
       </div>
 
-      <div className="border rounded-lg overflow-auto">
+      {/* Mobile card view */}
+      <div className="md:hidden space-y-3">
+        {filtered.map(o => (
+          <Card key={o.id} className="p-3">
+            <div className="flex items-start justify-between mb-2">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{(o.clients as any)?.name}</p>
+                {o.description && <p className="text-xs text-muted-foreground truncate">{o.description}</p>}
+              </div>
+              <Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-sm">{fmt(Number(o.total))}</span>
+              <div className="flex gap-1">
+                {nextStatus[o.status] && (
+                  <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: o.id, status: nextStatus[o.status] })}>
+                    → {statusLabels[nextStatus[o.status]]}
+                  </Button>
+                )}
+                {userRole === "admin" && (
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(o.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+        {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</p>}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block border rounded-lg overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Cliente</TableHead>
-              <TableHead className="hidden md:table-cell">Descrição</TableHead>
+              <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-32">Ação</TableHead>
@@ -132,7 +165,7 @@ const WorkOrders = () => {
             {filtered.map(o => (
               <TableRow key={o.id}>
                 <TableCell className="font-medium">{(o.clients as any)?.name}</TableCell>
-                <TableCell className="hidden md:table-cell max-w-[200px] truncate">{o.description}</TableCell>
+                <TableCell className="max-w-[200px] truncate">{o.description}</TableCell>
                 <TableCell>{fmt(Number(o.total))}</TableCell>
                 <TableCell><Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge></TableCell>
                 <TableCell>

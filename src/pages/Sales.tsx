@@ -146,7 +146,7 @@ const SellerSalesView = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Minhas Vendas</h1>
+        <h1 className="text-xl md:text-2xl font-bold">Minhas Vendas</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Venda</Button></DialogTrigger>
           <DialogContent className="max-w-lg">
@@ -185,7 +185,7 @@ const SellerSalesView = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Vendas no Mês</CardTitle>
@@ -458,10 +458,10 @@ const AdminSalesView = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Vendas — Painel Administrativo</h1>
+      <h1 className="text-xl md:text-2xl font-bold">Vendas — Painel Administrativo</h1>
 
       {/* Summary cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Vendido no Mês</CardTitle>
@@ -521,33 +521,35 @@ const AdminSalesView = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto">
         <Button variant={tab === "sales" ? "default" : "outline"} size="sm" onClick={() => setTab("sales")}>Vendas</Button>
         <Button variant={tab === "commissions" ? "default" : "outline"} size="sm" onClick={() => setTab("commissions")}>Comissões</Button>
-        <Button variant={tab === "goals" ? "default" : "outline"} size="sm" onClick={() => setTab("goals")}>Metas & Taxas</Button>
+        <Button variant={tab === "goals" ? "default" : "outline"} size="sm" onClick={() => setTab("goals")}>Metas</Button>
       </div>
 
       {tab === "sales" && (
         <>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar vendas..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            <Select value={sellerFilter} onValueChange={setSellerFilter}>
-              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos vendedores</SelectItem>
-                {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos status</SelectItem>
-                {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos vendedores</SelectItem>
+                  {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos status</SelectItem>
+                  {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="border rounded-lg overflow-auto">
             <Table>
@@ -631,7 +633,7 @@ const AdminSalesView = () => {
 
       {tab === "goals" && (
         <div className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Dialog open={rateOpen} onOpenChange={setRateOpen}>
               <DialogTrigger asChild><Button variant="outline">Definir Percentual de Comissão</Button></DialogTrigger>
               <DialogContent>
