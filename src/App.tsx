@@ -35,6 +35,21 @@ const AuthRoute = () => {
   return <Auth />;
 };
 
+const DefaultRedirect = () => {
+  const { userRole, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
+  if (userRole === "financeiro") return <Navigate to="/financeiro" replace />;
+  if (userRole === "producao") return <Navigate to="/producao" replace />;
+  return <Dashboard />;
+};
+
+const RoleGuard = ({ allowed, children }: { allowed: string[]; children: React.ReactNode }) => {
+  const { userRole, loading } = useAuth();
+  if (loading) return null;
+  if (userRole && allowed.includes(userRole)) return <>{children}</>;
+  return <Navigate to="/" replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -46,16 +61,16 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<AuthRoute />} />
               <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route index element={<Dashboard />} />
-                <Route path="clientes" element={<Clients />} />
-                <Route path="orcamentos" element={<Quotes />} />
-                <Route path="ordens" element={<WorkOrders />} />
-                <Route path="producao" element={<Production />} />
-                <Route path="financeiro" element={<Financial />} />
-                <Route path="faturamento" element={<Billing />} />
-                <Route path="dre" element={<DREPage />} />
-                <Route path="funcionarios" element={<Employees />} />
-                <Route path="rh" element={<HR />} />
+                <Route index element={<DefaultRedirect />} />
+                <Route path="clientes" element={<RoleGuard allowed={["admin"]}><Clients /></RoleGuard>} />
+                <Route path="orcamentos" element={<RoleGuard allowed={["admin"]}><Quotes /></RoleGuard>} />
+                <Route path="ordens" element={<RoleGuard allowed={["admin", "producao"]}><WorkOrders /></RoleGuard>} />
+                <Route path="producao" element={<RoleGuard allowed={["admin", "producao"]}><Production /></RoleGuard>} />
+                <Route path="financeiro" element={<RoleGuard allowed={["admin", "financeiro"]}><Financial /></RoleGuard>} />
+                <Route path="faturamento" element={<RoleGuard allowed={["admin", "financeiro"]}><Billing /></RoleGuard>} />
+                <Route path="dre" element={<RoleGuard allowed={["admin", "financeiro"]}><DREPage /></RoleGuard>} />
+                <Route path="funcionarios" element={<RoleGuard allowed={["admin"]}><Employees /></RoleGuard>} />
+                <Route path="rh" element={<RoleGuard allowed={["admin"]}><HR /></RoleGuard>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
