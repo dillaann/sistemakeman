@@ -63,8 +63,10 @@ const Clients = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      setDeleteTarget(null);
       toast({ title: "Cliente removido!" });
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const openNew = () => {
