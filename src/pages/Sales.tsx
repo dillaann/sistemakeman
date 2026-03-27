@@ -609,12 +609,17 @@ const AdminSalesView = () => {
                   <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
                   <TableCell><Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge></TableCell>
                   <TableCell>
-                    {c.status === "pendente" && (
-                      <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "aprovada" })}>Aprovar</Button>
-                    )}
-                    {c.status === "aprovada" && (
-                      <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "paga" })}>Pagar</Button>
-                    )}
+                    <div className="flex gap-1">
+                      {c.status === "pendente" && (
+                        <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "aprovada" })}>Aprovar</Button>
+                      )}
+                      {c.status === "aprovada" && (
+                        <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "paga" })}>Pagar</Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "commission", id: c.id })}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
