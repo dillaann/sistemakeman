@@ -691,6 +691,17 @@ const AdminSalesView = () => {
           </Card>
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          if (deleteTarget.type === "sale") deleteSaleMutation.mutate(deleteTarget.id);
+          else deleteCommissionMutation.mutate(deleteTarget.id);
+        }}
+        isPending={deleteSaleMutation.isPending || deleteCommissionMutation.isPending}
+      />
     </div>
   );
 };
