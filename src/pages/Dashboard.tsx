@@ -129,7 +129,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -182,14 +182,14 @@ const Dashboard = () => {
           <Receipt className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
               <p className="text-xs text-muted-foreground">Faturado</p>
-              <p className="text-xl font-bold">{fmt(billingOrders?.totalBilled ?? 0)}</p>
+              <p className="text-lg sm:text-xl font-bold">{fmt(billingOrders?.totalBilled ?? 0)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Recebido</p>
-              <p className="text-xl font-bold text-green-600">{fmt(billingOrders?.totalReceived ?? 0)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(billingOrders?.totalReceived ?? 0)}</p>
             </div>
           </div>
         </CardContent>
@@ -264,18 +264,18 @@ const Dashboard = () => {
           <ShoppingBag className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-sm text-muted-foreground">Total Vendido</p>
-              <p className="text-xl font-bold">{fmt(salesSummary?.totalSold ?? 0)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Vendido</p>
+              <p className="text-lg sm:text-xl font-bold">{fmt(salesSummary?.totalSold ?? 0)}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Nº de Vendas</p>
-              <p className="text-xl font-bold">{salesSummary?.count ?? 0}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Nº de Vendas</p>
+              <p className="text-lg sm:text-xl font-bold">{salesSummary?.count ?? 0}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Vendedores Ativos</p>
-              <p className="text-xl font-bold">{salesSummary?.sellers ?? 0}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Vendedores Ativos</p>
+              <p className="text-lg sm:text-xl font-bold">{salesSummary?.sellers ?? 0}</p>
             </div>
           </div>
         </CardContent>
@@ -286,18 +286,18 @@ const Dashboard = () => {
           <CardTitle className="text-base">Fluxo de Caixa</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-sm text-muted-foreground">Entradas</p>
-              <p className="text-xl font-bold text-green-600">{fmt(totalReceived)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Entradas</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(totalReceived)}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Saídas</p>
-              <p className="text-xl font-bold text-red-600">{fmt(totalPaid)}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Saídas</p>
+              <p className="text-lg sm:text-xl font-bold text-red-600">{fmt(totalPaid)}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Saldo</p>
-              <p className={`text-xl font-bold ${totalReceived - totalPaid >= 0 ? "text-green-600" : "text-red-600"}`}>
+              <p className="text-xs sm:text-sm text-muted-foreground">Saldo</p>
+              <p className={`text-lg sm:text-xl font-bold ${totalReceived - totalPaid >= 0 ? "text-green-600" : "text-red-600"}`}>
                 {fmt(totalReceived - totalPaid)}
               </p>
             </div>
