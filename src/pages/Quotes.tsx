@@ -45,7 +45,7 @@ const Quotes = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "" });
+  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
 
   // Approval modal state (commission + payment)
@@ -138,6 +138,7 @@ const Quotes = () => {
         valid_until: form.valid_until || null,
         created_by: user?.id,
         seller_id: effectiveSellerId || null,
+        delivery_deadline: form.delivery_deadline || null,
       } as any).select().single();
       if (error) throw error;
 
@@ -154,7 +155,7 @@ const Quotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
-      setForm({ client_id: "", description: "", valid_until: "", seller_id: "" });
+      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "" });
       setItems([{ description: "", quantity: "1", unit_price: "" }]);
       toast({ title: "Orçamento criado!" });
     },
@@ -393,6 +394,7 @@ const Quotes = () => {
       total: Number(quote.total),
       description: quote.description,
       valid_until: quote.valid_until,
+      delivery_deadline: (quote as any).delivery_deadline,
     });
     toast({ title: "PDF gerado com sucesso!" });
   };
@@ -472,6 +474,7 @@ const Quotes = () => {
               </div>
 
               <div><Label>Observações</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
               <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar Orçamento</Button>
             </form>
