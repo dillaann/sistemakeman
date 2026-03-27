@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor";
+type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras";
 
 const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin"] },
