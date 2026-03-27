@@ -539,8 +539,10 @@ const Purchases = () => {
                     <TableRow>
                       <TableHead>#</TableHead>
                       <TableHead>Fornecedor</TableHead>
-                      <TableHead>Total Economizado</TableHead>
-                      <TableHead>Compras com Desconto</TableHead>
+                      <TableHead>Valor Original</TableHead>
+                      <TableHead>Valor Pago</TableHead>
+                      <TableHead>Economizado</TableHead>
+                      <TableHead>Compras</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -548,11 +550,13 @@ const Purchases = () => {
                       <TableRow key={i}>
                         <TableCell className="font-bold">{i + 1}º</TableCell>
                         <TableCell className="font-medium">{sd.name}</TableCell>
-                        <TableCell className="text-green-600 font-medium">{fmt(sd.total)}</TableCell>
+                        <TableCell>{fmt(sd.totalOriginal)}</TableCell>
+                        <TableCell>{fmt(sd.totalPaid)}</TableCell>
+                        <TableCell className="text-green-600 font-medium">{fmt(sd.totalSaved)}</TableCell>
                         <TableCell>{sd.count}</TableCell>
                       </TableRow>
                     ))}
-                    {supplierDiscounts.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum desconto registrado.</TableCell></TableRow>}
+                    {supplierDiscounts.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum desconto registrado.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </div>
