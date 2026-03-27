@@ -97,10 +97,10 @@ const HR = () => {
   const otMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === otForm.employee_id);
-      const rate = hourlyRate(Number(emp?.salary) || 0);
-      const pct = parseFloat(otForm.percentage) / 100;
+      const fixedRate = Number((emp as any)?.overtime_hourly_rate) || 0;
       const hrs = parseFloat(otForm.hours);
-      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(rate * (1 + pct) * hrs * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
+      const value = fixedRate > 0 ? fixedRate * hrs : (() => { const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; return rate * (1 + pct) * hrs; })();
+      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", percentage: "50", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Hora extra registrada!" }); },
@@ -113,9 +113,8 @@ const HR = () => {
   const satMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === satForm.employee_id);
-      const rate = hourlyRate(Number(emp?.salary) || 0);
-      const hrs = parseFloat(satForm.hours);
-      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: hrs, calculated_value: Math.round(rate * 1.5 * hrs * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
+      const fixedSatValue = Number((emp as any)?.saturday_value) || 0;
+      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: parseFloat(satForm.hours), calculated_value: fixedSatValue > 0 ? fixedSatValue : Math.round(hourlyRate(Number(emp?.salary) || 0) * 1.5 * parseFloat(satForm.hours) * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Sábado registrado!" }); },
