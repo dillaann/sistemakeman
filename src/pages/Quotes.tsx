@@ -411,7 +411,7 @@ const Quotes = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Orçamentos</h1>
+        <h1 className="text-xl md:text-2xl font-bold">Orçamentos</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Novo Orçamento</Button>
@@ -487,13 +487,61 @@ const Quotes = () => {
         <Input placeholder="Buscar orçamentos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
       </div>
 
-      <div className="border rounded-lg overflow-auto">
+      {/* Mobile card view */}
+      <div className="md:hidden space-y-3">
+        {filtered.map(q => {
+          const pStatus = (q as any).payment_status || "aguardando";
+          return (
+            <Card key={q.id} className="p-3">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="font-semibold">{(q.clients as any)?.name}</p>
+                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{q.description || "—"}</p>
+                </div>
+                <Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="font-bold">{fmt(Number(q.total))}</span>
+                {(q as any).seller_id && <span className="text-muted-foreground text-xs">{profilesMap[(q as any).seller_id] || "—"}</span>}
+              </div>
+              {q.status === "aprovado" && (
+                <Badge className={`${paymentStatusColors[pStatus] || paymentStatusColors.aguardando} mb-2`}>
+                  {paymentStatusLabels[pStatus] || "Aguardando"}
+                </Badge>
+              )}
+              <div className="flex gap-1 flex-wrap">
+                <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(q)}><FileDown className="h-4 w-4 mr-1" />PDF</Button>
+                {q.status === "pendente" && userRole === "admin" && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => handleApprove(q)}><Check className="h-4 w-4 mr-1 text-green-600" />Aprovar</Button>
+                    <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })}><X className="h-4 w-4 mr-1 text-red-600" />Rejeitar</Button>
+                  </>
+                )}
+                {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    const rem = Number((q as any).remaining_amount || q.total);
+                    setPayRegForm({ amount: String(rem), method: "pix", date: new Date().toISOString().split("T")[0] });
+                    setPayRegDialog(q);
+                  }}><DollarSign className="h-4 w-4 mr-1 text-green-600" />Pagar</Button>
+                )}
+                {userRole === "admin" && (
+                  <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(q.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+        {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</p>}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden md:block border rounded-lg overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Cliente</TableHead>
               <TableHead>Vendedor</TableHead>
-              <TableHead className="hidden md:table-cell">Descrição</TableHead>
+              <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Pagamento</TableHead>
@@ -509,7 +557,7 @@ const Quotes = () => {
                   <TableCell className="text-sm text-muted-foreground">
                     {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell max-w-[200px] truncate">{q.description}</TableCell>
+                  <TableCell className="max-w-[200px] truncate">{q.description}</TableCell>
                   <TableCell>{fmt(Number(q.total))}</TableCell>
                   <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
                   <TableCell>
