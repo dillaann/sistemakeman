@@ -30,7 +30,7 @@ const statusColors: Record<string, string> = {
 
 const Purchases = () => {
   const { toast } = useToast();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState("painel");
   const [search, setSearch] = useState("");
