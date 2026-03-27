@@ -48,7 +48,7 @@ const Auth = () => {
               <Wrench className="h-7 w-7 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl">SerraGestão</CardTitle>
+          <CardTitle className="text-2xl">SERRALHERIA KEMAN</CardTitle>
           <CardDescription>
             {isLogin ? "Entre na sua conta" : "Crie sua conta"}
           </CardDescription>

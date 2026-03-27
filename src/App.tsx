@@ -17,6 +17,7 @@ import Employees from "@/pages/Employees";
 import HR from "@/pages/HR";
 import Billing from "@/pages/Billing";
 import DREPage from "@/pages/DRE";
+import UserManagement from "@/pages/UserManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,7 @@ const App = () => (
                 <Route path="dre" element={<RoleGuard allowed={["admin", "financeiro"]}><DREPage /></RoleGuard>} />
                 <Route path="funcionarios" element={<RoleGuard allowed={["admin"]}><Employees /></RoleGuard>} />
                 <Route path="rh" element={<RoleGuard allowed={["admin"]}><HR /></RoleGuard>} />
+                <Route path="usuarios" element={<RoleGuard allowed={["admin"]}><UserManagement /></RoleGuard>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
