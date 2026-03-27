@@ -4,6 +4,7 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar,
@@ -33,11 +34,20 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile, setOpen } = useSidebar();
   const collapsed = state === "collapsed";
   const { signOut, userRole } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const isMobile = useIsMobile();
+
+  const closeSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    } else {
+      setOpen(false);
+    }
+  };
 
   // Count pending users for admin notification
   const { data: pendingCount = 0 } = useQuery({
@@ -76,6 +86,7 @@ export function AppSidebar() {
                       end={item.url === "/"}
                       className="hover:bg-sidebar-accent/50"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                      onClick={closeSidebar}
                     >
                       <item.icon className="mr-2 h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
