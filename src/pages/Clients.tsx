@@ -20,10 +20,12 @@ type Client = {
 
 const Clients = () => {
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", cpf_cnpj: "", address: "", city: "", state: "", notes: "" });
 
   const { data: clients = [], isLoading } = useQuery({
@@ -143,7 +145,9 @@ const Clients = () => {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    {userRole === "admin" && (
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -154,6 +158,14 @@ const Clients = () => {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+        isPending={deleteMutation.isPending}
+        description="Tem certeza que deseja excluir este cliente? Todos os orçamentos, vendas, OS e transações relacionadas serão removidos."
+      />
     </div>
   );
 };
