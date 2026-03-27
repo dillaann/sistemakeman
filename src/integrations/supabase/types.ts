@@ -104,6 +104,88 @@ export type Database = {
           },
         ]
       }
+      employee_advances: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          description: string | null
+          employee_id: string
+          id: string
+          month_ref: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          month_ref: string
+          type?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          month_ref?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_advances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          date: string
+          description: string | null
+          employee_id: string
+          id: string
+          month_ref: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          month_ref: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          month_ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active: boolean
@@ -244,6 +326,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      monthly_closings: {
+        Row: {
+          base_salary: number
+          created_at: string
+          employee_id: string
+          id: string
+          month_ref: string
+          net_pay: number
+          paid: boolean
+          paid_date: string | null
+          total_advances: number
+          total_expenses: number
+        }
+        Insert: {
+          base_salary?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          month_ref: string
+          net_pay?: number
+          paid?: boolean
+          paid_date?: string | null
+          total_advances?: number
+          total_expenses?: number
+        }
+        Update: {
+          base_salary?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          month_ref?: string
+          net_pay?: number
+          paid?: boolean
+          paid_date?: string | null
+          total_advances?: number
+          total_expenses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_closings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
