@@ -106,7 +106,7 @@ const WorkOrders = () => {
                 </Select>
               </div>
               <div><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-              <div><Label>Valor Total (R$)</Label><Input type="number" step="0.01" value={form.total} onChange={e => setForm({ ...form, total: e.target.value })} required /></div>
+              {userRole !== "producao" && <div><Label>Valor Total (R$)</Label><Input type="number" step="0.01" value={form.total} onChange={e => setForm({ ...form, total: e.target.value })} required /></div>}
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar</Button>
             </form>
           </DialogContent>
