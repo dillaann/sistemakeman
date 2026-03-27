@@ -34,11 +34,20 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile, setOpen } = useSidebar();
   const collapsed = state === "collapsed";
   const { signOut, userRole } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const isMobile = useIsMobile();
+
+  const closeSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    } else {
+      setOpen(false);
+    }
+  };
 
   // Count pending users for admin notification
   const { data: pendingCount = 0 } = useQuery({
