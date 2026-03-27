@@ -221,9 +221,16 @@ const Purchases = () => {
   const calcTotal = () => {
     const qty = parseFloat(pForm.quantity) || 0;
     const unitP = parseFloat(pForm.unit_price) || 0;
-    const discPct = parseFloat(pForm.discount_percentage) || 0;
-    const subtotal = qty * unitP;
-    return subtotal - subtotal * (discPct / 100);
+    return qty * unitP;
+  };
+
+  const calcSavings = () => {
+    const qty = parseFloat(pForm.quantity) || 0;
+    const unitP = parseFloat(pForm.unit_price) || 0;
+    const origP = parseFloat(pForm.original_price) || 0;
+    const savings = origP > 0 ? (qty * origP) - (qty * unitP) : 0;
+    const pct = origP > 0 ? (savings / (qty * origP)) * 100 : 0;
+    return { savings: Math.max(0, savings), pct: Math.max(0, pct) };
   };
 
   return (
