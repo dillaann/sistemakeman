@@ -271,6 +271,59 @@ export type Database = {
           },
         ]
       }
+      employee_vacations: {
+        Row: {
+          base_salary: number
+          constitutional_third: number
+          created_at: string
+          days: number
+          employee_id: string
+          end_date: string
+          id: string
+          notes: string | null
+          reference_period: string | null
+          start_date: string
+          total_value: number
+          vacation_value: number
+        }
+        Insert: {
+          base_salary?: number
+          constitutional_third?: number
+          created_at?: string
+          days: number
+          employee_id: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          reference_period?: string | null
+          start_date: string
+          total_value?: number
+          vacation_value?: number
+        }
+        Update: {
+          base_salary?: number
+          constitutional_third?: number
+          created_at?: string
+          days?: number
+          employee_id?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          reference_period?: string | null
+          start_date?: string
+          total_value?: number
+          vacation_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_vacations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active: boolean
@@ -570,6 +623,56 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thirteenth_salary: {
+        Row: {
+          created_at: string
+          employee_id: string
+          first_installment: number
+          first_installment_date: string | null
+          first_installment_paid: boolean
+          id: string
+          monthly_provision: number
+          second_installment: number
+          second_installment_date: string | null
+          second_installment_paid: boolean
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          first_installment?: number
+          first_installment_date?: string | null
+          first_installment_paid?: boolean
+          id?: string
+          monthly_provision?: number
+          second_installment?: number
+          second_installment_date?: string | null
+          second_installment_paid?: boolean
+          year: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          first_installment?: number
+          first_installment_date?: string | null
+          first_installment_paid?: boolean
+          id?: string
+          monthly_provision?: number
+          second_installment?: number
+          second_installment_date?: string | null
+          second_installment_paid?: boolean
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thirteenth_salary_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
