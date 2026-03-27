@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown, ShoppingBag } from "lucide-react";
+import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown, ShoppingBag, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
@@ -100,6 +100,20 @@ const Dashboard = () => {
       const totalSold = monthlySales.reduce((s, sale) => s + Number(sale.amount), 0);
       const uniqueSellers = new Set(monthlySales.map(s => s.seller_id)).size;
       return { totalSold, count: monthlySales.length, sellers: uniqueSellers };
+    },
+  });
+
+  // Purchases summary
+  const { data: purchasesSummary } = useQuery({
+    queryKey: ["purchases-dashboard"],
+    queryFn: async () => {
+      const n = new Date();
+      const monthStart = new Date(n.getFullYear(), n.getMonth(), 1);
+      const { data: purchases } = await supabase.from("purchases").select("total, discount_amount, purchase_date");
+      const monthPurchases = (purchases ?? []).filter(p => new Date(p.purchase_date) >= monthStart);
+      const totalSpent = monthPurchases.reduce((s, p) => s + Number(p.total), 0);
+      const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
+      return { totalSpent, totalDiscount };
     },
   });
 
@@ -281,29 +295,42 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Fluxo de Caixa</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Entradas</p>
-              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(totalReceived)}</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Compras do Mês</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{fmt(purchasesSummary?.totalSpent ?? 0)}</div>
+            <p className="text-xs text-muted-foreground">Economizado: <span className="text-green-600">{fmt(purchasesSummary?.totalDiscount ?? 0)}</span></p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Fluxo de Caixa</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Entradas</p>
+                <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(totalReceived)}</p>
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Saídas</p>
+                <p className="text-lg sm:text-xl font-bold text-red-600">{fmt(totalPaid)}</p>
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Saldo</p>
+                <p className={`text-lg sm:text-xl font-bold ${totalReceived - totalPaid >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {fmt(totalReceived - totalPaid)}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Saídas</p>
-              <p className="text-lg sm:text-xl font-bold text-red-600">{fmt(totalPaid)}</p>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Saldo</p>
-              <p className={`text-lg sm:text-xl font-bold ${totalReceived - totalPaid >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {fmt(totalReceived - totalPaid)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
