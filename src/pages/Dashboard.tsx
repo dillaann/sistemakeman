@@ -40,28 +40,20 @@ const Dashboard = () => {
   const { data: billingOrders } = useQuery({
     queryKey: ["billing-dashboard"],
     queryFn: async () => {
-      const { data: orders } = await supabase
-        .from("work_orders")
-        .select("id, total, completed_at")
-        .in("status", ["concluido", "entregue"]);
-      const { data: txns } = await supabase
-        .from("financial_transactions")
-        .select("work_order_id, amount, status")
-        .eq("type", "a_receber")
-        .eq("status", "pago");
+      const { data: approvedQuotes } = await supabase
+        .from("quotes")
+        .select("id, total, approved_at, down_payment, remaining_amount, payment_status")
+        .eq("status", "aprovado");
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const monthOrders = (orders ?? []).filter(o => {
-        if (!o.completed_at) return false;
-        const d = new Date(o.completed_at);
+      const monthQuotes = (approvedQuotes ?? []).filter((q: any) => {
+        if (!q.approved_at) return false;
+        const d = new Date(q.approved_at);
         return d >= monthStart && d <= monthEnd;
       });
-      const totalBilled = monthOrders.reduce((s, o) => s + Number(o.total), 0);
-      const monthOrderIds = new Set(monthOrders.map(o => o.id));
-      const totalReceived = (txns ?? [])
-        .filter(t => t.work_order_id && monthOrderIds.has(t.work_order_id))
-        .reduce((s, t) => s + Number(t.amount), 0);
+      const totalBilled = monthQuotes.reduce((s: number, q: any) => s + Number(q.total), 0);
+      const totalReceived = monthQuotes.reduce((s: number, q: any) => s + Number(q.down_payment || 0), 0);
       return { totalBilled, totalReceived };
     },
   });
