@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3,
+  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +25,7 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "DRE", url: "/dre", icon: BarChart3, roles: ["admin", "financeiro"] },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog, roles: ["admin"] },
   { title: "RH", url: "/rh", icon: Briefcase, roles: ["admin"] },
+  { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
 ];
 
 export function AppSidebar() {
