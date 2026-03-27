@@ -594,11 +594,18 @@ export type Database = {
       }
       quotes: {
         Row: {
+          approved_at: string | null
           client_id: string
           created_at: string
           created_by: string | null
           description: string | null
+          down_payment: number | null
+          down_payment_date: string | null
           id: string
+          payment_method: string | null
+          payment_status: string | null
+          payment_type: string | null
+          remaining_amount: number | null
           seller_id: string | null
           status: Database["public"]["Enums"]["quote_status"]
           total: number
@@ -606,11 +613,18 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          approved_at?: string | null
           client_id: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          down_payment?: number | null
+          down_payment_date?: string | null
           id?: string
+          payment_method?: string | null
+          payment_status?: string | null
+          payment_type?: string | null
+          remaining_amount?: number | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number
@@ -618,11 +632,18 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          approved_at?: string | null
           client_id?: string
           created_at?: string
           created_by?: string | null
           description?: string | null
+          down_payment?: number | null
+          down_payment_date?: string | null
           id?: string
+          payment_method?: string | null
+          payment_status?: string | null
+          payment_type?: string | null
+          remaining_amount?: number | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number

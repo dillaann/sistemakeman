@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Check, X, FileDown, Trash2 } from "lucide-react";
+import { Plus, Search, Check, X, FileDown, Trash2, DollarSign } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -20,6 +21,17 @@ const statusColors: Record<string, string> = {
   rejeitado: "bg-red-500/10 text-red-700 border-red-500/20",
 };
 const statusLabels: Record<string, string> = { pendente: "Pendente", aprovado: "Aprovado", rejeitado: "Rejeitado" };
+
+const paymentStatusColors: Record<string, string> = {
+  aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+  entrada_recebida: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  pago_total: "bg-green-500/10 text-green-700 border-green-500/20",
+};
+const paymentStatusLabels: Record<string, string> = {
+  aguardando: "Aguardando",
+  entrada_recebida: "Entrada Recebida",
+  pago_total: "Pago Total",
+};
 
 interface ItemRow { description: string; quantity: string; unit_price: string; }
 
@@ -34,8 +46,8 @@ const Quotes = () => {
   const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
 
-  // Commission modal state
-  const [commissionModal, setCommissionModal] = useState<{
+  // Approval modal state (commission + payment)
+  const [approvalModal, setApprovalModal] = useState<{
     open: boolean;
     quoteId: string;
     clientId: string;
@@ -46,6 +58,14 @@ const Quotes = () => {
     percentage: number;
   } | null>(null);
   const [commPercentage, setCommPercentage] = useState(5);
+  const [paymentType, setPaymentType] = useState<"a_vista" | "entrada_restante">("a_vista");
+  const [downPayment, setDownPayment] = useState("");
+  const [downPaymentDate, setDownPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [paymentMethod, setPaymentMethod] = useState("pix");
+
+  // Payment registration modal for approved quotes
+  const [payRegDialog, setPayRegDialog] = useState<any>(null);
+  const [payRegForm, setPayRegForm] = useState({ amount: "", method: "pix", date: new Date().toISOString().split("T")[0] });
 
   const addItem = () => setItems([...items, { description: "", quantity: "1", unit_price: "" }]);
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
@@ -63,7 +83,6 @@ const Quotes = () => {
     queryFn: async () => { const { data } = await supabase.from("clients").select("*").order("name"); return data ?? []; },
   });
 
-  // Fetch sellers (users with vendedor role)
   const { data: sellers = [] } = useQuery({
     queryKey: ["sellers-list"],
     queryFn: async () => {
@@ -83,7 +102,6 @@ const Quotes = () => {
     },
   });
 
-  // Get profiles for seller names
   const { data: profilesMap = {} } = useQuery({
     queryKey: ["profiles-map"],
     queryFn: async () => {
@@ -94,7 +112,6 @@ const Quotes = () => {
     },
   });
 
-  // Get seller commission rates
   const { data: commissionRates = {} } = useQuery({
     queryKey: ["seller-commission-rates"],
     queryFn: async () => {
@@ -105,7 +122,6 @@ const Quotes = () => {
     },
   });
 
-  // Auto-fill seller_id for vendedor role
   const effectiveSellerId = userRole === "vendedor" ? user?.id ?? "" : form.seller_id;
 
   const saveMutation = useMutation({
@@ -143,25 +159,24 @@ const Quotes = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // Handle approve: if quote has seller, show commission modal; otherwise just approve
   const handleApprove = (quote: any) => {
     const sellerId = (quote as any).seller_id;
-    if (sellerId && userRole === "admin") {
-      const defaultPct = commissionRates[sellerId] ?? 5;
-      setCommPercentage(defaultPct);
-      setCommissionModal({
-        open: true,
-        quoteId: quote.id,
-        clientId: quote.client_id,
-        total: Number(quote.total),
-        sellerId,
-        sellerName: profilesMap[sellerId] || "Vendedor",
-        description: quote.description || "",
-        percentage: defaultPct,
-      });
-    } else {
-      approveAndCreateOS(quote.id, quote.client_id, Number(quote.total), quote.description, sellerId, null);
-    }
+    const defaultPct = sellerId ? (commissionRates[sellerId] ?? 5) : 5;
+    setCommPercentage(defaultPct);
+    setPaymentType("a_vista");
+    setDownPayment("");
+    setDownPaymentDate(new Date().toISOString().split("T")[0]);
+    setPaymentMethod("pix");
+    setApprovalModal({
+      open: true,
+      quoteId: quote.id,
+      clientId: quote.client_id,
+      total: Number(quote.total),
+      sellerId: sellerId || "",
+      sellerName: sellerId ? (profilesMap[sellerId] || "Vendedor") : "",
+      description: quote.description || "",
+      percentage: defaultPct,
+    });
   };
 
   const approveAndCreateOS = async (
@@ -169,8 +184,22 @@ const Quotes = () => {
     sellerId: string | null, commissionPct: number | null
   ) => {
     try {
-      // Update quote status
-      await supabase.from("quotes").update({ status: "aprovado" as any }).eq("id", quoteId);
+      const now = new Date().toISOString();
+      const dpAmount = paymentType === "entrada_restante" ? (parseFloat(downPayment) || 0) : 0;
+      const remaining = paymentType === "entrada_restante" ? Math.max(total - dpAmount, 0) : 0;
+      const pStatus = paymentType === "a_vista" ? "aguardando" : (dpAmount > 0 ? "aguardando" : "aguardando");
+
+      // Update quote with approval info and payment config
+      await supabase.from("quotes").update({
+        status: "aprovado" as any,
+        approved_at: now,
+        payment_type: paymentType,
+        down_payment: dpAmount,
+        down_payment_date: paymentType === "entrada_restante" && dpAmount > 0 ? downPaymentDate : null,
+        remaining_amount: remaining,
+        payment_method: paymentMethod,
+        payment_status: dpAmount >= total ? "pago_total" : (dpAmount > 0 ? "entrada_recebida" : "aguardando"),
+      } as any).eq("id", quoteId);
 
       // Create work order
       const { data: wo, error: woError } = await supabase.from("work_orders").insert({
@@ -181,6 +210,39 @@ const Quotes = () => {
         status: "aguardando" as any,
       }).select().single();
       if (woError) throw woError;
+
+      // Create financial transaction (a_receber) for the full amount
+      if (total > 0) {
+        // If there's a down payment received, create a paid transaction for it
+        if (dpAmount > 0) {
+          await supabase.from("financial_transactions").insert({
+            type: "a_receber" as any,
+            description: `Entrada - Orçamento ${quoteId.slice(0, 8)}`,
+            amount: dpAmount,
+            due_date: downPaymentDate,
+            paid_date: downPaymentDate,
+            status: "pago" as any,
+            category: `Faturamento - ${paymentMethod}`,
+            work_order_id: wo.id,
+            client_id: clientId,
+          });
+        }
+
+        // Create pending transaction for the remaining amount
+        const pendingAmount = total - dpAmount;
+        if (pendingAmount > 0) {
+          await supabase.from("financial_transactions").insert({
+            type: "a_receber" as any,
+            description: `Saldo - Orçamento ${quoteId.slice(0, 8)}`,
+            amount: pendingAmount,
+            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            status: "pendente" as any,
+            category: "Faturamento",
+            work_order_id: wo.id,
+            client_id: clientId,
+          });
+        }
+      }
 
       // Create sale + commission if seller exists
       if (sellerId) {
@@ -207,17 +269,25 @@ const Quotes = () => {
       }
 
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
-      toast({ title: "Orçamento aprovado!", description: "OS e venda criadas com sucesso." });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      toast({ title: "Orçamento aprovado!", description: "OS, pagamento e lançamentos financeiros criados." });
     } catch (e: any) {
       toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" });
     }
   };
 
-  const handleCommissionConfirm = (withCommission: boolean) => {
-    if (!commissionModal) return;
-    const { quoteId, clientId, total, sellerId, description } = commissionModal;
-    approveAndCreateOS(quoteId, clientId, total, description, sellerId, withCommission ? commPercentage : null);
-    setCommissionModal(null);
+  const handleApprovalConfirm = (withCommission: boolean) => {
+    if (!approvalModal) return;
+    const { quoteId, clientId, total, sellerId, description } = approvalModal;
+    approveAndCreateOS(
+      quoteId, clientId, total, description,
+      sellerId || null,
+      sellerId && withCommission ? commPercentage : null
+    );
+    setApprovalModal(null);
   };
 
   const updateStatus = useMutation({
@@ -226,6 +296,67 @@ const Quotes = () => {
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["quotes"] }); toast({ title: "Status atualizado!" }); },
+  });
+
+  // Register payment on approved quote
+  const registerQuotePayment = useMutation({
+    mutationFn: async (quote: any) => {
+      const amount = parseFloat(payRegForm.amount);
+      if (!amount || amount <= 0) throw new Error("Valor inválido");
+
+      // Find the work order linked to this quote
+      const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quote.id).single();
+
+      // Create paid financial transaction
+      await supabase.from("financial_transactions").insert({
+        type: "a_receber" as any,
+        description: `Recebimento - Orçamento ${quote.id.slice(0, 8)}`,
+        amount,
+        due_date: payRegForm.date,
+        paid_date: payRegForm.date,
+        status: "pago" as any,
+        category: `Faturamento - ${payRegForm.method}`,
+        work_order_id: wo?.id || null,
+        client_id: quote.client_id,
+      });
+
+      // Update quote payment status
+      const currentPaid = Number(quote.down_payment || 0);
+      const totalPaidNow = currentPaid + amount;
+      const total = Number(quote.total);
+      const newRemaining = Math.max(total - totalPaidNow, 0);
+      const newStatus = totalPaidNow >= total ? "pago_total" : "entrada_recebida";
+
+      await supabase.from("quotes").update({
+        down_payment: totalPaidNow,
+        remaining_amount: newRemaining,
+        payment_status: newStatus,
+      } as any).eq("id", quote.id);
+
+      // If fully paid, also update any pending financial transaction to paid
+      if (totalPaidNow >= total) {
+        const { data: pendingTxns } = await supabase.from("financial_transactions")
+          .select("id")
+          .eq("work_order_id", wo?.id || "")
+          .eq("status", "pendente")
+          .eq("type", "a_receber");
+        for (const txn of pendingTxns ?? []) {
+          await supabase.from("financial_transactions").update({
+            status: "pago" as any,
+            paid_date: payRegForm.date,
+          }).eq("id", txn.id);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
+      setPayRegDialog(null);
+      toast({ title: "Pagamento registrado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const handleGeneratePDF = (quote: any) => {
@@ -254,7 +385,9 @@ const Quotes = () => {
     (q.description ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const commissionValue = commissionModal ? commissionModal.total * (commPercentage / 100) : 0;
+  const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
+  const approvalDownPayment = parseFloat(downPayment) || 0;
+  const approvalRemaining = approvalModal ? Math.max(approvalModal.total - approvalDownPayment, 0) : 0;
 
   return (
     <div className="space-y-4">
@@ -274,7 +407,6 @@ const Quotes = () => {
                 </Select>
               </div>
 
-              {/* Seller field */}
               <div><Label>Vendedor Responsável</Label>
                 {userRole === "vendedor" ? (
                   <Input value={profilesMap[user?.id ?? ""] || "Você"} disabled />
@@ -288,7 +420,6 @@ const Quotes = () => {
                 )}
               </div>
 
-              {/* Items */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
@@ -345,79 +476,190 @@ const Quotes = () => {
               <TableHead className="hidden md:table-cell">Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-32">Ações</TableHead>
+              <TableHead>Pagamento</TableHead>
+              <TableHead className="w-36">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(q => (
-              <TableRow key={q.id}>
-                <TableCell className="font-medium">{(q.clients as any)?.name}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
-                </TableCell>
-                <TableCell className="hidden md:table-cell max-w-[200px] truncate">{q.description}</TableCell>
-                <TableCell>{fmt(Number(q.total))}</TableCell>
-                <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
-                      <FileDown className="h-4 w-4" />
-                    </Button>
-                    {q.status === "pendente" && (
-                      <>
-                        <Button variant="ghost" size="icon" onClick={() => handleApprove(q)} title="Aprovar"><Check className="h-4 w-4 text-green-600" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
-                      </>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
+            {filtered.map(q => {
+              const pStatus = (q as any).payment_status || "aguardando";
+              return (
+                <TableRow key={q.id}>
+                  <TableCell className="font-medium">{(q.clients as any)?.name}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell max-w-[200px] truncate">{q.description}</TableCell>
+                  <TableCell>{fmt(Number(q.total))}</TableCell>
+                  <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
+                  <TableCell>
+                    {q.status === "aprovado" ? (
+                      <Badge className={paymentStatusColors[pStatus] || paymentStatusColors.aguardando}>
+                        {paymentStatusLabels[pStatus] || "Aguardando"}
+                      </Badge>
+                    ) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                      {q.status === "pendente" && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => handleApprove(q)} title="Aprovar"><Check className="h-4 w-4 text-green-600" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
+                        </>
+                      )}
+                      {q.status === "aprovado" && pStatus !== "pago_total" && (
+                        <Button variant="ghost" size="icon" onClick={() => {
+                          const rem = Number((q as any).remaining_amount || q.total);
+                          setPayRegForm({ amount: String(rem), method: "pix", date: new Date().toISOString().split("T")[0] });
+                          setPayRegDialog(q);
+                        }} title="Registrar Pagamento">
+                          <DollarSign className="h-4 w-4 text-green-600" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
 
-      {/* Commission Modal */}
-      <Dialog open={!!commissionModal?.open} onOpenChange={(o) => { if (!o) setCommissionModal(null); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Configurar Comissão da Venda</DialogTitle></DialogHeader>
-          {commissionModal && (
+      {/* Approval Modal (Payment + Commission) */}
+      <Dialog open={!!approvalModal?.open} onOpenChange={(o) => { if (!o) setApprovalModal(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Aprovar Orçamento — Configurar Pagamento</DialogTitle></DialogHeader>
+          {approvalModal && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground text-sm">Vendedor</Label>
-                  <p className="font-medium">{commissionModal.sellerName}</p>
+                  <Label className="text-muted-foreground text-sm">Valor Total</Label>
+                  <p className="text-xl font-bold">{fmt(approvalModal.total)}</p>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground text-sm">Valor do Orçamento</Label>
-                  <p className="font-medium">{fmt(commissionModal.total)}</p>
-                </div>
+                {approvalModal.sellerName && (
+                  <div>
+                    <Label className="text-muted-foreground text-sm">Vendedor</Label>
+                    <p className="font-medium">{approvalModal.sellerName}</p>
+                  </div>
+                )}
               </div>
-              <div>
-                <Label>Percentual de Comissão (%)</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="100"
-                  value={commPercentage}
-                  onChange={e => setCommPercentage(parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="bg-muted p-3 rounded-lg">
-                <Label className="text-muted-foreground text-sm">Valor da Comissão</Label>
-                <p className="text-xl font-bold">{fmt(commissionValue)}</p>
-              </div>
+
+              {/* Payment Configuration */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Configuração de Pagamento</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label>Tipo de Pagamento</Label>
+                    <Select value={paymentType} onValueChange={(v: any) => setPaymentType(v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="a_vista">Valor Total à Vista</SelectItem>
+                        <SelectItem value="entrada_restante">Entrada + Restante</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {paymentType === "entrada_restante" && (
+                    <>
+                      <div>
+                        <Label>Valor da Entrada (R$)</Label>
+                        <Input type="number" step="0.01" value={downPayment} onChange={e => setDownPayment(e.target.value)} placeholder="0,00" />
+                      </div>
+                      <div>
+                        <Label>Data do Pagamento da Entrada</Label>
+                        <Input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} />
+                      </div>
+                      <div className="bg-muted p-2 rounded text-sm">
+                        Restante a receber: <strong>{fmt(approvalRemaining)}</strong>
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <Label>Forma de Pagamento</Label>
+                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                        <SelectItem value="pix">PIX</SelectItem>
+                        <SelectItem value="cartao">Cartão</SelectItem>
+                        <SelectItem value="boleto">Boleto</SelectItem>
+                        <SelectItem value="transferencia">Transferência</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Commission (only if seller) */}
+              {approvalModal.sellerId && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Comissão do Vendedor</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label>Percentual de Comissão (%)</Label>
+                      <Input type="number" step="0.5" min="0" max="100" value={commPercentage} onChange={e => setCommPercentage(parseFloat(e.target.value) || 0)} />
+                    </div>
+                    <div className="bg-muted p-2 rounded text-sm">
+                      Valor da comissão: <strong>{fmt(commissionValue)}</strong>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <DialogFooter className="flex gap-2">
-                <Button variant="outline" onClick={() => handleCommissionConfirm(false)}>
-                  Pular (sem comissão)
-                </Button>
-                <Button onClick={() => handleCommissionConfirm(true)}>
-                  Confirmar e Gerar OS
-                </Button>
+                {approvalModal.sellerId ? (
+                  <>
+                    <Button variant="outline" onClick={() => handleApprovalConfirm(false)}>Aprovar sem Comissão</Button>
+                    <Button onClick={() => handleApprovalConfirm(true)}>Aprovar com Comissão</Button>
+                  </>
+                ) : (
+                  <Button onClick={() => handleApprovalConfirm(false)} className="w-full">Aprovar Orçamento</Button>
+                )}
               </DialogFooter>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Registration Modal */}
+      <Dialog open={!!payRegDialog} onOpenChange={(v) => { if (!v) setPayRegDialog(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Registrar Pagamento</DialogTitle></DialogHeader>
+          {payRegDialog && (
+            <form onSubmit={(e) => { e.preventDefault(); registerQuotePayment.mutate(payRegDialog); }} className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Orçamento: {payRegDialog.id.slice(0, 8)} — {(payRegDialog.clients as any)?.name}<br />
+                Valor total: {fmt(Number(payRegDialog.total))} | Já recebido: {fmt(Number((payRegDialog as any).down_payment || 0))} | Saldo: {fmt(Number((payRegDialog as any).remaining_amount || payRegDialog.total))}
+              </div>
+              <div><Label>Valor a receber (R$) *</Label>
+                <Input type="number" step="0.01" value={payRegForm.amount} onChange={(e) => setPayRegForm({ ...payRegForm, amount: e.target.value })} required />
+              </div>
+              <div><Label>Forma de Pagamento</Label>
+                <Select value={payRegForm.method} onValueChange={(v) => setPayRegForm({ ...payRegForm, method: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="cartao">Cartão</SelectItem>
+                    <SelectItem value="boleto">Boleto</SelectItem>
+                    <SelectItem value="transferencia">Transferência</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Data do Recebimento *</Label>
+                <Input type="date" value={payRegForm.date} onChange={(e) => setPayRegForm({ ...payRegForm, date: e.target.value })} required />
+              </div>
+              <Button type="submit" className="w-full" disabled={registerQuotePayment.isPending}>Registrar Pagamento</Button>
+            </form>
           )}
         </DialogContent>
       </Dialog>
