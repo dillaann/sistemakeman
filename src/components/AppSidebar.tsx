@@ -20,6 +20,7 @@ const menuItems = [
   { title: "Produção", url: "/producao", icon: Factory },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
   { title: "Faturamento", url: "/faturamento", icon: Receipt },
+  { title: "DRE", url: "/dre", icon: BarChart3 },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog },
   { title: "RH", url: "/rh", icon: Briefcase },
 ];
