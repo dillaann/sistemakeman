@@ -19,7 +19,7 @@ type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor";
 
 const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin"] },
-  { title: "Clientes", url: "/clientes", icon: Users, roles: ["admin"] },
+  { title: "Clientes", url: "/clientes", icon: Users, roles: ["admin", "vendedor"] },
   { title: "Orçamentos", url: "/orcamentos", icon: FileText, roles: ["admin", "vendedor"] },
   { title: "Vendas", url: "/vendas", icon: ShoppingBag, roles: ["admin", "vendedor"] },
   { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor"] },
