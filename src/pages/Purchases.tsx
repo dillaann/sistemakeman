@@ -193,16 +193,21 @@ const Purchases = () => {
 
   // Supplier discount ranking
   const supplierDiscounts = useMemo(() => {
-    const map: Record<string, { name: string; total: number; count: number }> = {};
+    const map: Record<string, { name: string; totalOriginal: number; totalPaid: number; totalSaved: number; count: number }> = {};
     purchases.forEach(p => {
       const sid = p.supplier_id;
-      if (!sid || !p.discount_amount) return;
+      if (!sid) return;
       const name = (p as any).suppliers?.name ?? "Sem nome";
-      if (!map[sid]) map[sid] = { name, total: 0, count: 0 };
-      map[sid].total += Number(p.discount_amount);
-      map[sid].count++;
+      if (!map[sid]) map[sid] = { name, totalOriginal: 0, totalPaid: 0, totalSaved: 0, count: 0 };
+      const origPrice = Number((p as any).original_price ?? 0);
+      const qty = Number(p.quantity);
+      const originalTotal = origPrice > 0 ? origPrice * qty : Number(p.total);
+      map[sid].totalOriginal += originalTotal;
+      map[sid].totalPaid += Number(p.total);
+      map[sid].totalSaved += Number(p.discount_amount ?? 0);
+      if (Number(p.discount_amount ?? 0) > 0) map[sid].count++;
     });
-    return Object.values(map).sort((a, b) => b.total - a.total);
+    return Object.values(map).sort((a, b) => b.totalSaved - a.totalSaved);
   }, [purchases]);
 
   const filteredPurchases = purchases.filter(p => {
