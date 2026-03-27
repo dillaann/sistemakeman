@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trophy, DollarSign, Target, TrendingUp, Check, ShoppingBag } from "lucide-react";
+import { Plus, Search, Trophy, DollarSign, Target, TrendingUp, Check, ShoppingBag, Trash2 } from "lucide-react";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -295,6 +296,7 @@ const AdminSalesView = () => {
   const [sellerFilter, setSellerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab, setTab] = useState<"sales" | "commissions" | "goals">("sales");
+  const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
 
   // Commission rate dialog
   const [rateOpen, setRateOpen] = useState(false);
@@ -395,6 +397,33 @@ const AdminSalesView = () => {
       queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
       toast({ title: "Status atualizado!" });
     },
+  });
+
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      setDeleteTarget(null);
+      toast({ title: "Venda removida!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCommissionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales_commissions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      setDeleteTarget(null);
+      toast({ title: "Comissão removida!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const sellerName = (id: string) => sellers.find(s => s.id === id)?.full_name || "—";
@@ -523,27 +552,33 @@ const AdminSalesView = () => {
           <div className="border rounded-lg overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="hidden md:table-cell">Descrição</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell>{sellerName(s.seller_id)}</TableCell>
-                    <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
-                    <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
-                    <TableCell>{fmt(Number(s.amount))}</TableCell>
-                    <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
+                 <TableRow>
+                   <TableHead>Vendedor</TableHead>
+                   <TableHead>Cliente</TableHead>
+                   <TableHead className="hidden md:table-cell">Descrição</TableHead>
+                   <TableHead>Valor</TableHead>
+                   <TableHead>Data</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead className="w-16">Ação</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {filtered.map(s => (
+                   <TableRow key={s.id}>
+                     <TableCell>{sellerName(s.seller_id)}</TableCell>
+                     <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
+                     <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
+                     <TableCell>{fmt(Number(s.amount))}</TableCell>
+                     <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                     <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
+                     <TableCell>
+                       <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
+                         <Trash2 className="h-4 w-4 text-destructive" />
+                       </Button>
+                     </TableCell>
+                   </TableRow>
+                 ))}
+                 {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>
@@ -574,12 +609,17 @@ const AdminSalesView = () => {
                   <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
                   <TableCell><Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge></TableCell>
                   <TableCell>
-                    {c.status === "pendente" && (
-                      <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "aprovada" })}>Aprovar</Button>
-                    )}
-                    {c.status === "aprovada" && (
-                      <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "paga" })}>Pagar</Button>
-                    )}
+                    <div className="flex gap-1">
+                      {c.status === "pendente" && (
+                        <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "aprovada" })}>Aprovar</Button>
+                      )}
+                      {c.status === "aprovada" && (
+                        <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "paga" })}>Pagar</Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "commission", id: c.id })}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -651,6 +691,17 @@ const AdminSalesView = () => {
           </Card>
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          if (deleteTarget.type === "sale") deleteSaleMutation.mutate(deleteTarget.id);
+          else deleteCommissionMutation.mutate(deleteTarget.id);
+        }}
+        isPending={deleteSaleMutation.isPending || deleteCommissionMutation.isPending}
+      />
     </div>
   );
 };

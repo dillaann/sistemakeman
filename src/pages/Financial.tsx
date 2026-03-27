@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -22,10 +24,12 @@ const statusLabels: Record<string, string> = { pendente: "Pendente", pago: "Pago
 
 const Financial = () => {
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("a_receber");
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "a_receber" as string, description: "", amount: "", due_date: "", category: "" });
 
   const { data: transactions = [] } = useQuery({
@@ -55,6 +59,19 @@ const Financial = () => {
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Marcado como pago!" }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("financial_transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      setDeleteTarget(null);
+      toast({ title: "Transação removida!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -139,9 +156,16 @@ const Financial = () => {
                 <TableCell className="hidden md:table-cell">{new Date(t.due_date).toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell><Badge className={statusColors[t.status]}>{statusLabels[t.status]}</Badge></TableCell>
                 <TableCell>
-                  {t.status === "pendente" && (
-                    <Button size="sm" variant="outline" onClick={() => markPaid.mutate(t.id)}>Pagar</Button>
-                  )}
+                  <div className="flex gap-1">
+                    {t.status === "pendente" && (
+                      <Button size="sm" variant="outline" onClick={() => markPaid.mutate(t.id)}>Pagar</Button>
+                    )}
+                    {userRole === "admin" && (
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -149,6 +173,13 @@ const Financial = () => {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   );
 };

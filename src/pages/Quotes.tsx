@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Check, X, FileDown, Trash2, DollarSign } from "lucide-react";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,7 @@ const Quotes = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
 
@@ -298,6 +300,21 @@ const Quotes = () => {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["quotes"] }); toast({ title: "Status atualizado!" }); },
   });
 
+  const deleteQuoteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("quotes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      setDeleteTarget(null);
+      toast({ title: "Orçamento removido!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   // Register payment on approved quote
   const registerQuotePayment = useMutation({
     mutationFn: async (quote: any) => {
@@ -519,6 +536,11 @@ const Quotes = () => {
                           <DollarSign className="h-4 w-4 text-green-600" />
                         </Button>
                       )}
+                      {userRole === "admin" && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(q.id)} title="Excluir">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -663,6 +685,14 @@ const Quotes = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteQuoteMutation.mutate(deleteTarget)}
+        isPending={deleteQuoteMutation.isPending}
+        description="Tem certeza que deseja excluir este orçamento? Todos os dados relacionados (itens, OS, vendas, comissões, transações financeiras) serão removidos."
+      />
     </div>
   );
 };
