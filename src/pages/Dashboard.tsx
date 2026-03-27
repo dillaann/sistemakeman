@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown } from "lucide-react";
+import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
@@ -93,6 +93,20 @@ const Dashboard = () => {
       const prevResult = prevRev - prevExp - prevPers;
       const variation = prevResult === 0 ? 0 : ((currResult - prevResult) / Math.abs(prevResult)) * 100;
       return { currResult, variation };
+    },
+  });
+
+  // Sales summary
+  const { data: salesSummary } = useQuery({
+    queryKey: ["sales-dashboard"],
+    queryFn: async () => {
+      const n = new Date();
+      const monthStart = new Date(n.getFullYear(), n.getMonth(), 1);
+      const { data: sales } = await supabase.from("sales").select("amount, created_at, seller_id");
+      const monthlySales = (sales ?? []).filter(s => new Date(s.created_at) >= monthStart);
+      const totalSold = monthlySales.reduce((s, sale) => s + Number(sale.amount), 0);
+      const uniqueSellers = new Set(monthlySales.map(s => s.seller_id)).size;
+      return { totalSold, count: monthlySales.length, sellers: uniqueSellers };
     },
   });
 
@@ -250,6 +264,29 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Vendas do Mês</CardTitle>
+          <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Vendido</p>
+              <p className="text-xl font-bold">{fmt(salesSummary?.totalSold ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Nº de Vendas</p>
+              <p className="text-xl font-bold">{salesSummary?.count ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vendedores Ativos</p>
+              <p className="text-xl font-bold">{salesSummary?.sellers ?? 0}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

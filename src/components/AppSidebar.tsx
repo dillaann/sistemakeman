@@ -8,16 +8,17 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield,
+  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield, ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AppRole = "admin" | "funcionario" | "financeiro" | "producao";
+type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor";
 
 const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin"] },
   { title: "Clientes", url: "/clientes", icon: Users, roles: ["admin"] },
   { title: "Orçamentos", url: "/orcamentos", icon: FileText, roles: ["admin"] },
+  { title: "Vendas", url: "/vendas", icon: ShoppingBag, roles: ["admin", "vendedor"] },
   { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro"] },
   { title: "Produção", url: "/producao", icon: Factory, roles: ["admin", "producao"] },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, roles: ["admin", "financeiro"] },

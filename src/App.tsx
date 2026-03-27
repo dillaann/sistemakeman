@@ -18,6 +18,7 @@ import HR from "@/pages/HR";
 import Billing from "@/pages/Billing";
 import DREPage from "@/pages/DRE";
 import UserManagement from "@/pages/UserManagement";
+import Sales from "@/pages/Sales";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const DefaultRedirect = () => {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
   if (userRole === "financeiro") return <Navigate to="/financeiro" replace />;
   if (userRole === "producao") return <Navigate to="/producao" replace />;
+  if (userRole === "vendedor") return <Navigate to="/vendas" replace />;
   return <Dashboard />;
 };
 
@@ -72,6 +74,7 @@ const App = () => (
                 <Route path="dre" element={<RoleGuard allowed={["admin", "financeiro"]}><DREPage /></RoleGuard>} />
                 <Route path="funcionarios" element={<RoleGuard allowed={["admin", "financeiro"]}><Employees /></RoleGuard>} />
                 <Route path="rh" element={<RoleGuard allowed={["admin", "financeiro"]}><HR /></RoleGuard>} />
+                <Route path="vendas" element={<RoleGuard allowed={["admin", "vendedor"]}><Sales /></RoleGuard>} />
                 <Route path="usuarios" element={<RoleGuard allowed={["admin"]}><UserManagement /></RoleGuard>} />
               </Route>
               <Route path="*" element={<NotFound />} />

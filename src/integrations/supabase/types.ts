@@ -636,6 +636,152 @@ export type Database = {
           },
         ]
       }
+      sales: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          delivery_deadline: string | null
+          description: string
+          id: string
+          notes: string | null
+          seller_id: string
+          status: string
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          amount?: number
+          client_id: string
+          created_at?: string
+          delivery_deadline?: string | null
+          description: string
+          id?: string
+          notes?: string | null
+          seller_id: string
+          status?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          delivery_deadline?: string | null
+          description?: string
+          id?: string
+          notes?: string | null
+          seller_id?: string
+          status?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_commissions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          paid_date: string | null
+          percentage: number
+          sale_id: string
+          seller_id: string
+          status: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          paid_date?: string | null
+          percentage?: number
+          sale_id: string
+          seller_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          paid_date?: string | null
+          percentage?: number
+          sale_id?: string
+          seller_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_commissions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_goals: {
+        Row: {
+          created_at: string
+          goal_amount: number
+          id: string
+          month_ref: string
+          seller_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal_amount?: number
+          id?: string
+          month_ref: string
+          seller_id: string
+        }
+        Update: {
+          created_at?: string
+          goal_amount?: number
+          id?: string
+          month_ref?: string
+          seller_id?: string
+        }
+        Relationships: []
+      }
+      seller_commission_rates: {
+        Row: {
+          created_at: string
+          id: string
+          percentage: number
+          seller_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          percentage?: number
+          seller_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          percentage?: number
+          seller_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       thirteenth_salary: {
         Row: {
           created_at: string
@@ -784,7 +930,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "funcionario" | "financeiro" | "producao"
+      app_role: "admin" | "funcionario" | "financeiro" | "producao" | "vendedor"
       quote_status: "pendente" | "aprovado" | "rejeitado"
       transaction_status: "pendente" | "pago" | "atrasado" | "cancelado"
       transaction_type: "a_pagar" | "a_receber"
@@ -916,7 +1062,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "funcionario", "financeiro", "producao"],
+      app_role: ["admin", "funcionario", "financeiro", "producao", "vendedor"],
       quote_status: ["pendente", "aprovado", "rejeitado"],
       transaction_status: ["pendente", "pago", "atrasado", "cancelado"],
       transaction_type: ["a_pagar", "a_receber"],
