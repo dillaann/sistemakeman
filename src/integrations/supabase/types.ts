@@ -554,6 +554,74 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          created_at: string
+          discount_amount: number | null
+          discount_percentage: number | null
+          due_date: string | null
+          id: string
+          invoice_number: string | null
+          material: string
+          notes: string | null
+          payment_method: string | null
+          payment_status: string
+          purchase_date: string
+          quantity: number
+          supplier_id: string | null
+          total: number
+          unit: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          material: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          purchase_date?: string
+          quantity?: number
+          supplier_id?: string | null
+          total?: number
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          material?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          purchase_date?: string
+          quantity?: number
+          supplier_id?: string | null
+          total?: number
+          unit?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_items: {
         Row: {
           created_at: string
@@ -809,6 +877,42 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          cpf_cnpj: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          products: string | null
+          updated_at: string
+        }
+        Insert: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          products?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          products?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       thirteenth_salary: {
         Row: {
           created_at: string
@@ -957,7 +1061,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "funcionario" | "financeiro" | "producao" | "vendedor"
+      app_role:
+        | "admin"
+        | "funcionario"
+        | "financeiro"
+        | "producao"
+        | "vendedor"
+        | "compras"
       quote_status: "pendente" | "aprovado" | "rejeitado"
       transaction_status: "pendente" | "pago" | "atrasado" | "cancelado"
       transaction_type: "a_pagar" | "a_receber"
@@ -1089,7 +1199,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "funcionario", "financeiro", "producao", "vendedor"],
+      app_role: [
+        "admin",
+        "funcionario",
+        "financeiro",
+        "producao",
+        "vendedor",
+        "compras",
+      ],
       quote_status: ["pendente", "aprovado", "rejeitado"],
       transaction_status: ["pendente", "pago", "atrasado", "cancelado"],
       transaction_type: ["a_pagar", "a_receber"],
