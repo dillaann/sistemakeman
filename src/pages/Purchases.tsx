@@ -68,6 +68,58 @@ const Purchases = () => {
     },
   });
 
+  const { data: purchaseRequests = [] } = useQuery({
+    queryKey: ["purchase-requests"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("purchase_requests")
+        .select("*, work_orders(id, description, clients(name), material_status)")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const { data: requestMaterials = {} } = useQuery({
+    queryKey: ["purchase-request-materials"],
+    queryFn: async () => {
+      const woIds = purchaseRequests.map((r: any) => r.work_order_id);
+      if (!woIds.length) return {};
+      const { data } = await supabase
+        .from("work_order_materials")
+        .select("*")
+        .in("work_order_id", woIds);
+      const map: Record<string, any[]> = {};
+      (data ?? []).forEach((m: any) => {
+        if (!map[m.work_order_id]) map[m.work_order_id] = [];
+        map[m.work_order_id].push(m);
+      });
+      return map;
+    },
+    enabled: purchaseRequests.length > 0,
+  });
+
+  const confirmPurchaseRequest = useMutation({
+    mutationFn: async (requestId: string) => {
+      const request = purchaseRequests.find((r: any) => r.id === requestId) as any;
+      if (!request) throw new Error("Solicitação não encontrada");
+      // Update request status
+      const { error } = await supabase.from("purchase_requests")
+        .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
+        .eq("id", requestId);
+      if (error) throw error;
+      // Update work order material_status to comprado
+      await supabase.from("work_orders")
+        .update({ material_status: "comprado" } as any)
+        .eq("id", request.work_order_id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-requests"] });
+      qc.invalidateQueries({ queryKey: ["production-orders"] });
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      toast({ title: "Compra confirmada!" });
+    },
+  });
+
   // Mutations
   const saveSupplier = useMutation({
     mutationFn: async () => {
