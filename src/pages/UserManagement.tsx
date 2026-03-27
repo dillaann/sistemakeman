@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Users, Trash2 } from "lucide-react";
+import { Shield, Users, Trash2, UserCheck, UserX, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { format } from "date-fns";
 
 const roleLabels: Record<string, string> = {
   admin: "Administrador",
@@ -36,7 +38,7 @@ const UserManagement = () => {
     queryFn: async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email");
+        .select("id, full_name, email, created_at");
       const { data: roles } = await supabase
         .from("user_roles")
         .select("user_id, role");
@@ -47,9 +49,29 @@ const UserManagement = () => {
           id: p.id,
           name: p.full_name || "Sem nome",
           email: p.email || "",
-          role: (userRole?.role as string) ?? "funcionario",
+          role: userRole?.role as string | undefined,
+          createdAt: p.created_at,
         };
       });
+    },
+  });
+
+  const pendingUsers = users?.filter((u) => !u.role) ?? [];
+  const activeUsers = users?.filter((u) => !!u.role) ?? [];
+
+  const approveUser = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: role as any });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-management"] });
+      toast({ title: "Usuário aprovado com sucesso!" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao aprovar", description: err.message, variant: "destructive" });
     },
   });
 
@@ -101,16 +123,108 @@ const UserManagement = () => {
     },
   });
 
+  const PendingUserRow = ({ u }: { u: typeof pendingUsers[0] }) => {
+    const [selectedRole, setSelectedRole] = useState("");
+    return (
+      <TableRow>
+        <TableCell className="font-medium">{u.name}</TableCell>
+        <TableCell>{u.email}</TableCell>
+        <TableCell className="text-muted-foreground text-sm">
+          {format(new Date(u.createdAt), "dd/MM/yyyy HH:mm")}
+        </TableCell>
+        <TableCell>
+          <Select value={selectedRole} onValueChange={setSelectedRole}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Selecionar cargo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">Administrador</SelectItem>
+              <SelectItem value="financeiro">Financeiro</SelectItem>
+              <SelectItem value="producao">Produção</SelectItem>
+              <SelectItem value="vendedor">Vendedor</SelectItem>
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              disabled={!selectedRole || approveUser.isPending}
+              onClick={() => approveUser.mutate({ userId: u.id, role: selectedRole })}
+            >
+              <UserCheck className="h-4 w-4 mr-1" /> Aprovar
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <UserX className="h-4 w-4 mr-1" /> Rejeitar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Rejeitar usuário</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja rejeitar e remover <strong>{u.name}</strong> ({u.email})? Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteUser.mutate(u.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Remover
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2">
         <Shield className="h-6 w-6" /> Gerenciamento de Usuários
       </h1>
 
+      {/* Pending Users */}
+      {pendingUsers.length > 0 && (
+        <Card className="border-yellow-500/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-yellow-700 dark:text-yellow-400">
+              <Clock className="h-4 w-4" /> Usuários Pendentes
+              <Badge variant="secondary" className="ml-2">{pendingUsers.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Data de Cadastro</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingUsers.map((u) => (
+                  <PendingUserRow key={u.id} u={u} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Active Users */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="h-4 w-4" /> Usuários Cadastrados
+            <Users className="h-4 w-4" /> Usuários Ativos
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -128,18 +242,18 @@ const UserManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map((u) => (
+                {activeUsers.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Badge variant={roleBadgeVariant[u.role] ?? "secondary"}>
-                        {roleLabels[u.role] ?? u.role}
+                      <Badge variant={roleBadgeVariant[u.role!] ?? "secondary"}>
+                        {roleLabels[u.role!] ?? u.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={u.role}
+                        value={u.role!}
                         onValueChange={(value) =>
                           updateRole.mutate({ userId: u.id, newRole: value })
                         }

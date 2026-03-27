@@ -35,7 +35,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .select("role")
       .eq("user_id", userId)
       .maybeSingle();
-    setUserRole(data?.role ?? "funcionario");
+    // If no row exists, user is pending (null role)
+    setUserRole(data?.role ?? null);
   };
 
   useEffect(() => {
