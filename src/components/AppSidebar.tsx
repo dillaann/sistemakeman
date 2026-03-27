@@ -19,6 +19,7 @@ const menuItems = [
   { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList },
   { title: "Produção", url: "/producao", icon: Factory },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+  { title: "Faturamento", url: "/faturamento", icon: Receipt },
   { title: "Funcionários", url: "/funcionarios", icon: UserCog },
   { title: "RH", url: "/rh", icon: Briefcase },
 ];
