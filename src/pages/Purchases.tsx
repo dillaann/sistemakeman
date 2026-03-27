@@ -370,6 +370,61 @@ const Purchases = () => {
           </Card>
         </TabsContent>
 
+        {/* SOLICITAÇÕES */}
+        <TabsContent value="solicitacoes" className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Solicitações de Compra da Produção</CardTitle></CardHeader>
+            <CardContent>
+              {purchaseRequests.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhuma solicitação pendente.</p>
+              ) : (
+                <div className="space-y-4">
+                  {purchaseRequests.map((req: any) => {
+                    const wo = req.work_orders as any;
+                    const mats = (requestMaterials as any)[req.work_order_id] ?? [];
+                    return (
+                      <Card key={req.id} className="border">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-sm">OS #{req.work_order_id.slice(0, 8)}</p>
+                              <p className="text-xs text-muted-foreground">{wo?.clients?.name} — {wo?.description}</p>
+                            </div>
+                            <Badge className={req.status === "pendente" ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" : "bg-green-500/10 text-green-700 border-green-500/20"}>
+                              {req.status === "pendente" ? "Pendente" : "Confirmado"}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold">Materiais solicitados:</p>
+                            {mats.map((m: any) => (
+                              <div key={m.id} className="text-xs bg-muted/50 rounded p-1.5 flex gap-2">
+                                <span className="font-medium">{m.material}</span>
+                                <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
+                                {m.notes && <span className="text-muted-foreground italic">({m.notes})</span>}
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Solicitado em: {new Date(req.requested_at).toLocaleDateString("pt-BR")}
+                          </p>
+                          {req.status === "pendente" && (
+                            <Button
+                              size="sm" className="w-full"
+                              onClick={() => confirmPurchaseRequest.mutate(req.id)}
+                              disabled={confirmPurchaseRequest.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" /> Confirmar Aquisição
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
         {/* COMPRAS */}
         <TabsContent value="compras" className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
