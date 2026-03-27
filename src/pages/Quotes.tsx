@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Check, X } from "lucide-react";
+import { Plus, Search, Check, X, FileDown, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { generateQuotePDF } from "@/lib/generateQuotePDF";
 
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -20,37 +21,76 @@ const statusColors: Record<string, string> = {
 };
 const statusLabels: Record<string, string> = { pendente: "Pendente", aprovado: "Aprovado", rejeitado: "Rejeitado" };
 
+interface ItemRow {
+  description: string;
+  quantity: string;
+  unit_price: string;
+}
+
 const Quotes = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ client_id: "", description: "", total: "", valid_until: "" });
+  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "" });
+  const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
+
+  const addItem = () => setItems([...items, { description: "", quantity: "1", unit_price: "" }]);
+  const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
+  const updateItem = (i: number, field: keyof ItemRow, value: string) => {
+    const updated = [...items];
+    updated[i] = { ...updated[i], [field]: value };
+    setItems(updated);
+  };
+
+  const calcItemTotal = (item: ItemRow) => (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
+  const grandTotal = items.reduce((s, it) => s + calcItemTotal(it), 0);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
-    queryFn: async () => { const { data } = await supabase.from("clients").select("id, name").order("name"); return data ?? []; },
+    queryFn: async () => { const { data } = await supabase.from("clients").select("*").order("name"); return data ?? []; },
   });
 
   const { data: quotes = [] } = useQuery({
     queryKey: ["quotes"],
     queryFn: async () => {
-      const { data } = await supabase.from("quotes").select("*, clients(name)").order("created_at", { ascending: false });
+      const { data } = await supabase.from("quotes").select("*, clients(name, phone, address, city, state), quote_items(*)").order("created_at", { ascending: false });
       return data ?? [];
     },
   });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("quotes").insert({
-        client_id: form.client_id, description: form.description,
-        total: parseFloat(form.total) || 0, valid_until: form.valid_until || null,
+      const validItems = items.filter(it => it.description.trim());
+      if (!validItems.length) throw new Error("Adicione pelo menos um item");
+
+      const { data: quote, error } = await supabase.from("quotes").insert({
+        client_id: form.client_id,
+        description: form.description,
+        total: grandTotal,
+        valid_until: form.valid_until || null,
         created_by: user?.id,
-      });
+      }).select().single();
       if (error) throw error;
+
+      const itemsToInsert = validItems.map(it => ({
+        quote_id: quote.id,
+        description: it.description,
+        quantity: parseFloat(it.quantity) || 1,
+        unit_price: parseFloat(it.unit_price) || 0,
+        total: calcItemTotal(it),
+      }));
+      const { error: itemsError } = await supabase.from("quote_items").insert(itemsToInsert);
+      if (itemsError) throw itemsError;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["quotes"] }); setOpen(false); toast({ title: "Orçamento criado!" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      setOpen(false);
+      setForm({ client_id: "", description: "", valid_until: "" });
+      setItems([{ description: "", quantity: "1", unit_price: "" }]);
+      toast({ title: "Orçamento criado!" });
+    },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -61,6 +101,44 @@ const Quotes = () => {
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["quotes"] }); toast({ title: "Status atualizado!" }); },
   });
+
+  const handleGeneratePDF = (quote: any) => {
+    const client = quote.clients as any;
+    const quoteItems = (quote.quote_items ?? []) as any[];
+    const createdAt = new Date(quote.created_at);
+    const dateStr = createdAt.toLocaleDateString("pt-BR");
+
+    const pdfItems = quoteItems.length > 0
+      ? quoteItems.map((it: any) => ({
+          description: it.description,
+          quantity: Number(it.quantity),
+          unit_price: Number(it.unit_price),
+          total: Number(it.total),
+        }))
+      : [{
+          description: quote.description ?? "Serviço",
+          quantity: 1,
+          unit_price: Number(quote.total),
+          total: Number(quote.total),
+        }];
+
+    generateQuotePDF({
+      date: dateStr,
+      client: {
+        name: client?.name ?? "—",
+        phone: client?.phone,
+        address: client?.address,
+        city: client?.city,
+        state: client?.state,
+      },
+      items: pdfItems,
+      total: Number(quote.total),
+      description: quote.description,
+      valid_until: quote.valid_until,
+    });
+
+    toast({ title: "PDF gerado com sucesso!" });
+  };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -77,21 +155,58 @@ const Quotes = () => {
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Novo Orçamento</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Novo Orçamento</DialogTitle></DialogHeader>
-            <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-3">
+            <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
               <div><Label>Cliente *</Label>
                 <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Valor Total (R$)</Label><Input type="number" step="0.01" value={form.total} onChange={e => setForm({ ...form, total: e.target.value })} required /></div>
-                <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
+
+              {/* Items */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Itens do Orçamento</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar Item
+                  </Button>
+                </div>
+                {items.map((item, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-5">
+                      {i === 0 && <Label className="text-xs">Descrição</Label>}
+                      <Input placeholder="Descrição do item" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} />
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Qtd</Label>}
+                      <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Preço Un.</Label>}
+                      <Input type="number" step="0.01" placeholder="0,00" value={item.unit_price} onChange={e => updateItem(i, "unit_price", e.target.value)} />
+                    </div>
+                    <div className="col-span-2 text-right text-sm font-medium pt-2">
+                      {fmt(calcItemTotal(item))}
+                    </div>
+                    <div className="col-span-1">
+                      {items.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div className="text-right font-bold text-lg border-t pt-2">
+                  Total: {fmt(grandTotal)}
+                </div>
               </div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar</Button>
+
+              <div><Label>Observações</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -110,7 +225,7 @@ const Quotes = () => {
               <TableHead className="hidden md:table-cell">Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-24">Ações</TableHead>
+              <TableHead className="w-32">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -121,12 +236,17 @@ const Quotes = () => {
                 <TableCell>{fmt(Number(q.total))}</TableCell>
                 <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
                 <TableCell>
-                  {q.status === "pendente" && (
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "aprovado" })} title="Aprovar"><Check className="h-4 w-4 text-green-600" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
-                    </div>
-                  )}
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                    {q.status === "pendente" && (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "aprovado" })} title="Aprovar"><Check className="h-4 w-4 text-green-600" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
+                      </>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
