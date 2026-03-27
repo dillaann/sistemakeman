@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt,
+  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
