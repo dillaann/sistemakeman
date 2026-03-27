@@ -23,6 +23,7 @@ interface QuotePDFData {
   total: number;
   description?: string | null;
   valid_until?: string | null;
+  delivery_deadline?: string | null;
 }
 
 export function generateQuotePDF(data: QuotePDFData) {
@@ -197,7 +198,8 @@ export function generateQuotePDF(data: QuotePDFData) {
   // Prazo de Entrega
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("Prazo de Entrega: *", cx, y, { align: "center" });
+  const deadlineText = data.delivery_deadline ? `Prazo de Entrega: ${data.delivery_deadline}` : "Prazo de Entrega: *";
+  doc.text(deadlineText, cx, y, { align: "center" });
   y += 6;
 
   // Contact info
