@@ -599,6 +599,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          seller_id: string | null
           status: Database["public"]["Enums"]["quote_status"]
           total: number
           updated_at: string
@@ -610,6 +611,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          seller_id?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number
           updated_at?: string
@@ -621,6 +623,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          seller_id?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           total?: number
           updated_at?: string
