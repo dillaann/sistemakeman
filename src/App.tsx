@@ -66,6 +66,7 @@ const DefaultRedirect = () => {
   if (userRole === "financeiro") return <Navigate to="/financeiro" replace />;
   if (userRole === "producao") return <Navigate to="/producao" replace />;
   if (userRole === "vendedor") return <Navigate to="/vendas" replace />;
+  if (userRole === "compras") return <Navigate to="/compras" replace />;
   return <Dashboard />;
 };
 
@@ -98,6 +99,7 @@ const App = () => (
                 <Route path="funcionarios" element={<RoleGuard allowed={["admin", "financeiro"]}><Employees /></RoleGuard>} />
                 <Route path="rh" element={<RoleGuard allowed={["admin", "financeiro"]}><HR /></RoleGuard>} />
                 <Route path="vendas" element={<RoleGuard allowed={["admin", "vendedor"]}><Sales /></RoleGuard>} />
+                <Route path="compras" element={<RoleGuard allowed={["admin", "compras"]}><Purchases /></RoleGuard>} />
                 <Route path="usuarios" element={<RoleGuard allowed={["admin"]}><UserManagement /></RoleGuard>} />
               </Route>
               <Route path="*" element={<NotFound />} />
