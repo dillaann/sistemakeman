@@ -23,10 +23,32 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const PendingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="max-w-md text-center space-y-4">
+      <div className="h-16 w-16 rounded-xl bg-muted flex items-center justify-center mx-auto">
+        <span className="text-3xl">⏳</span>
+      </div>
+      <h1 className="text-2xl font-bold text-foreground">Conta Pendente</h1>
+      <p className="text-muted-foreground">
+        Sua conta está aguardando liberação pelo administrador. Entre em contato para solicitar acesso.
+      </p>
+      <button
+        onClick={async () => { await (await import("@/integrations/supabase/client")).supabase.auth.signOut(); window.location.href = "/auth"; }}
+        className="text-sm text-primary hover:underline"
+      >
+        Sair e voltar ao login
+      </button>
+    </div>
+  </div>
+);
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading } = useAuth();
+  const { session, loading, userRole } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
   if (!session) return <Navigate to="/auth" replace />;
+  // User has no role = pending
+  if (userRole === null) return <PendingScreen />;
   return <>{children}</>;
 };
 
