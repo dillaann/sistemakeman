@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt } from "lucide-react";
+import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
@@ -63,6 +63,36 @@ const Dashboard = () => {
         .filter(t => t.work_order_id && monthOrderIds.has(t.work_order_id))
         .reduce((s, t) => s + Number(t.amount), 0);
       return { totalBilled, totalReceived };
+    },
+  });
+
+  // DRE result for current month
+  const { data: dreResult } = useQuery({
+    queryKey: ["dre-dashboard"],
+    queryFn: async () => {
+      const n = new Date();
+      const monthKey = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+      const prevMonth = n.getMonth() === 0
+        ? `${n.getFullYear() - 1}-12`
+        : `${n.getFullYear()}-${String(n.getMonth()).padStart(2, "0")}`;
+      const start = new Date(n.getFullYear(), n.getMonth(), 1);
+      const end = new Date(n.getFullYear(), n.getMonth() + 1, 0, 23, 59, 59);
+      const prevStart = new Date(n.getMonth() === 0 ? n.getFullYear() - 1 : n.getFullYear(), n.getMonth() === 0 ? 11 : n.getMonth() - 1, 1);
+      const prevEnd = new Date(n.getFullYear(), n.getMonth(), 0, 23, 59, 59);
+      const inRange = (ds: string | null, s: Date, e: Date) => { if (!ds) return false; const d = new Date(ds); return d >= s && d <= e; };
+      const { data: wos } = await supabase.from("work_orders").select("total, completed_at").in("status", ["concluido", "entregue"]);
+      const currRev = (wos ?? []).filter(w => inRange(w.completed_at, start, end)).reduce((s, w) => s + Number(w.total), 0);
+      const prevRev = (wos ?? []).filter(w => inRange(w.completed_at, prevStart, prevEnd)).reduce((s, w) => s + Number(w.total), 0);
+      const { data: txns } = await supabase.from("financial_transactions").select("amount, due_date, type").eq("type", "a_pagar");
+      const currExp = (txns ?? []).filter(t => inRange(t.due_date, start, end)).reduce((s, t) => s + Number(t.amount), 0);
+      const prevExp = (txns ?? []).filter(t => inRange(t.due_date, prevStart, prevEnd)).reduce((s, t) => s + Number(t.amount), 0);
+      const { data: cls } = await supabase.from("monthly_closings").select("net_pay, month_ref");
+      const currPers = (cls ?? []).filter(c => c.month_ref === monthKey).reduce((s, c) => s + Number(c.net_pay), 0);
+      const prevPers = (cls ?? []).filter(c => c.month_ref === prevMonth).reduce((s, c) => s + Number(c.net_pay), 0);
+      const currResult = currRev - currExp - currPers;
+      const prevResult = prevRev - prevExp - prevPers;
+      const variation = prevResult === 0 ? 0 : ((currResult - prevResult) / Math.abs(prevResult)) * 100;
+      return { currResult, variation };
     },
   });
 
@@ -155,6 +185,25 @@ const Dashboard = () => {
               <p className="text-xl font-bold text-green-600">{fmt(billingOrders.totalReceived ?? 0)}</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Resultado do Mês (DRE)</CardTitle>
+          {(dreResult?.currResult ?? 0) >= 0 ? (
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          ) : (
+            <TrendingDown className="h-4 w-4 text-red-600" />
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className={`text-2xl font-bold ${(dreResult?.currResult ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+            {fmt(dreResult?.currResult ?? 0)}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Variação: {(dreResult?.variation ?? 0) > 0 ? "+" : ""}{(dreResult?.variation ?? 0).toFixed(1)}% vs mês anterior
+          </p>
         </CardContent>
       </Card>
 

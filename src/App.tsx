@@ -16,6 +16,7 @@ import Production from "@/pages/Production";
 import Employees from "@/pages/Employees";
 import HR from "@/pages/HR";
 import Billing from "@/pages/Billing";
+import DREPage from "@/pages/DRE";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="producao" element={<Production />} />
                 <Route path="financeiro" element={<Financial />} />
                 <Route path="faturamento" element={<Billing />} />
+                <Route path="dre" element={<DREPage />} />
                 <Route path="funcionarios" element={<Employees />} />
                 <Route path="rh" element={<HR />} />
               </Route>
