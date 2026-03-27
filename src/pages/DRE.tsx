@@ -90,6 +90,15 @@ const DRE = () => {
     },
   });
 
+  // Purchases data
+  const { data: purchasesData = [] } = useQuery({
+    queryKey: ["dre-purchases"],
+    queryFn: async () => {
+      const { data } = await supabase.from("purchases").select("purchase_date, total, discount_amount");
+      return data ?? [];
+    },
+  });
+
   // Generate month options (last 24 months)
   const monthOptions = useMemo(() => {
     const opts: { key: string; label: string }[] = [];
@@ -151,17 +160,23 @@ const DRE = () => {
 
     const despPessoal = folha + otValue + satValue + thirteenthProv + vacValue;
 
+    // Purchases in the month (operational costs)
+    const monthPurchases = purchasesData.filter((p: any) => inMonth(p.purchase_date));
+    const custosCompras = monthPurchases.reduce((s: number, p: any) => s + Number(p.total), 0);
+    const descontosCompras = monthPurchases.reduce((s: number, p: any) => s + Number(p.discount_amount ?? 0), 0);
+
     // Admin expenses: other "a_pagar" not in operational costs
     const despAdmin = transactions
       .filter((t) => {
         if (t.type !== "a_pagar") return false;
         if (!inMonth(t.due_date)) return false;
         const cat = (t.category ?? "").toLowerCase();
-        return !(cat.includes("material") || cat.includes("serviço") || cat.includes("servico") || cat.includes("terceiriz"));
+        return !(cat.includes("material") || cat.includes("serviço") || cat.includes("servico") || cat.includes("terceiriz") || cat.includes("compras"));
       })
       .reduce((s, t) => s + Number(t.amount), 0);
 
-    const resultadoOp = receitaLiquida - custosOp - despPessoal - despAdmin;
+    const totalCustosOp = custosOp + custosCompras;
+    const resultadoOp = receitaLiquida - totalCustosOp - despPessoal - despAdmin + descontosCompras;
     const resultadoFinal = resultadoOp;
 
     return {
@@ -170,7 +185,9 @@ const DRE = () => {
       receitaBruta,
       deducoes,
       receitaLiquida,
-      custosOp,
+      custosOp: totalCustosOp,
+      custosCompras,
+      descontosCompras,
       despPessoal,
       despAdmin,
       resultadoOp,
@@ -198,12 +215,14 @@ const DRE = () => {
       deducoes: acc.deducoes + d.deducoes,
       receitaLiquida: acc.receitaLiquida + d.receitaLiquida,
       custosOp: acc.custosOp + d.custosOp,
+      custosCompras: acc.custosCompras + d.custosCompras,
+      descontosCompras: acc.descontosCompras + d.descontosCompras,
       despPessoal: acc.despPessoal + d.despPessoal,
       despAdmin: acc.despAdmin + d.despAdmin,
       resultadoOp: acc.resultadoOp + d.resultadoOp,
       resultadoFinal: acc.resultadoFinal + d.resultadoFinal,
     }),
-    { receitaBruta: 0, deducoes: 0, receitaLiquida: 0, custosOp: 0, despPessoal: 0, despAdmin: 0, resultadoOp: 0, resultadoFinal: 0 }
+    { receitaBruta: 0, deducoes: 0, receitaLiquida: 0, custosOp: 0, custosCompras: 0, descontosCompras: 0, despPessoal: 0, despAdmin: 0, resultadoOp: 0, resultadoFinal: 0 }
   );
 
   // Comparison period
@@ -214,12 +233,14 @@ const DRE = () => {
           deducoes: acc.deducoes + d.deducoes,
           receitaLiquida: acc.receitaLiquida + d.receitaLiquida,
           custosOp: acc.custosOp + d.custosOp,
+          custosCompras: acc.custosCompras + d.custosCompras,
+          descontosCompras: acc.descontosCompras + d.descontosCompras,
           despPessoal: acc.despPessoal + d.despPessoal,
           despAdmin: acc.despAdmin + d.despAdmin,
           resultadoOp: acc.resultadoOp + d.resultadoOp,
           resultadoFinal: acc.resultadoFinal + d.resultadoFinal,
         }),
-        { receitaBruta: 0, deducoes: 0, receitaLiquida: 0, custosOp: 0, despPessoal: 0, despAdmin: 0, resultadoOp: 0, resultadoFinal: 0 }
+        { receitaBruta: 0, deducoes: 0, receitaLiquida: 0, custosOp: 0, custosCompras: 0, descontosCompras: 0, despPessoal: 0, despAdmin: 0, resultadoOp: 0, resultadoFinal: 0 }
       )
     : null;
 
