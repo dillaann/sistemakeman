@@ -119,8 +119,8 @@ const SellerSalesView = () => {
       }).select("id").single();
       if (woErr) throw woErr;
 
-      // Create sale
-      const { data: sale, error: saleErr } = await supabase.from("sales").insert({
+      // Create sale (commission will be created by admin)
+      const { error: saleErr } = await supabase.from("sales").insert({
         seller_id: user!.id,
         client_id: form.client_id,
         work_order_id: wo.id,
@@ -129,19 +129,8 @@ const SellerSalesView = () => {
         delivery_deadline: form.delivery_deadline || null,
         notes: form.notes || null,
         status: "aguardando",
-      }).select("id").single();
-      if (saleErr) throw saleErr;
-
-      // Create commission
-      const { data: rate } = await supabase.from("seller_commission_rates").select("percentage").eq("seller_id", user!.id).maybeSingle();
-      const pct = rate?.percentage ? Number(rate.percentage) : 5;
-      await supabase.from("sales_commissions").insert({
-        sale_id: sale.id,
-        seller_id: user!.id,
-        amount: amount * (pct / 100),
-        percentage: pct,
-        status: "pendente",
       });
+      if (saleErr) throw saleErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-sales"] });
