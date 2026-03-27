@@ -142,6 +142,7 @@ const UserManagement = () => {
               <SelectItem value="financeiro">Financeiro</SelectItem>
               <SelectItem value="producao">Produção</SelectItem>
               <SelectItem value="vendedor">Vendedor</SelectItem>
+              <SelectItem value="compras">Compras</SelectItem>
             </SelectContent>
           </Select>
         </TableCell>
@@ -267,6 +268,7 @@ const UserManagement = () => {
                           <SelectItem value="financeiro">Financeiro</SelectItem>
                           <SelectItem value="producao">Produção</SelectItem>
                           <SelectItem value="vendedor">Vendedor</SelectItem>
+                          <SelectItem value="compras">Compras</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
