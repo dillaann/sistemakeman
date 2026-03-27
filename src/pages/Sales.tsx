@@ -146,7 +146,7 @@ const SellerSalesView = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Minhas Vendas</h1>
+        <h1 className="text-xl md:text-2xl font-bold">Minhas Vendas</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Venda</Button></DialogTrigger>
           <DialogContent className="max-w-lg">
@@ -185,7 +185,7 @@ const SellerSalesView = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Vendas no Mês</CardTitle>
@@ -458,10 +458,10 @@ const AdminSalesView = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Vendas — Painel Administrativo</h1>
+      <h1 className="text-xl md:text-2xl font-bold">Vendas — Painel Administrativo</h1>
 
       {/* Summary cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Vendido no Mês</CardTitle>
@@ -521,10 +521,10 @@ const AdminSalesView = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto">
         <Button variant={tab === "sales" ? "default" : "outline"} size="sm" onClick={() => setTab("sales")}>Vendas</Button>
         <Button variant={tab === "commissions" ? "default" : "outline"} size="sm" onClick={() => setTab("commissions")}>Comissões</Button>
-        <Button variant={tab === "goals" ? "default" : "outline"} size="sm" onClick={() => setTab("goals")}>Metas & Taxas</Button>
+        <Button variant={tab === "goals" ? "default" : "outline"} size="sm" onClick={() => setTab("goals")}>Metas</Button>
       </div>
 
       {tab === "sales" && (
