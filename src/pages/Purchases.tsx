@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award } from "lucide-react";
+import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 
@@ -30,7 +30,7 @@ const statusColors: Record<string, string> = {
 
 const Purchases = () => {
   const { toast } = useToast();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState("painel");
   const [search, setSearch] = useState("");
@@ -65,6 +65,58 @@ const Purchases = () => {
     queryFn: async () => {
       const { data } = await supabase.from("purchases").select("*, suppliers(name)").order("purchase_date", { ascending: false });
       return data ?? [];
+    },
+  });
+
+  const { data: purchaseRequests = [] } = useQuery({
+    queryKey: ["purchase-requests"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("purchase_requests")
+        .select("*, work_orders(id, description, clients(name), material_status)")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const { data: requestMaterials = {} } = useQuery({
+    queryKey: ["purchase-request-materials"],
+    queryFn: async () => {
+      const woIds = purchaseRequests.map((r: any) => r.work_order_id);
+      if (!woIds.length) return {};
+      const { data } = await supabase
+        .from("work_order_materials")
+        .select("*")
+        .in("work_order_id", woIds);
+      const map: Record<string, any[]> = {};
+      (data ?? []).forEach((m: any) => {
+        if (!map[m.work_order_id]) map[m.work_order_id] = [];
+        map[m.work_order_id].push(m);
+      });
+      return map;
+    },
+    enabled: purchaseRequests.length > 0,
+  });
+
+  const confirmPurchaseRequest = useMutation({
+    mutationFn: async (requestId: string) => {
+      const request = purchaseRequests.find((r: any) => r.id === requestId) as any;
+      if (!request) throw new Error("Solicitação não encontrada");
+      // Update request status
+      const { error } = await supabase.from("purchase_requests")
+        .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
+        .eq("id", requestId);
+      if (error) throw error;
+      // Update work order material_status to comprado
+      await supabase.from("work_orders")
+        .update({ material_status: "comprado" } as any)
+        .eq("id", request.work_order_id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-requests"] });
+      qc.invalidateQueries({ queryKey: ["production-orders"] });
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      toast({ title: "Compra confirmada!" });
     },
   });
 
@@ -245,6 +297,7 @@ const Purchases = () => {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex flex-wrap">
           <TabsTrigger value="painel">Painel</TabsTrigger>
+          <TabsTrigger value="solicitacoes">Solicitações</TabsTrigger>
           <TabsTrigger value="compras">Compras</TabsTrigger>
           <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
           <TabsTrigger value="descontos">Descontos</TabsTrigger>
@@ -313,6 +366,62 @@ const Purchases = () => {
                   </TableBody>
                 </Table>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* SOLICITAÇÕES */}
+        <TabsContent value="solicitacoes" className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Solicitações de Compra da Produção</CardTitle></CardHeader>
+            <CardContent>
+              {purchaseRequests.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhuma solicitação pendente.</p>
+              ) : (
+                <div className="space-y-4">
+                  {purchaseRequests.map((req: any) => {
+                    const wo = req.work_orders as any;
+                    const mats = (requestMaterials as any)[req.work_order_id] ?? [];
+                    return (
+                      <Card key={req.id} className="border">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-sm">OS #{req.work_order_id.slice(0, 8)}</p>
+                              <p className="text-xs text-muted-foreground">{wo?.clients?.name} — {wo?.description}</p>
+                            </div>
+                            <Badge className={req.status === "pendente" ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" : "bg-green-500/10 text-green-700 border-green-500/20"}>
+                              {req.status === "pendente" ? "Pendente" : "Confirmado"}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold">Materiais solicitados:</p>
+                            {mats.map((m: any) => (
+                              <div key={m.id} className="text-xs bg-muted/50 rounded p-1.5 flex gap-2">
+                                <span className="font-medium">{m.material}</span>
+                                <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
+                                {m.notes && <span className="text-muted-foreground italic">({m.notes})</span>}
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Solicitado em: {new Date(req.requested_at).toLocaleDateString("pt-BR")}
+                          </p>
+                          {req.status === "pendente" && (
+                            <Button
+                              size="sm" className="w-full"
+                              onClick={() => confirmPurchaseRequest.mutate(req.id)}
+                              disabled={confirmPurchaseRequest.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" /> Confirmar Aquisição
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
