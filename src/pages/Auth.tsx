@@ -39,7 +39,7 @@ const Auth = () => {
       if (error) {
         toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
       } else {
-        toast({ title: "Conta criada!", description: "Verifique seu email para confirmar o cadastro." });
+        toast({ title: "Conta criada!", description: "Aguarde a liberação do administrador para acessar o sistema." });
       }
     }
     setLoading(false);
