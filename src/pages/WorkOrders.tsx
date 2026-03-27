@@ -24,9 +24,11 @@ const statusLabels: Record<string, string> = { aguardando: "Aguardando", em_prod
 
 const WorkOrders = () => {
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ client_id: "", description: "", total: "", status: "aguardando" as string });
 
   const { data: clients = [] } = useQuery({
@@ -64,6 +66,19 @@ const WorkOrders = () => {
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["work-orders"] }); toast({ title: "Status atualizado!" }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("work_orders").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      setDeleteTarget(null);
+      toast({ title: "OS removida!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -121,11 +136,18 @@ const WorkOrders = () => {
                 <TableCell>{fmt(Number(o.total))}</TableCell>
                 <TableCell><Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge></TableCell>
                 <TableCell>
-                  {nextStatus[o.status] && (
-                    <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: o.id, status: nextStatus[o.status] })}>
-                      → {statusLabels[nextStatus[o.status]]}
-                    </Button>
-                  )}
+                  <div className="flex gap-1">
+                    {nextStatus[o.status] && (
+                      <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: o.id, status: nextStatus[o.status] })}>
+                        → {statusLabels[nextStatus[o.status]]}
+                      </Button>
+                    )}
+                    {userRole === "admin" && (
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(o.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -133,6 +155,14 @@ const WorkOrders = () => {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+        isPending={deleteMutation.isPending}
+        description="Tem certeza que deseja excluir esta OS? Todos os dados relacionados (vendas, comissões, transações) serão removidos."
+      />
     </div>
   );
 };
