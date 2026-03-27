@@ -112,9 +112,9 @@ const DRE = () => {
       return d >= start && d <= end;
     };
 
-    // Revenue: completed work orders in the period
-    const monthWOs = workOrders.filter((wo) => inMonth(wo.completed_at));
-    const receitaBruta = monthWOs.reduce((s, wo) => s + Number(wo.total), 0);
+    // Revenue: approved quotes by approved_at date
+    const monthQuotes = approvedQuotes.filter((q: any) => inMonth(q.approved_at));
+    const receitaBruta = monthQuotes.reduce((s: number, q: any) => s + Number(q.total), 0);
 
     // Deductions: cancelled transactions in the period
     const deducoes = transactions
@@ -239,7 +239,7 @@ const DRE = () => {
         Resultado: dre.resultadoFinal,
       };
     });
-  }, [workOrders, transactions, closings, overtime, saturdays, thirteenth, vacations]);
+  }, [approvedQuotes, transactions, closings, overtime, saturdays, thirteenth, vacations]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const pct = (curr: number, prev: number) => (prev === 0 ? 0 : ((curr - prev) / Math.abs(prev)) * 100);
