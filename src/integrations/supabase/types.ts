@@ -186,6 +186,91 @@ export type Database = {
           },
         ]
       }
+      employee_overtime: {
+        Row: {
+          calculated_value: number
+          created_at: string
+          date: string
+          description: string | null
+          employee_id: string
+          hours: number
+          id: string
+          month_ref: string
+          percentage: number
+        }
+        Insert: {
+          calculated_value?: number
+          created_at?: string
+          date: string
+          description?: string | null
+          employee_id: string
+          hours: number
+          id?: string
+          month_ref: string
+          percentage?: number
+        }
+        Update: {
+          calculated_value?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id?: string
+          hours?: number
+          id?: string
+          month_ref?: string
+          percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_overtime_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_saturdays: {
+        Row: {
+          calculated_value: number
+          created_at: string
+          date: string
+          description: string | null
+          employee_id: string
+          hours: number
+          id: string
+          month_ref: string
+        }
+        Insert: {
+          calculated_value?: number
+          created_at?: string
+          date: string
+          description?: string | null
+          employee_id: string
+          hours: number
+          id?: string
+          month_ref: string
+        }
+        Update: {
+          calculated_value?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id?: string
+          hours?: number
+          id?: string
+          month_ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_saturdays_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active: boolean
@@ -339,6 +424,8 @@ export type Database = {
           paid_date: string | null
           total_advances: number
           total_expenses: number
+          total_overtime: number
+          total_saturdays: number
         }
         Insert: {
           base_salary?: number
@@ -351,6 +438,8 @@ export type Database = {
           paid_date?: string | null
           total_advances?: number
           total_expenses?: number
+          total_overtime?: number
+          total_saturdays?: number
         }
         Update: {
           base_salary?: number
@@ -363,6 +452,8 @@ export type Database = {
           paid_date?: string | null
           total_advances?: number
           total_expenses?: number
+          total_overtime?: number
+          total_saturdays?: number
         }
         Relationships: [
           {
