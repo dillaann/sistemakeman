@@ -45,8 +45,8 @@ const Purchases = () => {
   // Purchase dialog
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [pForm, setPForm] = useState({
-    supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", purchase_date: new Date().toISOString().split("T")[0],
-    invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", discount_percentage: "0", notes: "",
+    supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
+    invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
   });
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
@@ -92,11 +92,12 @@ const Purchases = () => {
   const savePurchase = useMutation({
     mutationFn: async () => {
       const qty = parseFloat(pForm.quantity) || 0;
-      const unitP = parseFloat(pForm.unit_price) || 0;
-      const discPct = parseFloat(pForm.discount_percentage) || 0;
-      const subtotal = qty * unitP;
-      const discountAmt = subtotal * (discPct / 100);
-      const total = subtotal - discountAmt;
+      const unitP = parseFloat(pForm.unit_price) || 0; // valor negociado unitário
+      const originalP = parseFloat(pForm.original_price) || 0; // valor original unitário
+      const total = qty * unitP; // total negociado
+      const originalTotal = qty * originalP;
+      const discountAmt = originalP > 0 ? originalTotal - total : 0;
+      const discPct = originalTotal > 0 ? (discountAmt / originalTotal) * 100 : 0;
 
       const payload: any = {
         supplier_id: pForm.supplier_id || null,
@@ -104,6 +105,7 @@ const Purchases = () => {
         quantity: qty,
         unit: pForm.unit,
         unit_price: unitP,
+        original_price: originalP > 0 ? originalP : null,
         total,
         purchase_date: pForm.purchase_date,
         invoice_number: pForm.invoice_number || null,
@@ -111,7 +113,7 @@ const Purchases = () => {
         payment_status: pForm.payment_status,
         due_date: pForm.due_date || null,
         discount_percentage: discPct,
-        discount_amount: discountAmt,
+        discount_amount: discountAmt > 0 ? discountAmt : 0,
         notes: pForm.notes || null,
       };
 
@@ -136,8 +138,8 @@ const Purchases = () => {
       qc.invalidateQueries({ queryKey: ["financial"] });
       setPurchaseOpen(false);
       setPForm({
-        supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", purchase_date: new Date().toISOString().split("T")[0],
-        invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", discount_percentage: "0", notes: "",
+        supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
+        invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
       });
       toast({ title: "Compra registrada!" });
     },
@@ -191,16 +193,21 @@ const Purchases = () => {
 
   // Supplier discount ranking
   const supplierDiscounts = useMemo(() => {
-    const map: Record<string, { name: string; total: number; count: number }> = {};
+    const map: Record<string, { name: string; totalOriginal: number; totalPaid: number; totalSaved: number; count: number }> = {};
     purchases.forEach(p => {
       const sid = p.supplier_id;
-      if (!sid || !p.discount_amount) return;
+      if (!sid) return;
       const name = (p as any).suppliers?.name ?? "Sem nome";
-      if (!map[sid]) map[sid] = { name, total: 0, count: 0 };
-      map[sid].total += Number(p.discount_amount);
-      map[sid].count++;
+      if (!map[sid]) map[sid] = { name, totalOriginal: 0, totalPaid: 0, totalSaved: 0, count: 0 };
+      const origPrice = Number((p as any).original_price ?? 0);
+      const qty = Number(p.quantity);
+      const originalTotal = origPrice > 0 ? origPrice * qty : Number(p.total);
+      map[sid].totalOriginal += originalTotal;
+      map[sid].totalPaid += Number(p.total);
+      map[sid].totalSaved += Number(p.discount_amount ?? 0);
+      if (Number(p.discount_amount ?? 0) > 0) map[sid].count++;
     });
-    return Object.values(map).sort((a, b) => b.total - a.total);
+    return Object.values(map).sort((a, b) => b.totalSaved - a.totalSaved);
   }, [purchases]);
 
   const filteredPurchases = purchases.filter(p => {
@@ -219,9 +226,16 @@ const Purchases = () => {
   const calcTotal = () => {
     const qty = parseFloat(pForm.quantity) || 0;
     const unitP = parseFloat(pForm.unit_price) || 0;
-    const discPct = parseFloat(pForm.discount_percentage) || 0;
-    const subtotal = qty * unitP;
-    return subtotal - subtotal * (discPct / 100);
+    return qty * unitP;
+  };
+
+  const calcSavings = () => {
+    const qty = parseFloat(pForm.quantity) || 0;
+    const unitP = parseFloat(pForm.unit_price) || 0;
+    const origP = parseFloat(pForm.original_price) || 0;
+    const savings = origP > 0 ? (qty * origP) - (qty * unitP) : 0;
+    const pct = origP > 0 ? (savings / (qty * origP)) * 100 : 0;
+    return { savings: Math.max(0, savings), pct: Math.max(0, pct) };
   };
 
   return (
@@ -354,13 +368,24 @@ const Purchases = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div><Label>Valor Unit. (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
+                    <div><Label>Valor Negociado (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><Label>Desconto (%)</Label><Input type="number" step="0.1" value={pForm.discount_percentage} onChange={e => setPForm({ ...pForm, discount_percentage: e.target.value })} /></div>
+                  <div>
+                    <Label>Valor Original do Fornecedor (R$)</Label>
+                    <Input type="number" step="0.01" value={pForm.original_price} onChange={e => setPForm({ ...pForm, original_price: e.target.value })} placeholder="Deixe vazio se não houve desconto" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <Label>Total Calculado</Label>
+                      <Label>Total Negociado</Label>
                       <Input value={fmt(calcTotal())} readOnly className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Economizado</Label>
+                      <Input value={fmt(calcSavings().savings)} readOnly className="bg-muted text-green-600" />
+                    </div>
+                    <div>
+                      <Label>Desconto (%)</Label>
+                      <Input value={`${calcSavings().pct.toFixed(1)}%`} readOnly className="bg-muted text-green-600" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -514,8 +539,10 @@ const Purchases = () => {
                     <TableRow>
                       <TableHead>#</TableHead>
                       <TableHead>Fornecedor</TableHead>
-                      <TableHead>Total Economizado</TableHead>
-                      <TableHead>Compras com Desconto</TableHead>
+                      <TableHead>Valor Original</TableHead>
+                      <TableHead>Valor Pago</TableHead>
+                      <TableHead>Economizado</TableHead>
+                      <TableHead>Compras</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -523,11 +550,13 @@ const Purchases = () => {
                       <TableRow key={i}>
                         <TableCell className="font-bold">{i + 1}º</TableCell>
                         <TableCell className="font-medium">{sd.name}</TableCell>
-                        <TableCell className="text-green-600 font-medium">{fmt(sd.total)}</TableCell>
+                        <TableCell>{fmt(sd.totalOriginal)}</TableCell>
+                        <TableCell>{fmt(sd.totalPaid)}</TableCell>
+                        <TableCell className="text-green-600 font-medium">{fmt(sd.totalSaved)}</TableCell>
                         <TableCell>{sd.count}</TableCell>
                       </TableRow>
                     ))}
-                    {supplierDiscounts.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum desconto registrado.</TableCell></TableRow>}
+                    {supplierDiscounts.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum desconto registrado.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </div>
