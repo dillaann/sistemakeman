@@ -12,25 +12,31 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Orçamentos", url: "/orcamentos", icon: FileText },
-  { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList },
-  { title: "Produção", url: "/producao", icon: Factory },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Faturamento", url: "/faturamento", icon: Receipt },
-  { title: "DRE", url: "/dre", icon: BarChart3 },
-  { title: "Funcionários", url: "/funcionarios", icon: UserCog },
-  { title: "RH", url: "/rh", icon: Briefcase },
+type AppRole = "admin" | "funcionario" | "financeiro" | "producao";
+
+const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] = [
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin"] },
+  { title: "Clientes", url: "/clientes", icon: Users, roles: ["admin"] },
+  { title: "Orçamentos", url: "/orcamentos", icon: FileText, roles: ["admin"] },
+  { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao"] },
+  { title: "Produção", url: "/producao", icon: Factory, roles: ["admin", "producao"] },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign, roles: ["admin", "financeiro"] },
+  { title: "Faturamento", url: "/faturamento", icon: Receipt, roles: ["admin", "financeiro"] },
+  { title: "DRE", url: "/dre", icon: BarChart3, roles: ["admin", "financeiro"] },
+  { title: "Funcionários", url: "/funcionarios", icon: UserCog, roles: ["admin"] },
+  { title: "RH", url: "/rh", icon: Briefcase, roles: ["admin"] },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { signOut, user } = useAuth();
+  const { signOut, userRole } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+
+  const visibleItems = menuItems.filter(
+    (item) => userRole && item.roles.includes(userRole)
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -44,7 +50,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
