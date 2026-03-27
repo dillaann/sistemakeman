@@ -568,6 +568,57 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_requests: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          requested_at: string
+          requested_by: string | null
+          status: string
+          work_order_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          work_order_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          status?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders_production"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchases: {
         Row: {
           created_at: string
@@ -1005,6 +1056,51 @@ export type Database = {
         }
         Relationships: []
       }
+      work_order_materials: {
+        Row: {
+          created_at: string
+          id: string
+          material: string
+          notes: string | null
+          quantity: number
+          unit: string
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material: string
+          notes?: string | null
+          quantity?: number
+          unit?: string
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material?: string
+          notes?: string | null
+          quantity?: number
+          unit?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_materials_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_materials_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders_production"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_orders: {
         Row: {
           assigned_to: string | null
@@ -1015,6 +1111,7 @@ export type Database = {
           description: string | null
           id: string
           internal_notes: string | null
+          material_status: string | null
           priority: string
           quote_id: string | null
           started_at: string | null
@@ -1031,6 +1128,7 @@ export type Database = {
           description?: string | null
           id?: string
           internal_notes?: string | null
+          material_status?: string | null
           priority?: string
           quote_id?: string | null
           started_at?: string | null
@@ -1047,6 +1145,7 @@ export type Database = {
           description?: string | null
           id?: string
           internal_notes?: string | null
+          material_status?: string | null
           priority?: string
           quote_id?: string | null
           started_at?: string | null
