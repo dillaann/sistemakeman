@@ -3,10 +3,12 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
+type AppRole = "admin" | "funcionario" | "financeiro" | "producao";
+
 type AuthContextType = {
   session: Session | null;
   user: User | null;
-  userRole: "admin" | "funcionario" | null;
+  userRole: AppRole | null;
   loading: boolean;
   signOut: () => Promise<void>;
 };
@@ -24,7 +26,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<"admin" | "funcionario" | null>(null);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserRole = async (userId: string) => {
