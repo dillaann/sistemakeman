@@ -102,6 +102,13 @@ export type Database = {
             referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "commissions_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders_production"
+            referencedColumns: ["id"]
+          },
         ]
       }
       employee_advances: {
@@ -431,6 +438,13 @@ export type Database = {
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders_production"
             referencedColumns: ["id"]
           },
         ]
@@ -789,6 +803,13 @@ export type Database = {
             referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sales_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders_production"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sales_commissions: {
@@ -1052,7 +1073,69 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      work_orders_production: {
+        Row: {
+          assigned_to: string | null
+          client_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          delivered_at: string | null
+          description: string | null
+          id: string | null
+          internal_notes: string | null
+          priority: string | null
+          quote_id: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["work_order_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          description?: string | null
+          id?: string | null
+          internal_notes?: string | null
+          priority?: string | null
+          quote_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["work_order_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          description?: string | null
+          id?: string | null
+          internal_notes?: string | null
+          priority?: string | null
+          quote_id?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["work_order_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
