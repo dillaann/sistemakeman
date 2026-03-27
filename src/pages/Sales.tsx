@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trophy, DollarSign, Target, TrendingUp, Check, ShoppingBag } from "lucide-react";
+import { Plus, Search, Trophy, DollarSign, Target, TrendingUp, Check, ShoppingBag, Trash2 } from "lucide-react";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -295,6 +296,8 @@ const AdminSalesView = () => {
   const [sellerFilter, setSellerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [tab, setTab] = useState<"sales" | "commissions" | "goals">("sales");
+  const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
+  const [tab, setTab] = useState<"sales" | "commissions" | "goals">("sales");
 
   // Commission rate dialog
   const [rateOpen, setRateOpen] = useState(false);
@@ -395,6 +398,33 @@ const AdminSalesView = () => {
       queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
       toast({ title: "Status atualizado!" });
     },
+  });
+
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      setDeleteTarget(null);
+      toast({ title: "Venda removida!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCommissionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales_commissions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      setDeleteTarget(null);
+      toast({ title: "Comissão removida!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const sellerName = (id: string) => sellers.find(s => s.id === id)?.full_name || "—";
