@@ -1,0 +1,1 @@
+ALTER TABLE public.purchases ADD COLUMN original_price numeric DEFAULT 0;
