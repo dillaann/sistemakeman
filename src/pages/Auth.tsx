@@ -12,6 +12,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -25,6 +26,11 @@ const Auth = () => {
         toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
       }
     } else {
+      if (accessCode !== "fuzil") {
+        toast({ title: "Código de acesso inválido", description: "Solicite o código de acesso ao administrador.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -56,10 +62,16 @@ const Auth = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Nome completo</Label>
-                <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} required />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Nome completo</Label>
+                  <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="accessCode">Código de acesso</Label>
+                  <Input id="accessCode" type="password" placeholder="Solicite ao administrador" value={accessCode} onChange={e => setAccessCode(e.target.value)} required />
+                </div>
+              </>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
