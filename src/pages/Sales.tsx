@@ -258,23 +258,27 @@ const SellerSalesView = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Valor</TableHead>
+              <TableHead>Venda</TableHead>
+              <TableHead>Cliente</TableHead>
               <TableHead>Percentual</TableHead>
+              <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {myCommissions.map((c, i) => (
+            {myCommissions.map((c: any, i: number) => (
               <TableRow key={i}>
+                <TableCell className="max-w-[150px] truncate">{c.sales?.description || "—"}</TableCell>
+                <TableCell>{c.sales?.clients?.name || "—"}</TableCell>
+                <TableCell>{Number(c.percentage)}%</TableCell>
                 <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
-                <TableCell>—</TableCell>
                 <TableCell>
                   <Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge>
                 </TableCell>
               </TableRow>
             ))}
             {myCommissions.length === 0 && (
-              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Nenhuma comissão atribuída.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma comissão atribuída.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
