@@ -363,13 +363,24 @@ const Purchases = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div><Label>Valor Unit. (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
+                    <div><Label>Valor Negociado (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><Label>Desconto (%)</Label><Input type="number" step="0.1" value={pForm.discount_percentage} onChange={e => setPForm({ ...pForm, discount_percentage: e.target.value })} /></div>
+                  <div>
+                    <Label>Valor Original do Fornecedor (R$)</Label>
+                    <Input type="number" step="0.01" value={pForm.original_price} onChange={e => setPForm({ ...pForm, original_price: e.target.value })} placeholder="Deixe vazio se não houve desconto" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <Label>Total Calculado</Label>
+                      <Label>Total Negociado</Label>
                       <Input value={fmt(calcTotal())} readOnly className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Economizado</Label>
+                      <Input value={fmt(calcSavings().savings)} readOnly className="bg-muted text-green-600" />
+                    </div>
+                    <div>
+                      <Label>Desconto (%)</Label>
+                      <Input value={`${calcSavings().pct.toFixed(1)}%`} readOnly className="bg-muted text-green-600" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
