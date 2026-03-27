@@ -130,7 +130,7 @@ const WorkOrders = () => {
               <Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="font-bold text-sm">{fmt(Number(o.total))}</span>
+              {userRole !== "producao" && <span className="font-bold text-sm">{fmt(Number(o.total))}</span>}
               <div className="flex gap-1">
                 {nextStatus[o.status] && (
                   <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: o.id, status: nextStatus[o.status] })}>
@@ -156,7 +156,7 @@ const WorkOrders = () => {
             <TableRow>
               <TableHead>Cliente</TableHead>
               <TableHead>Descrição</TableHead>
-              <TableHead>Valor</TableHead>
+              {userRole !== "producao" && <TableHead>Valor</TableHead>}
               <TableHead>Status</TableHead>
               <TableHead className="w-32">Ação</TableHead>
             </TableRow>
@@ -166,7 +166,7 @@ const WorkOrders = () => {
               <TableRow key={o.id}>
                 <TableCell className="font-medium">{(o.clients as any)?.name}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{o.description}</TableCell>
-                <TableCell>{fmt(Number(o.total))}</TableCell>
+                {userRole !== "producao" && <TableCell>{fmt(Number(o.total))}</TableCell>}
                 <TableCell><Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
@@ -184,7 +184,7 @@ const WorkOrders = () => {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={userRole === "producao" ? 4 : 5} className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
