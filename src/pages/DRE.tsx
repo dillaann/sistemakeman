@@ -260,7 +260,7 @@ const DRE = () => {
         Resultado: dre.resultadoFinal,
       };
     });
-  }, [approvedQuotes, transactions, closings, overtime, saturdays, thirteenth, vacations]);
+  }, [approvedQuotes, transactions, closings, overtime, saturdays, thirteenth, vacations, purchasesData]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const pct = (curr: number, prev: number) => (prev === 0 ? 0 : ((curr - prev) / Math.abs(prev)) * 100);
@@ -270,6 +270,8 @@ const DRE = () => {
     { label: "(-) Deduções", key: "deducoes" as const, bold: false, indent: 1 },
     { label: "= Receita Líquida", key: "receitaLiquida" as const, bold: true, indent: 0 },
     { label: "(-) Custos Operacionais", key: "custosOp" as const, bold: false, indent: 1 },
+    { label: "   Compras", key: "custosCompras" as const, bold: false, indent: 2 },
+    { label: "   (+) Descontos em Compras", key: "descontosCompras" as const, bold: false, indent: 2 },
     { label: "(-) Despesas com Pessoal", key: "despPessoal" as const, bold: false, indent: 1 },
     { label: "(-) Despesas Administrativas", key: "despAdmin" as const, bold: false, indent: 1 },
     { label: "= Resultado Operacional", key: "resultadoOp" as const, bold: true, indent: 0 },
