@@ -35,6 +35,34 @@ const UserManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("");
+
+  const createUser = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: { email: newEmail, password: newPassword, fullName: newName, role: newRole || undefined },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-management"] });
+      toast({ title: "Usuário criado com sucesso!" });
+      setCreateOpen(false);
+      setNewEmail("");
+      setNewPassword("");
+      setNewName("");
+      setNewRole("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao criar usuário", description: err.message, variant: "destructive" });
+    },
+  });
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["user-management"],
@@ -190,9 +218,57 @@ const UserManagement = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
-        <Shield className="h-6 w-6" /> Gerenciamento de Usuários
-      </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Shield className="h-6 w-6" /> Gerenciamento de Usuários
+        </h1>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button><Plus className="h-4 w-4 mr-1" /> Criar Usuário</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Criar Novo Usuário</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>Nome completo</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do usuário" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@exemplo.com" />
+              </div>
+              <div className="space-y-2">
+                <Label>Senha</Label>
+                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+              </div>
+              <div className="space-y-2">
+                <Label>Cargo</Label>
+                <Select value={newRole} onValueChange={setNewRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar cargo (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="financeiro">Financeiro</SelectItem>
+                    <SelectItem value="producao">Produção</SelectItem>
+                    <SelectItem value="vendedor">Vendedor</SelectItem>
+                    <SelectItem value="compras">Compras</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                className="w-full"
+                disabled={!newEmail || !newPassword || createUser.isPending}
+                onClick={() => createUser.mutate()}
+              >
+                {createUser.isPending ? "Criando..." : "Criar Usuário"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {/* Pending Users */}
       {pendingUsers.length > 0 && (
