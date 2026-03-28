@@ -23,7 +23,7 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "Clientes", url: "/clientes", icon: Users, roles: ["admin", "vendedor"] },
   { title: "Orçamentos", url: "/orcamentos", icon: FileText, roles: ["admin", "vendedor"] },
   { title: "Vendas", url: "/vendas", icon: ShoppingBag, roles: ["admin", "vendedor"] },
-  { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor"] },
+  { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor", "compras"] },
   { title: "Produção", url: "/producao", icon: Factory, roles: ["admin", "producao"] },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, roles: ["admin", "financeiro"] },
   { title: "Faturamento", url: "/faturamento", icon: Receipt, roles: ["admin", "financeiro"] },
@@ -31,7 +31,6 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "Funcionários", url: "/funcionarios", icon: UserCog, roles: ["admin", "financeiro"] },
   { title: "RH", url: "/rh", icon: Briefcase, roles: ["admin", "financeiro"] },
   { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
-  { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
   { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
 ];
 
