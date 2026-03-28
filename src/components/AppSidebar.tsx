@@ -32,7 +32,6 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "RH", url: "/rh", icon: Briefcase, roles: ["admin", "financeiro"] },
   { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
   { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
-  { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
 ];
 
 export function AppSidebar() {
