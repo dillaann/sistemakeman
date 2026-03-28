@@ -23,7 +23,7 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "Clientes", url: "/clientes", icon: Users, roles: ["admin", "vendedor"] },
   { title: "Orçamentos", url: "/orcamentos", icon: FileText, roles: ["admin", "vendedor"] },
   { title: "Vendas", url: "/vendas", icon: ShoppingBag, roles: ["admin", "vendedor"] },
-  { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor"] },
+  { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor", "compras"] },
   { title: "Produção", url: "/producao", icon: Factory, roles: ["admin", "producao"] },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign, roles: ["admin", "financeiro"] },
   { title: "Faturamento", url: "/faturamento", icon: Receipt, roles: ["admin", "financeiro"] },
