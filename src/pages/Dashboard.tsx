@@ -126,7 +126,7 @@ const Dashboard = () => {
       const { data: campaigns } = await supabase.from("marketing_campaigns").select("amount_invested, start_date");
       const monthCampaigns = (campaigns ?? []).filter((c: any) => new Date(c.start_date) >= monthStart);
       const totalInvested = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
-      const { data: sales } = await supabase.from("sales").select("amount, created_at").eq("origem_venda", "Marketing");
+      const { data: sales } = await supabase.from("sales").select("amount, created_at").eq("origem_venda", "marketing");
       const monthSales = (sales ?? []).filter((s: any) => new Date(s.created_at) >= monthStart);
       const totalRevenue = monthSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
       const roi = totalInvested > 0 ? ((totalRevenue - totalInvested) / totalInvested) * 100 : 0;
