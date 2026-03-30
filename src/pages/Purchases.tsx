@@ -713,6 +713,49 @@ const Purchases = () => {
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
         isPending={deleteMutation.isPending}
       />
+
+      <PhotoPurchaseDialog
+        open={photoDialogOpen}
+        onOpenChange={setPhotoDialogOpen}
+        suppliers={suppliers}
+        purchaseRequests={purchaseRequests}
+        onSave={async (data: any) => {
+          const { linked_wo_id, ...payload } = data;
+          const { error } = await supabase.from("purchases").insert(payload);
+          if (error) {
+            toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+            return;
+          }
+          // Create financial transaction if not paid
+          if (payload.payment_status !== "pago") {
+            const supplierName = suppliers.find(s => s.id === payload.supplier_id)?.name ?? "Fornecedor";
+            await supabase.from("financial_transactions").insert({
+              type: "a_pagar" as any,
+              description: `Compra: ${payload.material} - ${supplierName}`,
+              amount: payload.total,
+              due_date: payload.due_date || payload.purchase_date,
+              category: "Compras",
+              status: "pendente" as any,
+            });
+          }
+          // Link to purchase request if selected
+          if (linked_wo_id && linked_wo_id !== "none") {
+            const req = purchaseRequests.find((r: any) => r.work_order_id === linked_wo_id);
+            if (req) {
+              await supabase.from("purchase_requests")
+                .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
+                .eq("id", req.id);
+              await supabase.from("work_orders")
+                .update({ material_status: "comprado" } as any)
+                .eq("id", linked_wo_id);
+            }
+          }
+          qc.invalidateQueries({ queryKey: ["purchases"] });
+          qc.invalidateQueries({ queryKey: ["financial"] });
+          qc.invalidateQueries({ queryKey: ["purchase-requests"] });
+          toast({ title: "Compra registrada por foto!" });
+        }}
+      />
     </div>
   );
 };
