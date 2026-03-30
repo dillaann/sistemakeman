@@ -28,21 +28,34 @@ const nextColumnMap: Record<string, string[]> = {
 
 const Production = () => {
   const { toast } = useToast();
-  const { userRole } = useAuth();
   const queryClient = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [notesText, setNotesText] = useState("");
 
-  // Fetch production records joined with work_orders and clients
-  const { data: productionItems = [] } = useQuery({
+  const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("production")
-        .select("*, work_orders!inner(id, description, priority, internal_notes, material_status, clients(name), employees:assigned_to(name))")
+        .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+
+      // Fetch related work order data separately
+      const osIds = (data ?? []).map((p: any) => p.os_id).filter(Boolean);
+      if (osIds.length === 0) return [];
+
+      const { data: workOrders } = await supabase
+        .from("work_orders")
+        .select("id, description, priority, internal_notes, material_status, total, clients(name), employees:assigned_to(name)")
+        .in("id", osIds);
+
+      const woMap = new Map((workOrders ?? []).map((wo: any) => [wo.id, wo]));
+
+      return (data ?? []).map((p: any) => ({
+        ...p,
+        work_orders: woMap.get(p.os_id) || null,
+      }));
     },
   });
 
@@ -74,22 +87,25 @@ const Production = () => {
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       toast({ title: "Atualizado!" });
     },
+    onError: (err: any) => {
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+    },
   });
 
   const moveToStatus = (id: string, status: string) => {
-    const updates: Record<string, any> = { status };
-    // Also update the work_order status for sync
+    // Also sync the work_order status
     const item = productionItems.find((p: any) => p.id === id);
     if (item) {
       let woStatus: "aguardando" | "em_producao" | "concluido" | "entregue" = "aguardando";
       if (status === "Em Andamento") woStatus = "em_producao";
+      if (status === "Aguardando Material") woStatus = "em_producao";
       if (status === "Finalizado") woStatus = "concluido";
       if (status === "Entregue") woStatus = "entregue";
       supabase.from("work_orders").update({ status: woStatus }).eq("id", item.os_id).then(() => {
         queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       });
     }
-    updateMutation.mutate({ id, updates });
+    updateMutation.mutate({ id, updates: { status } });
   };
 
   const saveNotes = () => {
@@ -111,102 +127,106 @@ const Production = () => {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Produção</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {columns.map(col => {
-          const colItems = getColumnItems(col.key);
-          return (
-            <div key={col.key} className="space-y-3">
-              <div className={`rounded-lg border p-3 ${col.color}`}>
-                <h3 className="font-semibold text-sm flex items-center justify-between">
-                  {col.label}
-                  <Badge variant="secondary">{colItems.length}</Badge>
-                </h3>
-              </div>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {columns.map(col => {
+            const colItems = getColumnItems(col.key);
+            return (
+              <div key={col.key} className="space-y-3">
+                <div className={`rounded-lg border p-3 ${col.color}`}>
+                  <h3 className="font-semibold text-sm flex items-center justify-between">
+                    {col.label}
+                    <Badge variant="secondary">{colItems.length}</Badge>
+                  </h3>
+                </div>
 
-              <div className="space-y-2 min-h-[200px]">
-                {colItems.map((item: any) => {
-                  const wo = item.work_orders;
-                  return (
-                    <Card key={item.id} className={`border ${item.priority === "urgente" ? "border-destructive/50 bg-destructive/5" : ""}`}>
-                      <CardContent className="p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-mono">
-                            OS #{item.os_id?.slice(0, 8)}
-                          </span>
-                          <button onClick={() => togglePriority(item)} className="text-xs" title="Alternar prioridade">
-                            {item.priority === "urgente" ? (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                <AlertTriangle className="h-3 w-3 mr-1" /> URGENTE
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Normal</Badge>
-                            )}
-                          </button>
-                        </div>
+                <div className="space-y-2 min-h-[200px]">
+                  {colItems.map((item: any) => {
+                    const wo = item.work_orders;
+                    return (
+                      <Card key={item.id} className={`border ${item.priority === "urgente" ? "border-destructive/50 bg-destructive/5" : ""}`}>
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground font-mono">
+                              OS #{item.os_id?.slice(0, 8)}
+                            </span>
+                            <button onClick={() => togglePriority(item)} className="text-xs" title="Alternar prioridade">
+                              {item.priority === "urgente" ? (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                  <AlertTriangle className="h-3 w-3 mr-1" /> URGENTE
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Normal</Badge>
+                              )}
+                            </button>
+                          </div>
 
-                        <p className="font-medium text-sm">{wo?.clients?.name}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description}</p>
+                          <p className="font-medium text-sm">{wo?.clients?.name || "Cliente não encontrado"}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description || "Sem descrição"}</p>
 
-                        {wo?.employees?.name && (
-                          <p className="text-xs text-muted-foreground">👤 {wo.employees.name}</p>
-                        )}
-
-                        {item.observacoes && (
-                          <p className="text-xs italic text-muted-foreground bg-muted/50 rounded p-1.5">
-                            📝 {item.observacoes}
-                          </p>
-                        )}
-
-                        <WorkOrderMaterials
-                          workOrderId={item.os_id}
-                          materialStatus={wo?.material_status || "nao_solicitado"}
-                        />
-
-                        <div className="flex items-center gap-1 pt-1">
-                          <Button
-                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                            onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
-                          >
-                            <MessageSquare className="h-3 w-3 mr-1" /> Notas
-                          </Button>
-
-                          {col.key !== "Finalizado" && (
-                            <Select onValueChange={(status) => moveToStatus(item.id, status)}>
-                              <SelectTrigger className="h-7 text-xs flex-1">
-                                <SelectValue placeholder="Mover →" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(nextColumnMap[col.key] || []).map(s => (
-                                  <SelectItem key={s} value={s}>
-                                    {s}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          {wo?.employees?.name && (
+                            <p className="text-xs text-muted-foreground">👤 {wo.employees.name}</p>
                           )}
 
-                          {col.key === "Finalizado" && (
+                          {item.observacoes && (
+                            <p className="text-xs italic text-muted-foreground bg-muted/50 rounded p-1.5">
+                              📝 {item.observacoes}
+                            </p>
+                          )}
+
+                          <WorkOrderMaterials
+                            workOrderId={item.os_id}
+                            materialStatus={wo?.material_status || "nao_solicitado"}
+                          />
+
+                          <div className="flex items-center gap-1 pt-1">
                             <Button
-                              size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
-                              onClick={() => moveToStatus(item.id, "Entregue")}
+                              size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                              onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
                             >
-                              <ArrowRight className="h-3 w-3 mr-1" /> Entregar
+                              <MessageSquare className="h-3 w-3 mr-1" /> Notas
                             </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
 
-                {colItems.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-8">Nenhuma OS</p>
-                )}
+                            {col.key !== "Finalizado" && (
+                              <Select onValueChange={(status) => moveToStatus(item.id, status)}>
+                                <SelectTrigger className="h-7 text-xs flex-1">
+                                  <SelectValue placeholder="Mover →" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(nextColumnMap[col.key] || []).map(s => (
+                                    <SelectItem key={s} value={s}>
+                                      {s}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+
+                            {col.key === "Finalizado" && (
+                              <Button
+                                size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
+                                onClick={() => moveToStatus(item.id, "Entregue")}
+                              >
+                                <ArrowRight className="h-3 w-3 mr-1" /> Entregar
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {colItems.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-8">Nenhuma OS</p>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
         <DialogContent>
