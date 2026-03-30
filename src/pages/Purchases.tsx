@@ -484,83 +484,84 @@ const Purchases = () => {
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
               <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
-              <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>Registrar Compra</DialogTitle></DialogHeader>
-                <form onSubmit={e => { e.preventDefault(); savePurchase.mutate(); }} className="space-y-3">
-                  <div>
-                    <Label>Fornecedor</Label>
-                    <Select value={pForm.supplier_id} onValueChange={v => setPForm({ ...pForm, supplier_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>
-                        {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div><Label>Material / Produto *</Label><Input value={pForm.material} onChange={e => setPForm({ ...pForm, material: e.target.value })} required /></div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div><Label>Quantidade *</Label><Input type="number" step="0.01" value={pForm.quantity} onChange={e => setPForm({ ...pForm, quantity: e.target.value })} required /></div>
+                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                  <DialogHeader><DialogTitle>Registrar Compra</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); savePurchase.mutate(); }} className="space-y-3">
                     <div>
-                      <Label>Unidade</Label>
-                      <Select value={pForm.unit} onValueChange={v => setPForm({ ...pForm, unit: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <Label>Fornecedor</Label>
+                      <Select value={pForm.supplier_id} onValueChange={v => setPForm({ ...pForm, supplier_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                         <SelectContent>
-                          {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div><Label>Valor Negociado (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
-                  </div>
-                  <div>
-                    <Label>Valor Original do Fornecedor (R$)</Label>
-                    <Input type="number" step="0.01" value={pForm.original_price} onChange={e => setPForm({ ...pForm, original_price: e.target.value })} placeholder="Deixe vazio se não houve desconto" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <Label>Total Negociado</Label>
-                      <Input value={fmt(calcTotal())} readOnly className="bg-muted" />
+                    <div><Label>Material / Produto *</Label><Input value={pForm.material} onChange={e => setPForm({ ...pForm, material: e.target.value })} required /></div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><Label>Quantidade *</Label><Input type="number" step="0.01" value={pForm.quantity} onChange={e => setPForm({ ...pForm, quantity: e.target.value })} required /></div>
+                      <div>
+                        <Label>Unidade</Label>
+                        <Select value={pForm.unit} onValueChange={v => setPForm({ ...pForm, unit: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div><Label>Valor Negociado (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
                     </div>
                     <div>
-                      <Label>Economizado</Label>
-                      <Input value={fmt(calcSavings().savings)} readOnly className="bg-muted text-green-600" />
+                      <Label>Valor Original do Fornecedor (R$)</Label>
+                      <Input type="number" step="0.01" value={pForm.original_price} onChange={e => setPForm({ ...pForm, original_price: e.target.value })} placeholder="Deixe vazio se não houve desconto" />
                     </div>
-                    <div>
-                      <Label>Desconto (%)</Label>
-                      <Input value={`${calcSavings().pct.toFixed(1)}%`} readOnly className="bg-muted text-green-600" />
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label>Total Negociado</Label>
+                        <Input value={fmt(calcTotal())} readOnly className="bg-muted" />
+                      </div>
+                      <div>
+                        <Label>Economizado</Label>
+                        <Input value={fmt(calcSavings().savings)} readOnly className="bg-muted text-green-600" />
+                      </div>
+                      <div>
+                        <Label>Desconto (%)</Label>
+                        <Input value={`${calcSavings().pct.toFixed(1)}%`} readOnly className="bg-muted text-green-600" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><Label>Data da Compra *</Label><Input type="date" value={pForm.purchase_date} onChange={e => setPForm({ ...pForm, purchase_date: e.target.value })} required /></div>
-                    <div><Label>Nº Nota/Pedido</Label><Input value={pForm.invoice_number} onChange={e => setPForm({ ...pForm, invoice_number: e.target.value })} /></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label>Forma de Pagamento</Label>
-                      <Select value={pForm.payment_method} onValueChange={v => setPForm({ ...pForm, payment_method: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(paymentMethods).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label>Data da Compra *</Label><Input type="date" value={pForm.purchase_date} onChange={e => setPForm({ ...pForm, purchase_date: e.target.value })} required /></div>
+                      <div><Label>Nº Nota/Pedido</Label><Input value={pForm.invoice_number} onChange={e => setPForm({ ...pForm, invoice_number: e.target.value })} /></div>
                     </div>
-                    <div>
-                      <Label>Status Pagamento</Label>
-                      <Select value={pForm.payment_status} onValueChange={v => setPForm({ ...pForm, payment_status: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(paymentStatuses).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label>Forma de Pagamento</Label>
+                        <Select value={pForm.payment_method} onValueChange={v => setPForm({ ...pForm, payment_method: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(paymentMethods).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Status Pagamento</Label>
+                        <Select value={pForm.payment_status} onValueChange={v => setPForm({ ...pForm, payment_status: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(paymentStatuses).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-                  {pForm.payment_status !== "pago" && (
-                    <div><Label>Data de Vencimento</Label><Input type="date" value={pForm.due_date} onChange={e => setPForm({ ...pForm, due_date: e.target.value })} /></div>
-                  )}
-                  <div><Label>Observações</Label><Textarea value={pForm.notes} onChange={e => setPForm({ ...pForm, notes: e.target.value })} /></div>
-                  <Button type="submit" className="w-full" disabled={savePurchase.isPending}>Registrar Compra</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    {pForm.payment_status !== "pago" && (
+                      <div><Label>Data de Vencimento</Label><Input type="date" value={pForm.due_date} onChange={e => setPForm({ ...pForm, due_date: e.target.value })} /></div>
+                    )}
+                    <div><Label>Observações</Label><Textarea value={pForm.notes} onChange={e => setPForm({ ...pForm, notes: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={savePurchase.isPending}>Registrar Compra</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           <div className="border rounded-lg overflow-auto">
