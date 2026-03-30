@@ -212,30 +212,41 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     try {
       const finalTotal = parseFloat(form.final_total) || calcItemsTotal();
       const originalTotal = parseFloat(form.original_total) || 0;
-      const discountAmount = originalTotal > 0 ? originalTotal - finalTotal : 0;
-      const discountPct = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
+      const itemsTotal = calcItemsTotal();
 
-      // Save each item as a separate purchase or combine
-      const mainMaterial = form.items.length === 1
-        ? form.items[0].material
-        : form.items.map(i => i.material).join(", ");
+      // Build individual purchase records for each item
+      const items = form.items.filter(i => i.material).map(item => {
+        const qty = parseFloat(item.quantity) || 1;
+        const unitPrice = parseFloat(item.unit_price) || 0;
+        const itemTotal = qty * unitPrice;
+        // Distribute discount proportionally based on item's share of total
+        const itemShare = itemsTotal > 0 ? itemTotal / itemsTotal : 1 / form.items.length;
+        const itemOriginalTotal = originalTotal > 0 ? originalTotal * itemShare : 0;
+        const itemFinalTotal = finalTotal > 0 ? finalTotal * itemShare : itemTotal;
+        const itemDiscount = itemOriginalTotal > 0 ? itemOriginalTotal - itemFinalTotal : 0;
+        const itemDiscountPct = itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0;
+
+        return {
+          supplier_id: form.supplier_id || null,
+          material: item.material,
+          quantity: qty,
+          unit: item.unit,
+          unit_price: unitPrice,
+          original_price: itemOriginalTotal > 0 ? itemOriginalTotal / qty : null,
+          total: itemFinalTotal,
+          purchase_date: form.purchase_date,
+          invoice_number: form.invoice_number || null,
+          payment_method: form.payment_method,
+          payment_status: form.payment_status,
+          due_date: form.due_date || null,
+          discount_percentage: itemDiscountPct,
+          discount_amount: itemDiscount > 0 ? itemDiscount : 0,
+          notes: form.notes || null,
+        };
+      });
 
       onSave({
-        supplier_id: form.supplier_id || null,
-        material: mainMaterial,
-        quantity: form.items.length === 1 ? parseFloat(form.items[0].quantity) || 1 : 1,
-        unit: form.items.length === 1 ? form.items[0].unit : "un",
-        unit_price: finalTotal,
-        original_price: originalTotal > 0 ? originalTotal : null,
-        total: finalTotal,
-        purchase_date: form.purchase_date,
-        invoice_number: form.invoice_number || null,
-        payment_method: form.payment_method,
-        payment_status: form.payment_status,
-        due_date: form.due_date || null,
-        discount_percentage: discountPct,
-        discount_amount: discountAmount > 0 ? discountAmount : 0,
-        notes: form.notes || null,
+        items,
         linked_wo_id: form.linked_wo_id || null,
       });
 
