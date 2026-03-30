@@ -188,7 +188,7 @@ const Quotes = () => {
 
   const approveAndCreateOS = async (
     quoteId: string, clientId: string, total: number, description: string,
-    sellerId: string | null, commissionPct: number | null
+    sellerId: string | null, commissionPct: number | null, origemVenda: string
   ) => {
     try {
       const now = new Date().toISOString();
