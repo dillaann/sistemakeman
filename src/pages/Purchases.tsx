@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
 
 const paymentMethods: Record<string, string> = {
   dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", boleto: "Boleto", transferencia: "Transferência",
