@@ -68,6 +68,7 @@ const DefaultRedirect = () => {
   if (userRole === "producao") return <Navigate to="/producao" replace />;
   if (userRole === "vendedor") return <Navigate to="/vendas" replace />;
   if (userRole === "compras") return <Navigate to="/compras" replace />;
+  if (userRole === "marketing") return <Navigate to="/marketing" replace />;
   return <Dashboard />;
 };
 
