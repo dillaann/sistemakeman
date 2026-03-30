@@ -348,6 +348,31 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Marketing do Mês</CardTitle>
+          <Megaphone className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Investido</p>
+              <p className="text-lg sm:text-xl font-bold">{fmt(marketingSummary?.totalInvested ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Vendas Geradas</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(marketingSummary?.totalRevenue ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">ROI</p>
+              <p className={`text-lg sm:text-xl font-bold ${(marketingSummary?.roi ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {(marketingSummary?.roi ?? 0).toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
