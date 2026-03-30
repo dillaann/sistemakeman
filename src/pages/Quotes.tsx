@@ -251,30 +251,6 @@ const Quotes = () => {
             client_id: clientId,
           });
         }
-            amount: dpAmount,
-            due_date: downPaymentDate,
-            paid_date: downPaymentDate,
-            status: "pago" as any,
-            category: `Faturamento - ${paymentMethod}`,
-            work_order_id: wo.id,
-            client_id: clientId,
-          });
-        }
-
-        // Create pending transaction for the remaining amount
-        const pendingAmount = total - dpAmount;
-        if (pendingAmount > 0) {
-          await supabase.from("financial_transactions").insert({
-            type: "a_receber" as any,
-            description: `Saldo - Orçamento ${quoteId.slice(0, 8)}`,
-            amount: pendingAmount,
-            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            status: "pendente" as any,
-            category: "Faturamento",
-            work_order_id: wo.id,
-            client_id: clientId,
-          });
-        }
       }
 
       // Create sale + commission if seller exists
