@@ -720,23 +720,26 @@ const Purchases = () => {
         suppliers={suppliers}
         purchaseRequests={purchaseRequests}
         onSave={async (data: any) => {
-          const { linked_wo_id, ...payload } = data;
-          const { error } = await supabase.from("purchases").insert(payload);
-          if (error) {
-            toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-            return;
-          }
-          // Create financial transaction if not paid
-          if (payload.payment_status !== "pago") {
-            const supplierName = suppliers.find(s => s.id === payload.supplier_id)?.name ?? "Fornecedor";
-            await supabase.from("financial_transactions").insert({
-              type: "a_pagar" as any,
-              description: `Compra: ${payload.material} - ${supplierName}`,
-              amount: payload.total,
-              due_date: payload.due_date || payload.purchase_date,
-              category: "Compras",
-              status: "pendente" as any,
-            });
+          const { items, linked_wo_id } = data;
+          // Insert each item as a separate purchase record
+          for (const item of items) {
+            const { error } = await supabase.from("purchases").insert(item);
+            if (error) {
+              toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+              return;
+            }
+            // Create financial transaction if not paid
+            if (item.payment_status !== "pago") {
+              const supplierName = suppliers.find(s => s.id === item.supplier_id)?.name ?? "Fornecedor";
+              await supabase.from("financial_transactions").insert({
+                type: "a_pagar" as any,
+                description: `Compra: ${item.material} - ${supplierName}`,
+                amount: item.total,
+                due_date: item.due_date || item.purchase_date,
+                category: "Compras",
+                status: "pendente" as any,
+              });
+            }
           }
           // Link to purchase request if selected
           if (linked_wo_id && linked_wo_id !== "none") {
@@ -753,7 +756,7 @@ const Purchases = () => {
           qc.invalidateQueries({ queryKey: ["purchases"] });
           qc.invalidateQueries({ queryKey: ["financial"] });
           qc.invalidateQueries({ queryKey: ["purchase-requests"] });
-          toast({ title: "Compra registrada por foto!" });
+          toast({ title: `${items.length} item(ns) registrado(s) por foto!` });
         }}
       />
     </div>

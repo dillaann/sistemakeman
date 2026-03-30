@@ -212,30 +212,41 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     try {
       const finalTotal = parseFloat(form.final_total) || calcItemsTotal();
       const originalTotal = parseFloat(form.original_total) || 0;
-      const discountAmount = originalTotal > 0 ? originalTotal - finalTotal : 0;
-      const discountPct = originalTotal > 0 ? (discountAmount / originalTotal) * 100 : 0;
+      const itemsTotal = calcItemsTotal();
 
-      // Save each item as a separate purchase or combine
-      const mainMaterial = form.items.length === 1
-        ? form.items[0].material
-        : form.items.map(i => i.material).join(", ");
+      // Build individual purchase records for each item
+      const items = form.items.filter(i => i.material).map(item => {
+        const qty = parseFloat(item.quantity) || 1;
+        const unitPrice = parseFloat(item.unit_price) || 0;
+        const itemTotal = qty * unitPrice;
+        // Distribute discount proportionally based on item's share of total
+        const itemShare = itemsTotal > 0 ? itemTotal / itemsTotal : 1 / form.items.length;
+        const itemOriginalTotal = originalTotal > 0 ? originalTotal * itemShare : 0;
+        const itemFinalTotal = finalTotal > 0 ? finalTotal * itemShare : itemTotal;
+        const itemDiscount = itemOriginalTotal > 0 ? itemOriginalTotal - itemFinalTotal : 0;
+        const itemDiscountPct = itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0;
+
+        return {
+          supplier_id: form.supplier_id || null,
+          material: item.material,
+          quantity: qty,
+          unit: item.unit,
+          unit_price: unitPrice,
+          original_price: itemOriginalTotal > 0 ? itemOriginalTotal / qty : null,
+          total: itemFinalTotal,
+          purchase_date: form.purchase_date,
+          invoice_number: form.invoice_number || null,
+          payment_method: form.payment_method,
+          payment_status: form.payment_status,
+          due_date: form.due_date || null,
+          discount_percentage: itemDiscountPct,
+          discount_amount: itemDiscount > 0 ? itemDiscount : 0,
+          notes: form.notes || null,
+        };
+      });
 
       onSave({
-        supplier_id: form.supplier_id || null,
-        material: mainMaterial,
-        quantity: form.items.length === 1 ? parseFloat(form.items[0].quantity) || 1 : 1,
-        unit: form.items.length === 1 ? form.items[0].unit : "un",
-        unit_price: finalTotal,
-        original_price: originalTotal > 0 ? originalTotal : null,
-        total: finalTotal,
-        purchase_date: form.purchase_date,
-        invoice_number: form.invoice_number || null,
-        payment_method: form.payment_method,
-        payment_status: form.payment_status,
-        due_date: form.due_date || null,
-        discount_percentage: discountPct,
-        discount_amount: discountAmount > 0 ? discountAmount : 0,
-        notes: form.notes || null,
+        items,
         linked_wo_id: form.linked_wo_id || null,
       });
 
@@ -394,38 +405,43 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                 <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" />Adicionar</Button>
               </div>
               {form.items.map((item, i) => (
-                <div key={i} className="grid grid-cols-12 gap-1 items-end">
-                  <div className="col-span-4">
-                    {i === 0 && <Label className="text-xs">Material</Label>}
-                    <Input value={item.material} onChange={e => updateItem(i, "material", e.target.value)} placeholder="Material" />
+                <div key={i} className="space-y-1 border rounded-md p-2">
+                  <div className="grid grid-cols-12 gap-1 items-end">
+                    <div className="col-span-5">
+                      {i === 0 && <Label className="text-xs">Material</Label>}
+                      <Input value={item.material} onChange={e => updateItem(i, "material", e.target.value)} placeholder="Material" />
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Qtd</Label>}
+                      <Input type="number" step="0.01" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Un</Label>}
+                      <Select value={item.unit} onValueChange={v => updateItem(i, "unit", v)}>
+                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Valor Un.</Label>}
+                      <Input type="number" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", e.target.value)} />
+                    </div>
+                    <div className="col-span-1">
+                      {form.items.length > 1 && (
+                        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => removeItem(i)}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="col-span-2">
-                    {i === 0 && <Label className="text-xs">Qtd</Label>}
-                    <Input type="number" step="0.01" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
-                  </div>
-                  <div className="col-span-2">
-                    {i === 0 && <Label className="text-xs">Un</Label>}
-                    <Select value={item.unit} onValueChange={v => updateItem(i, "unit", v)}>
-                      <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-3">
-                    {i === 0 && <Label className="text-xs">Valor Un.</Label>}
-                    <Input type="number" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", e.target.value)} />
-                  </div>
-                  <div className="col-span-1">
-                    {form.items.length > 1 && (
-                      <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => removeItem(i)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
+                  <p className="text-xs text-muted-foreground text-right">
+                    Total: {fmt((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0))}
+                  </p>
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground">Total itens: {fmt(calcItemsTotal())}</p>
+              <p className="text-xs text-muted-foreground font-medium">Total itens: {fmt(calcItemsTotal())}</p>
             </div>
 
             {/* Totals */}
