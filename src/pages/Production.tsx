@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,16 +46,16 @@ const Production = () => {
 
       const { data: workOrders, error: woError } = await supabase
         .from("work_orders")
-        .select("id, description, priority, internal_notes, material_status, total, client_id, clients(name), employees:assigned_to(name)")
+        .select("id, description, priority, internal_notes, material_status, total, client_id, assigned_to, clients!work_orders_client_id_fkey(name)")
         .in("id", osIds);
-      
-      if (woError) console.error("Error fetching work orders for production:", woError);
+
+      if (woError) throw woError;
       
       // Fallback: if clients join failed, fetch client names separately
       const woList = workOrders ?? [];
-      const missingClientIds = woList
+      const missingClientIds = [...new Set(woList
         .filter((wo: any) => !wo.clients?.name && wo.client_id)
-        .map((wo: any) => wo.client_id);
+        .map((wo: any) => wo.client_id))];
       
       let clientMap = new Map<string, string>();
       if (missingClientIds.length > 0) {
@@ -67,11 +66,34 @@ const Production = () => {
         clientMap = new Map((clients ?? []).map((c: any) => [c.id, c.name]));
       }
 
+      const assignedIds = [...new Set(woList
+        .filter((wo: any) => wo.assigned_to)
+        .map((wo: any) => wo.assigned_to))];
+
+      let employeeMap = new Map<string, string>();
+      if (assignedIds.length > 0) {
+        const { data: employees, error: employeeError } = await supabase
+          .from("employees")
+          .select("id, name")
+          .in("id", assignedIds);
+
+        if (employeeError) {
+          console.error("Error fetching employees for production:", employeeError);
+        } else {
+          employeeMap = new Map((employees ?? []).map((employee: any) => [employee.id, employee.name]));
+        }
+      }
+
       const woMap = new Map(woList.map((wo: any) => {
         // Attach fallback client name if join didn't return it
         if (!wo.clients?.name && wo.client_id && clientMap.has(wo.client_id)) {
           wo.clients = { name: clientMap.get(wo.client_id) };
         }
+
+        if (!wo.employees?.name && wo.assigned_to && employeeMap.has(wo.assigned_to)) {
+          wo.employees = { name: employeeMap.get(wo.assigned_to) };
+        }
+
         return [wo.id, wo];
       }));
 
