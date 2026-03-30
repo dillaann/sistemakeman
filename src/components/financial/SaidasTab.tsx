@@ -1,0 +1,248 @@
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+
+const statusColors: Record<string, string> = {
+  pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+  pago: "bg-green-500/10 text-green-700 border-green-500/20",
+  atrasado: "bg-red-500/10 text-red-700 border-red-500/20",
+  cancelado: "bg-muted text-muted-foreground border-muted",
+};
+const statusLabels: Record<string, string> = { pendente: "Pendente", pago: "Pago", atrasado: "Atrasado", cancelado: "Cancelado" };
+
+const categorias = ["Salário", "Adiantamento", "Material", "Aluguel", "Serviço", "Fornecedor", "Outros"];
+
+const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+export default function SaidasTab() {
+  const { toast } = useToast();
+  const { userRole } = useAuth();
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "" });
+
+  const { data: transactions = [] } = useQuery({
+    queryKey: ["financial-saidas"],
+    queryFn: async () => {
+      const { data } = await supabase.from("financial_transactions").select("*").eq("type", "a_pagar").order("due_date", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    let list = transactions.filter(t => {
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
+      if (dateFrom && t.due_date < dateFrom) return false;
+      if (dateTo && t.due_date > dateTo) return false;
+      const text = search.toLowerCase();
+      if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
+      return true;
+    });
+    list.sort((a, b) => {
+      const va = sortField === "amount" ? Number(a.amount) : new Date(a.due_date).getTime();
+      const vb = sortField === "amount" ? Number(b.amount) : new Date(b.due_date).getTime();
+      return sortAsc ? va - vb : vb - va;
+    });
+    return list;
+  }, [transactions, statusFilter, catFilter, dateFrom, dateTo, search, sortField, sortAsc]);
+
+  const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        type: "a_pagar" as const,
+        description: form.description,
+        amount: parseFloat(form.amount),
+        due_date: form.due_date,
+        category: form.category || null,
+        status: form.status as any,
+        paid_date: form.status === "pago" ? new Date().toISOString().split("T")[0] : null,
+      };
+      if (editId) {
+        const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("financial_transactions").insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setOpen(false); setEditId(null);
+      setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "" });
+      toast({ title: editId ? "Saída atualizada!" : "Saída criada!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const markPaid = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: new Date().toISOString().split("T")[0] }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial-saidas"] }); qc.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Marcado como pago!" }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("financial_transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial-saidas"] }); qc.invalidateQueries({ queryKey: ["financial"] }); setDeleteTarget(null); setDeleteReason(""); toast({ title: "Transação removida!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const openEdit = (t: any) => {
+    setEditId(t.id);
+    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status, notes: "" });
+    setOpen(true);
+  };
+
+  const toggleSort = (field: "due_date" | "amount") => {
+    if (sortField === field) setSortAsc(!sortAsc);
+    else { setSortField(field); setSortAsc(true); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="rounded-lg border p-4 flex-1 min-w-[200px]">
+          <p className="text-sm text-muted-foreground">Total de Saídas no Período</p>
+          <p className="text-2xl font-bold text-red-600">{fmt(total)}</p>
+        </div>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "" }); } }}>
+          <DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-2" />Nova Saída</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{editId ? "Editar Saída" : "Nova Saída"}</DialogTitle></DialogHeader>
+            <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-3">
+              <div><Label>Descrição *</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required maxLength={255} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
+                <div><Label>Data *</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} required /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Categoria *</Label>
+                  <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Status</Label>
+                  <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="pago">Pago</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} maxLength={500} /></div>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="pago">Pago</SelectItem>
+            <SelectItem value="cancelado">Cancelado</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={catFilter} onValueChange={setCatFilter}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[150px]" />
+        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" />
+      </div>
+
+      <div className="border rounded-lg overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Origem</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-28">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map(t => (
+              <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
+                <TableCell>{new Date(t.due_date).toLocaleDateString("pt-BR")}</TableCell>
+                <TableCell className="font-medium max-w-[250px] truncate">{t.description}</TableCell>
+                <TableCell>{t.category ?? "—"}</TableCell>
+                <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
+                <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
+                <TableCell><Badge className={statusColors[t.status]}>{statusLabels[t.status] ?? t.status}</Badge></TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    {t.status === "pendente" && <Button size="sm" variant="outline" onClick={() => markPaid.mutate(t.id)}>Pagar</Button>}
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                    {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma saída encontrada.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="text-destructive">Confirmar Exclusão</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta transação?</p>
+          <div><Label>Motivo da Exclusão *</Label><Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Informe o motivo..." /></div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteReason(""); }}>Cancelar</Button>
+            <Button variant="destructive" disabled={!deleteReason.trim() || deleteMutation.isPending} onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}>
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
