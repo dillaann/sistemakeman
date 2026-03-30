@@ -45,10 +45,27 @@ const Production = () => {
       const osIds = (data ?? []).map((p: any) => p.os_id).filter(Boolean);
       if (osIds.length === 0) return [];
 
-      const { data: workOrders } = await supabase
+      const { data: workOrders, error: woError } = await supabase
         .from("work_orders")
-        .select("id, description, priority, internal_notes, material_status, total, clients(name), employees:assigned_to(name)")
+        .select("id, description, priority, internal_notes, material_status, total, client_id, clients(name), employees:assigned_to(name)")
         .in("id", osIds);
+      
+      if (woError) console.error("Error fetching work orders for production:", woError);
+      
+      // Fallback: if clients join failed, fetch client names separately
+      const woList = workOrders ?? [];
+      const missingClientIds = woList
+        .filter((wo: any) => !wo.clients?.name && wo.client_id)
+        .map((wo: any) => wo.client_id);
+      
+      let clientMap = new Map<string, string>();
+      if (missingClientIds.length > 0) {
+        const { data: clients } = await supabase
+          .from("clients")
+          .select("id, name")
+          .in("id", missingClientIds);
+        clientMap = new Map((clients ?? []).map((c: any) => [c.id, c.name]));
+      }
 
       const woMap = new Map((workOrders ?? []).map((wo: any) => [wo.id, wo]));
 
