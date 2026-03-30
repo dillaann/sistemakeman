@@ -676,6 +676,7 @@ export type Database = {
       }
       purchases: {
         Row: {
+          client_id: string | null
           created_at: string
           discount_amount: number | null
           discount_percentage: number | null
@@ -694,8 +695,10 @@ export type Database = {
           unit: string
           unit_price: number
           updated_at: string
+          work_order_id: string | null
         }
         Insert: {
+          client_id?: string | null
           created_at?: string
           discount_amount?: number | null
           discount_percentage?: number | null
@@ -714,8 +717,10 @@ export type Database = {
           unit?: string
           unit_price?: number
           updated_at?: string
+          work_order_id?: string | null
         }
         Update: {
+          client_id?: string | null
           created_at?: string
           discount_amount?: number | null
           discount_percentage?: number | null
@@ -734,6 +739,7 @@ export type Database = {
           unit?: string
           unit_price?: number
           updated_at?: string
+          work_order_id?: string | null
         }
         Relationships: [
           {
