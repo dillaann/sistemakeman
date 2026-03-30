@@ -63,7 +63,7 @@ const Marketing = () => {
   const { data: marketingSales = [] } = useQuery({
     queryKey: ["marketing-sales"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("sales").select("*, clients(name), profiles:seller_id(full_name)").eq("origem_venda", "Marketing");
+      const { data, error } = await supabase.from("sales").select("*, clients(name), profiles:seller_id(full_name)").eq("origem_venda", "marketing");
       if (error) throw error;
       return data;
     },
