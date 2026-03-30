@@ -1,13 +1,17 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Download, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -27,9 +31,14 @@ interface Props {
 }
 
 export default function ExtratoDialog({ accountId, accountName, initialBalance, open, onOpenChange }: Props) {
+  const { toast } = useToast();
+  const { userRole } = useAuth();
+  const qc = useQueryClient();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const { data: movements = [] } = useQuery({
     queryKey: ["account-extrato", accountId],
@@ -76,6 +85,29 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
     URL.revokeObjectURL(url);
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const movement = movements.find(m => m.id === id);
+      if (movement?.financial_transaction_id) {
+        await supabase.from("financial_transactions").delete().eq("id", movement.financial_transaction_id);
+      }
+      const { error } = await supabase.from("account_movements").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account-extrato", accountId] });
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["financial-accounts"] });
+      qc.invalidateQueries({ queryKey: ["financial-entradas"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      setDeleteTarget(null);
+      setDeleteReason("");
+      toast({ title: "Movimentação excluída!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
@@ -112,6 +144,7 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
                 <TableHead>Categoria</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
+                {userRole === "admin" && <TableHead className="w-12"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -136,12 +169,33 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
                     <TableCell className={`text-right font-bold ${r.saldo >= 0 ? "text-green-700" : "text-red-700"}`}>
                       {fmt(r.saldo)}
                     </TableCell>
+                    {userRole === "admin" && (
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
         </div>
+
+        {!!deleteTarget && (
+          <div className="border border-destructive/30 rounded-lg p-4 space-y-3 bg-destructive/5">
+            <p className="font-semibold text-destructive">Confirmar Exclusão</p>
+            <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta movimentação do extrato?</p>
+            <div><Label>Motivo da Exclusão *</Label><Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Informe o motivo..." /></div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => { setDeleteTarget(null); setDeleteReason(""); }}>Cancelar</Button>
+              <Button variant="destructive" size="sm" disabled={!deleteReason.trim() || deleteMutation.isPending} onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}>
+                {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

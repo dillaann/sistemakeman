@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, ArrowRightLeft, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -36,8 +37,11 @@ type FormType = "entrada" | "saida" | "transferencia";
 
 export default function MovimentacoesTab() {
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
   const [formType, setFormType] = useState<FormType>("entrada");
   const [form, setForm] = useState({
     account_id: "",
@@ -141,6 +145,31 @@ export default function MovimentacoesTab() {
       setOpen(false);
       setForm({ account_id: "", dest_account_id: "", amount: "", date: new Date().toISOString().split("T")[0], category: "Outros", description: "", notes: "" });
       toast({ title: "Movimentação registrada!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const movement = movements.find(m => m.id === id);
+      // Delete linked financial_transaction if exists
+      if (movement?.financial_transaction_id) {
+        await supabase.from("financial_transactions").delete().eq("id", movement.financial_transaction_id);
+      }
+      const { error } = await supabase.from("account_movements").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["financial-accounts"] });
+      qc.invalidateQueries({ queryKey: ["financial-entradas"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setDeleteTarget(null);
+      setDeleteReason("");
+      toast({ title: "Movimentação excluída!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -260,6 +289,7 @@ export default function MovimentacoesTab() {
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="text-right">Valor</TableHead>
+              {userRole === "admin" && <TableHead className="w-12">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -279,15 +309,37 @@ export default function MovimentacoesTab() {
                   <TableCell className={`text-right font-medium ${isCredit ? "text-green-700" : "text-red-700"}`}>
                     {isCredit ? "+" : "-"}{fmt(Number(m.amount))}
                   </TableCell>
+                  {userRole === "admin" && (
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(m.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma movimentação encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={userRole === "admin" ? 7 : 6} className="text-center text-muted-foreground py-8">Nenhuma movimentação encontrada.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="text-destructive">Confirmar Exclusão</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta movimentação? A transação financeira vinculada também será removida.</p>
+          <div><Label>Motivo da Exclusão *</Label><Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Informe o motivo..." /></div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteReason(""); }}>Cancelar</Button>
+            <Button variant="destructive" disabled={!deleteReason.trim() || deleteMutation.isPending} onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}>
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
