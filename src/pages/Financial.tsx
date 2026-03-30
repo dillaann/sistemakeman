@@ -92,6 +92,29 @@ const Financial = () => {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const enrichDescription = (desc: string, clientId: string | null) => {
+    // Pattern: "Saldo - Orçamento abc123" → "Saldo - ClientName (Orçamento abc123)"
+    const match = desc.match(/^(Saldo\s*-\s*)(Orçamento\s+.+)$/i);
+    if (match) {
+      let clientName = "";
+      if (clientId) {
+        clientName = clients.find(c => c.id === clientId)?.name ?? "";
+      }
+      if (!clientName) {
+        // Try to find client via quote referenced in work_order or client_id on transaction
+        const quoteIdMatch = desc.match(/Orçamento\s+(\S+)/i);
+        if (quoteIdMatch) {
+          const q = quotes.find(q => q.id === quoteIdMatch[1]);
+          if (q) clientName = clients.find(c => c.id === q.client_id)?.name ?? "";
+        }
+      }
+      if (clientName) {
+        return `${match[1]}${clientName} (${match[2]})`;
+      }
+    }
+    return desc;
+  };
+
   const filtered = transactions.filter(t =>
     t.type === tab &&
     (t.description.toLowerCase().includes(search.toLowerCase()) || (t.category ?? "").toLowerCase().includes(search.toLowerCase()))
