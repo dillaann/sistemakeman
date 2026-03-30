@@ -32,6 +32,22 @@ const Financial = () => {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "a_receber" as string, description: "", amount: "", due_date: "", category: "" });
 
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients-lookup"],
+    queryFn: async () => {
+      const { data } = await supabase.from("clients").select("id, name");
+      return data ?? [];
+    },
+  });
+
+  const { data: quotes = [] } = useQuery({
+    queryKey: ["quotes-lookup"],
+    queryFn: async () => {
+      const { data } = await supabase.from("quotes").select("id, client_id");
+      return data ?? [];
+    },
+  });
+
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial"],
     queryFn: async () => {
