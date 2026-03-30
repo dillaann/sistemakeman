@@ -58,6 +58,7 @@ const Quotes = () => {
     sellerName: string;
     description: string;
     percentage: number;
+    origemVenda: string;
   } | null>(null);
   const [commPercentage, setCommPercentage] = useState(5);
   const [paymentType, setPaymentType] = useState<"a_vista" | "entrada_restante">("a_vista");
