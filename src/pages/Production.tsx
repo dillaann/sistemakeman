@@ -67,7 +67,13 @@ const Production = () => {
         clientMap = new Map((clients ?? []).map((c: any) => [c.id, c.name]));
       }
 
-      const woMap = new Map((workOrders ?? []).map((wo: any) => [wo.id, wo]));
+      const woMap = new Map(woList.map((wo: any) => {
+        // Attach fallback client name if join didn't return it
+        if (!wo.clients?.name && wo.client_id && clientMap.has(wo.client_id)) {
+          wo.clients = { name: clientMap.get(wo.client_id) };
+        }
+        return [wo.id, wo];
+      }));
 
       return (data ?? []).map((p: any) => ({
         ...p,
