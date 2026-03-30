@@ -143,9 +143,7 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
                 <TableHead>Categoria</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                {userRole === "admin" && <TableHead className="w-12"></TableHead>}
               {rows.length === 0 && (
                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma movimentação.</TableCell></TableRow>
               )}
