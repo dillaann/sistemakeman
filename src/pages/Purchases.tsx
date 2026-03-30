@@ -901,17 +901,20 @@ const Purchases = () => {
               toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
               return;
             }
-            if (item.payment_status !== "pago") {
-              const supplierName = suppliers.find(s => s.id === item.supplier_id)?.name ?? "Fornecedor";
-              await supabase.from("financial_transactions").insert({
-                type: "a_pagar" as any,
-                description: `Compra: ${item.material} - ${supplierName}`,
-                amount: item.total,
-                due_date: item.due_date || item.purchase_date,
-                category: "Compras",
-                status: "pendente" as any,
-              });
-            }
+            const supplierName = suppliers.find(s => s.id === item.supplier_id)?.name ?? "Fornecedor";
+            const clientName2 = item.client_id ? clients.find(c => c.id === item.client_id)?.name : null;
+            const desc2 = clientName2 ? `Compra: ${item.material} - ${supplierName} (${clientName2})` : `Compra: ${item.material} - ${supplierName}`;
+            await supabase.from("financial_transactions").insert({
+              type: "a_pagar" as any,
+              description: desc2,
+              amount: item.total,
+              due_date: item.due_date || item.purchase_date,
+              paid_date: item.payment_status === "pago" ? item.purchase_date : null,
+              category: "Compras",
+              status: (item.payment_status === "pago" ? "pago" : "pendente") as any,
+              client_id: item.client_id || null,
+              work_order_id: item.work_order_id || null,
+            });
             // Update work order material status if linked
             if (item.work_order_id) {
               await supabase.from("work_orders")
