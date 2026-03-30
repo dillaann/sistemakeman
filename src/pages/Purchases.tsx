@@ -203,17 +203,22 @@ const Purchases = () => {
           .eq("id", pForm.work_order_id);
       }
 
-      if (pForm.payment_status !== "pago") {
-        const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
-        await supabase.from("financial_transactions").insert({
-          type: "a_pagar" as any,
-          description: `Compra: ${pForm.material} - ${supplierName}`,
-          amount: total,
-          due_date: pForm.due_date || pForm.purchase_date,
-          category: "Compras",
-          status: "pendente" as any,
-        });
-      }
+      const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
+      const clientName = pForm.client_id ? clients.find(c => c.id === pForm.client_id)?.name : null;
+      const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
+      if (clientName) descParts.push(`(${clientName})`);
+      
+      await supabase.from("financial_transactions").insert({
+        type: "a_pagar" as any,
+        description: descParts.join(" "),
+        amount: total,
+        due_date: pForm.due_date || pForm.purchase_date,
+        paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
+        category: "Compras",
+        status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
+        client_id: pForm.client_id || null,
+        work_order_id: pForm.work_order_id || null,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
