@@ -31,6 +31,7 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "Funcionários", url: "/funcionarios", icon: UserCog, roles: ["admin", "financeiro"] },
   { title: "RH", url: "/rh", icon: Briefcase, roles: ["admin", "financeiro"] },
   { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
+  { title: "Marketing", url: "/marketing", icon: Megaphone, roles: ["admin", "marketing"] },
   { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
 ];
 
