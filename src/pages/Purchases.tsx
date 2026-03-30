@@ -51,6 +51,7 @@ const Purchases = () => {
   });
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
 
   // Queries
   const { data: suppliers = [] } = useQuery({
