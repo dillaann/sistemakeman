@@ -223,6 +223,11 @@ const Purchases = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["financial-accounts"] });
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       qc.invalidateQueries({ queryKey: ["production-orders"] });
       setPurchaseOpen(false);

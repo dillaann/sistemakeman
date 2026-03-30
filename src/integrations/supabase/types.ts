@@ -483,6 +483,7 @@ export type Database = {
       }
       financial_transactions: {
         Row: {
+          account_id: string | null
           amount: number
           category: string | null
           client_id: string | null
@@ -492,11 +493,13 @@ export type Database = {
           id: string
           paid_date: string | null
           status: Database["public"]["Enums"]["transaction_status"]
+          sync_origin: string
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string
           work_order_id: string | null
         }
         Insert: {
+          account_id?: string | null
           amount: number
           category?: string | null
           client_id?: string | null
@@ -506,11 +509,13 @@ export type Database = {
           id?: string
           paid_date?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
+          sync_origin?: string
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           work_order_id?: string | null
         }
         Update: {
+          account_id?: string | null
           amount?: number
           category?: string | null
           client_id?: string | null
@@ -520,11 +525,19 @@ export type Database = {
           id?: string
           paid_date?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
+          sync_origin?: string
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           work_order_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "financial_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "financial_transactions_client_id_fkey"
             columns: ["client_id"]

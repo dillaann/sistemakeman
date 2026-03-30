@@ -88,7 +88,7 @@ export default function MovimentacoesTab() {
       if (formType === "transferencia") {
         if (!form.account_id || !form.dest_account_id) throw new Error("Selecione as contas");
         if (form.account_id === form.dest_account_id) throw new Error("As contas devem ser diferentes");
-        // Debit from origin
+
         const { error: e1 } = await supabase.from("account_movements").insert({
           account_id: form.account_id,
           type: "transferencia_saida",
@@ -100,7 +100,7 @@ export default function MovimentacoesTab() {
           notes: form.notes || null,
         });
         if (e1) throw e1;
-        // Credit to destination
+
         const { error: e2 } = await supabase.from("account_movements").insert({
           account_id: form.dest_account_id,
           type: "transferencia_entrada",
@@ -112,23 +112,32 @@ export default function MovimentacoesTab() {
           notes: form.notes || null,
         });
         if (e2) throw e2;
-      } else {
-        if (!form.account_id) throw new Error("Selecione a conta");
-        const { error } = await supabase.from("account_movements").insert({
-          account_id: form.account_id,
-          type: formType,
-          amount,
-          date: form.date,
-          category: form.category || null,
-          description: form.description,
-          notes: form.notes || null,
-        });
-        if (error) throw error;
+        return;
       }
+
+      if (!form.account_id) throw new Error("Selecione a conta");
+      const txType = formType === "entrada" ? "a_receber" : "a_pagar";
+      const { error } = await supabase.from("financial_transactions").insert({
+        type: txType as any,
+        status: "pago" as any,
+        description: form.description,
+        amount,
+        due_date: form.date,
+        paid_date: form.date,
+        category: form.category || null,
+        account_id: form.account_id,
+        sync_origin: "manual_financial",
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["account-movements"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
       qc.invalidateQueries({ queryKey: ["financial-accounts"] });
+      qc.invalidateQueries({ queryKey: ["financial-entradas"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
       setOpen(false);
       setForm({ account_id: "", dest_account_id: "", amount: "", date: new Date().toISOString().split("T")[0], category: "Outros", description: "", notes: "" });
       toast({ title: "Movimentação registrada!" });

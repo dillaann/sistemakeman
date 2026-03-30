@@ -281,6 +281,11 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-list"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-all"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
       toast({ title: "Orçamento aprovado!", description: "OS, pagamento e lançamentos financeiros criados." });

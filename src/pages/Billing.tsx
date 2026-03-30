@@ -201,6 +201,11 @@ const Billing = () => {
       queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-list"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-all"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setPayDialog(null);
       setPayForm({ amount: "", method: "pix", date: new Date().toISOString().split("T")[0] });
