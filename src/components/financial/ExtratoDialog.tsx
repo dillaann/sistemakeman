@@ -165,12 +165,34 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
                     <TableCell className={`text-right font-bold ${r.saldo >= 0 ? "text-green-700" : "text-red-700"}`}>
                       {fmt(r.saldo)}
                     </TableCell>
+                    {userRole === "admin" && (
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
         </div>
+
+        {/* Delete confirmation */}
+        <Dialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDeleteReason(""); } }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle className="text-destructive">Confirmar Exclusão</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta movimentação do extrato?</p>
+            <div><Label>Motivo da Exclusão *</Label><Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Informe o motivo..." /></div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteReason(""); }}>Cancelar</Button>
+              <Button variant="destructive" disabled={!deleteReason.trim() || deleteMutation.isPending} onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}>
+                {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
