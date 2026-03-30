@@ -79,10 +79,22 @@ const Purchases = () => {
     },
   });
 
-  const { data: requestMaterials = {} } = useQuery({
-    queryKey: ["purchase-request-materials"],
+  // All work orders for Compras view
+  const { data: allWorkOrders = [] } = useQuery({
+    queryKey: ["compras-work-orders"],
     queryFn: async () => {
-      const woIds = purchaseRequests.map((r: any) => r.work_order_id);
+      const { data } = await supabase
+        .from("work_orders")
+        .select("*, clients(name)")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const { data: requestMaterials = {} } = useQuery({
+    queryKey: ["purchase-request-materials", allWorkOrders.length],
+    queryFn: async () => {
+      const woIds = allWorkOrders.map((wo: any) => wo.id);
       if (!woIds.length) return {};
       const { data } = await supabase
         .from("work_order_materials")
@@ -95,7 +107,7 @@ const Purchases = () => {
       });
       return map;
     },
-    enabled: purchaseRequests.length > 0,
+    enabled: allWorkOrders.length > 0,
   });
 
   const confirmPurchaseRequest = useMutation({
@@ -370,44 +382,58 @@ const Purchases = () => {
           </Card>
         </TabsContent>
 
-        {/* SOLICITAÇÕES */}
+        {/* SOLICITAÇÕES - All OS appear automatically */}
         <TabsContent value="solicitacoes" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Solicitações de Compra da Produção</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Ordens de Serviço</CardTitle></CardHeader>
             <CardContent>
-              {purchaseRequests.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">Nenhuma solicitação pendente.</p>
+              {allWorkOrders.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</p>
               ) : (
                 <div className="space-y-4">
-                  {purchaseRequests.map((req: any) => {
-                    const wo = req.work_orders as any;
-                    const mats = (requestMaterials as any)[req.work_order_id] ?? [];
+                  {allWorkOrders.map((wo: any) => {
+                    const mats = (requestMaterials as any)[wo.id] ?? [];
+                    const req = purchaseRequests.find((r: any) => r.work_order_id === wo.id);
+                    const materialStatusLabel: Record<string, string> = {
+                      nao_solicitado: "Pendente",
+                      aguardando_compra: "Em Cotação",
+                      comprado: "Comprado",
+                    };
+                    const materialStatusColor: Record<string, string> = {
+                      nao_solicitado: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+                      aguardando_compra: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+                      comprado: "bg-green-500/10 text-green-700 border-green-500/20",
+                    };
+                    const matStatus = wo.material_status || "nao_solicitado";
                     return (
-                      <Card key={req.id} className="border">
+                      <Card key={wo.id} className="border">
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-semibold text-sm">OS #{req.work_order_id.slice(0, 8)}</p>
-                              <p className="text-xs text-muted-foreground">{wo?.clients?.name} — {wo?.description}</p>
+                              <p className="font-semibold text-sm">OS #{wo.id.slice(0, 8)}</p>
+                              <p className="text-xs text-muted-foreground">{wo.clients?.name} — {wo.description}</p>
                             </div>
-                            <Badge className={req.status === "pendente" ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" : "bg-green-500/10 text-green-700 border-green-500/20"}>
-                              {req.status === "pendente" ? "Pendente" : "Confirmado"}
+                            <Badge className={materialStatusColor[matStatus] ?? materialStatusColor.nao_solicitado}>
+                              {materialStatusLabel[matStatus] ?? "Pendente"}
                             </Badge>
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-semibold">Materiais solicitados:</p>
-                            {mats.map((m: any) => (
-                              <div key={m.id} className="text-xs bg-muted/50 rounded p-1.5 flex gap-2">
-                                <span className="font-medium">{m.material}</span>
-                                <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
-                                {m.notes && <span className="text-muted-foreground italic">({m.notes})</span>}
-                              </div>
-                            ))}
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>💰 Valor: <strong className="text-foreground">{fmt(Number(wo.total))}</strong></span>
+                            <span>📅 Criada: {new Date(wo.created_at).toLocaleDateString("pt-BR")}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Solicitado em: {new Date(req.requested_at).toLocaleDateString("pt-BR")}
-                          </p>
-                          {req.status === "pendente" && (
+                          {mats.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold">Materiais solicitados:</p>
+                              {mats.map((m: any) => (
+                                <div key={m.id} className="text-xs bg-muted/50 rounded p-1.5 flex gap-2">
+                                  <span className="font-medium">{m.material}</span>
+                                  <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
+                                  {m.notes && <span className="text-muted-foreground italic">({m.notes})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {req && req.status === "pendente" && (
                             <Button
                               size="sm" className="w-full"
                               onClick={() => confirmPurchaseRequest.mutate(req.id)}
