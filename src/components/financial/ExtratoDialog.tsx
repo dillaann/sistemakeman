@@ -1,0 +1,148 @@
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+
+const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const typeLabels: Record<string, string> = {
+  entrada: "Entrada",
+  saida: "Saída",
+  transferencia_entrada: "Transf. Entrada",
+  transferencia_saida: "Transf. Saída",
+};
+
+interface Props {
+  accountId: string;
+  accountName: string;
+  initialBalance: number;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}
+
+export default function ExtratoDialog({ accountId, accountName, initialBalance, open, onOpenChange }: Props) {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+
+  const { data: movements = [] } = useQuery({
+    queryKey: ["account-extrato", accountId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("account_movements")
+        .select("*")
+        .eq("account_id", accountId)
+        .order("date", { ascending: true })
+        .order("created_at", { ascending: true });
+      return data ?? [];
+    },
+    enabled: !!accountId,
+  });
+
+  const filtered = useMemo(() => {
+    return movements.filter(m => {
+      if (typeFilter !== "all" && m.type !== typeFilter) return false;
+      if (dateFrom && m.date < dateFrom) return false;
+      if (dateTo && m.date > dateTo) return false;
+      return true;
+    });
+  }, [movements, typeFilter, dateFrom, dateTo]);
+
+  const rows = useMemo(() => {
+    let acc = initialBalance;
+    return filtered.map(m => {
+      const val = Number(m.amount);
+      const isCredit = m.type === "entrada" || m.type === "transferencia_entrada";
+      acc += isCredit ? val : -val;
+      return { ...m, saldo: acc };
+    });
+  }, [filtered, initialBalance]);
+
+  const exportCSV = () => {
+    const header = "Data,Descrição,Tipo,Valor,Saldo\n";
+    const csv = rows.map(r => {
+      const isCredit = r.type === "entrada" || r.type === "transferencia_entrada";
+      return `${r.date},"${r.description}",${typeLabels[r.type]},${isCredit ? "+" : "-"}${Number(r.amount).toFixed(2)},${r.saldo.toFixed(2)}`;
+    }).join("\n");
+    const blob = new Blob([header + csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `extrato_${accountName}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+        <DialogHeader>
+          <DialogTitle>Extrato — {accountName}</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex flex-wrap gap-2 items-center">
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[150px]" />
+          <span className="text-muted-foreground">a</span>
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" />
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="entrada">Entrada</SelectItem>
+              <SelectItem value="saida">Saída</SelectItem>
+              <SelectItem value="transferencia_entrada">Transf. Entrada</SelectItem>
+              <SelectItem value="transferencia_saida">Transf. Saída</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={exportCSV} className="ml-auto">
+            <Download className="h-4 w-4 mr-2" />CSV
+          </Button>
+        </div>
+
+        <div className="border rounded-lg overflow-auto max-h-[500px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma movimentação.</TableCell></TableRow>
+              )}
+              {rows.map(r => {
+                const isCredit = r.type === "entrada" || r.type === "transferencia_entrada";
+                return (
+                  <TableRow key={r.id}>
+                    <TableCell>{new Date(r.date).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="max-w-[250px] truncate">{r.description}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={isCredit ? "text-green-700 border-green-500/30" : "text-red-700 border-red-500/30"}>
+                        {typeLabels[r.type] ?? r.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{r.category ?? "—"}</TableCell>
+                    <TableCell className={`text-right font-medium ${isCredit ? "text-green-700" : "text-red-700"}`}>
+                      {isCredit ? "+" : "-"}{fmt(Number(r.amount))}
+                    </TableCell>
+                    <TableCell className={`text-right font-bold ${r.saldo >= 0 ? "text-green-700" : "text-red-700"}`}>
+                      {fmt(r.saldo)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
