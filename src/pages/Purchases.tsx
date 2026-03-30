@@ -92,9 +92,9 @@ const Purchases = () => {
   });
 
   const { data: requestMaterials = {} } = useQuery({
-    queryKey: ["purchase-request-materials"],
+    queryKey: ["purchase-request-materials", allWorkOrders.length],
     queryFn: async () => {
-      const woIds = purchaseRequests.map((r: any) => r.work_order_id);
+      const woIds = allWorkOrders.map((wo: any) => wo.id);
       if (!woIds.length) return {};
       const { data } = await supabase
         .from("work_order_materials")
@@ -107,7 +107,7 @@ const Purchases = () => {
       });
       return map;
     },
-    enabled: purchaseRequests.length > 0,
+    enabled: allWorkOrders.length > 0,
   });
 
   const confirmPurchaseRequest = useMutation({
