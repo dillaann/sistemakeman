@@ -20,6 +20,7 @@ import DREPage from "@/pages/DRE";
 import UserManagement from "@/pages/UserManagement";
 import Sales from "@/pages/Sales";
 import Purchases from "@/pages/Purchases";
+import Marketing from "@/pages/Marketing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
