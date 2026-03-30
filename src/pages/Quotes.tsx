@@ -441,6 +441,16 @@ const Quotes = () => {
                 )}
               </div>
 
+              <div><Label>Origem da Venda *</Label>
+                <Select value={form.origem_venda} onValueChange={v => setForm({ ...form, origem_venda: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="marketing">Marketing</SelectItem>
+                    <SelectItem value="obras">Obras</SelectItem>
+                    <SelectItem value="empresa">Empresa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
