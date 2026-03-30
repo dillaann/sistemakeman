@@ -333,9 +333,10 @@ const Quotes = () => {
       const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quote.id).single();
 
       // Create paid financial transaction
+      const clientName = clients.find(c => c.id === quote.client_id)?.name ?? "";
       await supabase.from("financial_transactions").insert({
         type: "a_receber" as any,
-        description: `Recebimento - Orçamento ${quote.id.slice(0, 8)}`,
+        description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
         amount,
         due_date: payRegForm.date,
         paid_date: payRegForm.date,
