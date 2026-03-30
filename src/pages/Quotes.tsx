@@ -215,7 +215,8 @@ const Quotes = () => {
         total,
         description: description || "OS gerada a partir de orçamento",
         status: "aguardando" as any,
-      }).select().single();
+        origem_venda: origemVenda,
+      } as any).select().single();
       if (woError) throw woError;
 
       // Create financial transaction (a_receber) for the full amount
