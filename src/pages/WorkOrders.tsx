@@ -47,10 +47,12 @@ const WorkOrders = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
       const { error } = await supabase.from("work_orders").insert({
         client_id: form.client_id, description: form.description,
         total: parseFloat(form.total) || 0, status: form.status as any,
-      });
+        origem_venda: form.origem_venda,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["work-orders"] }); setOpen(false); toast({ title: "OS criada!" }); },
