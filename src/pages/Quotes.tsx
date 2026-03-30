@@ -261,7 +261,8 @@ const Quotes = () => {
           description: description || "Venda gerada por orçamento",
           amount: total,
           status: "aguardando",
-        }).select().single();
+          origem_venda: origemVenda,
+        } as any).select().single();
         if (saleError) throw saleError;
 
         if (commissionPct !== null && commissionPct > 0) {
