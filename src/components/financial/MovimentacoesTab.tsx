@@ -289,6 +289,7 @@ export default function MovimentacoesTab() {
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="text-right">Valor</TableHead>
+              {userRole === "admin" && <TableHead className="w-12">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
