@@ -31,9 +31,14 @@ interface Props {
 }
 
 export default function ExtratoDialog({ accountId, accountName, initialBalance, open, onOpenChange }: Props) {
+  const { toast } = useToast();
+  const { userRole } = useAuth();
+  const qc = useQueryClient();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const { data: movements = [] } = useQuery({
     queryKey: ["account-extrato", accountId],
