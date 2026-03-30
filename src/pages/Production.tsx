@@ -81,7 +81,7 @@ const Production = () => {
     // Also update the work_order status for sync
     const item = productionItems.find((p: any) => p.id === id);
     if (item) {
-      let woStatus = "aguardando";
+      let woStatus: "aguardando" | "em_producao" | "concluido" | "entregue" = "aguardando";
       if (status === "Em Andamento") woStatus = "em_producao";
       if (status === "Finalizado") woStatus = "concluido";
       if (status === "Entregue") woStatus = "entregue";
