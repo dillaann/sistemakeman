@@ -290,11 +290,12 @@ const Quotes = () => {
 
   const handleApprovalConfirm = (withCommission: boolean) => {
     if (!approvalModal) return;
-    const { quoteId, clientId, total, sellerId, description } = approvalModal;
+    const { quoteId, clientId, total, sellerId, description, origemVenda } = approvalModal;
     approveAndCreateOS(
       quoteId, clientId, total, description,
       sellerId || null,
-      sellerId && withCommission ? commPercentage : null
+      sellerId && withCommission ? commPercentage : null,
+      origemVenda
     );
     setApprovalModal(null);
   };
