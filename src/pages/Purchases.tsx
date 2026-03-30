@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera } from "lucide-react";
+import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
@@ -37,6 +37,7 @@ const Purchases = () => {
   const [search, setSearch] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterClient, setFilterClient] = useState("all");
 
   // Supplier dialog
   const [supplierOpen, setSupplierOpen] = useState(false);
@@ -48,6 +49,7 @@ const Purchases = () => {
   const [pForm, setPForm] = useState({
     supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
     invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
+    client_id: "", work_order_id: "",
   });
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
@@ -58,6 +60,14 @@ const Purchases = () => {
     queryKey: ["suppliers"],
     queryFn: async () => {
       const { data } = await supabase.from("suppliers").select("*").order("name");
+      return data ?? [];
+    },
+  });
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => {
+      const { data } = await supabase.from("clients").select("*").order("name");
       return data ?? [];
     },
   });
@@ -116,12 +126,10 @@ const Purchases = () => {
     mutationFn: async (requestId: string) => {
       const request = purchaseRequests.find((r: any) => r.id === requestId) as any;
       if (!request) throw new Error("Solicitação não encontrada");
-      // Update request status
       const { error } = await supabase.from("purchase_requests")
         .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
         .eq("id", requestId);
       if (error) throw error;
-      // Update work order material_status to comprado
       await supabase.from("work_orders")
         .update({ material_status: "comprado" } as any)
         .eq("id", request.work_order_id);
@@ -158,9 +166,9 @@ const Purchases = () => {
   const savePurchase = useMutation({
     mutationFn: async () => {
       const qty = parseFloat(pForm.quantity) || 0;
-      const unitP = parseFloat(pForm.unit_price) || 0; // valor negociado unitário
-      const originalP = parseFloat(pForm.original_price) || 0; // valor original unitário
-      const total = qty * unitP; // total negociado
+      const unitP = parseFloat(pForm.unit_price) || 0;
+      const originalP = parseFloat(pForm.original_price) || 0;
+      const total = qty * unitP;
       const originalTotal = qty * originalP;
       const discountAmt = originalP > 0 ? originalTotal - total : 0;
       const discPct = originalTotal > 0 ? (discountAmt / originalTotal) * 100 : 0;
@@ -181,12 +189,20 @@ const Purchases = () => {
         discount_percentage: discPct,
         discount_amount: discountAmt > 0 ? discountAmt : 0,
         notes: pForm.notes || null,
+        client_id: pForm.client_id || null,
+        work_order_id: pForm.work_order_id || null,
       };
 
-      const { data: purchaseData, error } = await supabase.from("purchases").insert(payload).select().single();
+      const { error } = await supabase.from("purchases").insert(payload).select().single();
       if (error) throw error;
 
-      // If pending or parcelado, create financial transaction (a_pagar)
+      // Update work order material_status if linked
+      if (pForm.work_order_id) {
+        await supabase.from("work_orders")
+          .update({ material_status: "comprado" } as any)
+          .eq("id", pForm.work_order_id);
+      }
+
       if (pForm.payment_status !== "pago") {
         const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
         await supabase.from("financial_transactions").insert({
@@ -202,10 +218,13 @@ const Purchases = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      qc.invalidateQueries({ queryKey: ["production-orders"] });
       setPurchaseOpen(false);
       setPForm({
         supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
         invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
+        client_id: "", work_order_id: "",
       });
       toast({ title: "Compra registrada!" });
     },
@@ -230,10 +249,8 @@ const Purchases = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("purchases").update({ payment_status: "pago" }).eq("id", id);
       if (error) throw error;
-      // Also mark related financial transaction
       const purchase = purchases.find(p => p.id === id);
       if (purchase) {
-        const supplierName = (purchase as any).suppliers?.name ?? "";
         await supabase.from("financial_transactions")
           .update({ status: "pago" as any, paid_date: new Date().toISOString().split("T")[0] })
           .ilike("description", `%${purchase.material}%`)
@@ -247,6 +264,21 @@ const Purchases = () => {
       toast({ title: "Pagamento registrado!" });
     },
   });
+
+  // Helper: get client name for a purchase
+  const getClientLabel = (p: any) => {
+    if (p.work_order_id) {
+      const wo = allWorkOrders.find((w: any) => w.id === p.work_order_id);
+      const clientName = p.client_id
+        ? clients.find(c => c.id === p.client_id)?.name
+        : wo?.clients?.name;
+      return `${clientName || "Cliente"} — OS #${p.work_order_id.slice(0, 8)}`;
+    }
+    if (p.client_id) {
+      return clients.find(c => c.id === p.client_id)?.name || "Cliente";
+    }
+    return "Uso Geral / Estoque";
+  };
 
   // Calculations
   const now = new Date();
@@ -268,15 +300,11 @@ const Purchases = () => {
       const origPrice = Number((p as any).original_price ?? 0);
       const paidTotal = Number(p.total);
       const qty = Number(p.quantity);
-      // Determine if original_price is per-unit or total:
-      // If original_price * qty is close to or less than 2x paidTotal, it's per-unit
-      // If original_price alone is close to paidTotal, it's already a total
       let originalTotal: number;
       if (origPrice > 0) {
         const asPerUnit = origPrice * qty;
         const asTotalDiff = Math.abs(origPrice - paidTotal);
         const asPerUnitDiff = Math.abs(asPerUnit - paidTotal);
-        // Use whichever interpretation yields a value closer to (but >= ) paidTotal
         originalTotal = asTotalDiff < asPerUnitDiff ? origPrice : asPerUnit;
       } else {
         originalTotal = paidTotal;
@@ -289,13 +317,45 @@ const Purchases = () => {
     return Object.values(map).sort((a, b) => b.totalSaved - a.totalSaved);
   }, [purchases]);
 
+  // Client cost summary
+  const clientCosts = useMemo(() => {
+    const map: Record<string, { name: string; total: number; count: number }> = {};
+    monthPurchases.forEach(p => {
+      const key = (p as any).work_order_id || (p as any).client_id || "geral";
+      if (!map[key]) {
+        let name = "Uso Geral / Estoque";
+        if ((p as any).work_order_id) {
+          const wo = allWorkOrders.find((w: any) => w.id === (p as any).work_order_id);
+          const cName = (p as any).client_id
+            ? clients.find(c => c.id === (p as any).client_id)?.name
+            : wo?.clients?.name;
+          name = `${cName || "Cliente"} — OS #${((p as any).work_order_id as string).slice(0, 8)}`;
+        } else if ((p as any).client_id) {
+          name = clients.find(c => c.id === (p as any).client_id)?.name || "Cliente";
+        }
+        map[key] = { name, total: 0, count: 0 };
+      }
+      map[key].total += Number(p.total);
+      map[key].count++;
+    });
+    return Object.values(map).sort((a, b) => b.total - a.total);
+  }, [monthPurchases, allWorkOrders, clients]);
+
   const filteredPurchases = purchases.filter(p => {
     if (filterSupplier !== "all" && p.supplier_id !== filterSupplier) return false;
     if (filterStatus !== "all" && p.payment_status !== filterStatus) return false;
+    if (filterClient !== "all") {
+      if (filterClient === "geral") {
+        if ((p as any).client_id || (p as any).work_order_id) return false;
+      } else {
+        if ((p as any).client_id !== filterClient && (p as any).work_order_id !== filterClient) return false;
+      }
+    }
     if (search) {
       const s = search.toLowerCase();
       const name = (p as any).suppliers?.name ?? "";
-      return p.material.toLowerCase().includes(s) || name.toLowerCase().includes(s) || (p.invoice_number ?? "").toLowerCase().includes(s);
+      const clientName = getClientLabel(p);
+      return p.material.toLowerCase().includes(s) || name.toLowerCase().includes(s) || (p.invoice_number ?? "").toLowerCase().includes(s) || clientName.toLowerCase().includes(s);
     }
     return true;
   });
@@ -317,6 +377,15 @@ const Purchases = () => {
     return { savings: Math.max(0, savings), pct: Math.max(0, pct) };
   };
 
+  // Unique clients from purchases for filter
+  const purchaseClientIds = useMemo(() => {
+    const ids = new Set<string>();
+    purchases.forEach(p => {
+      if ((p as any).client_id) ids.add((p as any).client_id);
+    });
+    return Array.from(ids);
+  }, [purchases]);
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl md:text-2xl font-bold">Compras</h1>
@@ -328,6 +397,7 @@ const Purchases = () => {
           <TabsTrigger value="compras">Compras</TabsTrigger>
           <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
           <TabsTrigger value="descontos">Descontos</TabsTrigger>
+          <TabsTrigger value="custos-cliente">Custos por Cliente</TabsTrigger>
         </TabsList>
 
         {/* PAINEL */}
@@ -376,6 +446,7 @@ const Purchases = () => {
                     <TableRow>
                       <TableHead>Material</TableHead>
                       <TableHead className="hidden md:table-cell">Fornecedor</TableHead>
+                      <TableHead className="hidden md:table-cell">Cliente / Obra</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -385,11 +456,12 @@ const Purchases = () => {
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.material}</TableCell>
                         <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell text-xs">{getClientLabel(p)}</TableCell>
                         <TableCell>{fmt(Number(p.total))}</TableCell>
                         <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
                       </TableRow>
                     ))}
-                    {purchases.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma compra registrada.</TableCell></TableRow>}
+                    {purchases.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma compra registrada.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </div>
@@ -491,6 +563,17 @@ const Purchases = () => {
                   <SelectItem value="parcelado">Parcelado</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={filterClient} onValueChange={setFilterClient}>
+                <SelectTrigger className="w-44"><SelectValue placeholder="Cliente / Obra" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="geral">Uso Geral / Estoque</SelectItem>
+                  {purchaseClientIds.map(cid => {
+                    const c = clients.find(cl => cl.id === cid);
+                    return c ? <SelectItem key={cid} value={cid}>{c.name}</SelectItem> : null;
+                  })}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
@@ -511,6 +594,40 @@ const Purchases = () => {
                       </Select>
                     </div>
                     <div><Label>Material / Produto *</Label><Input value={pForm.material} onChange={e => setPForm({ ...pForm, material: e.target.value })} required /></div>
+                    
+                    {/* Cliente / Obra */}
+                    <div>
+                      <Label>Cliente / Obra</Label>
+                      <Select
+                        value={pForm.work_order_id || pForm.client_id || "geral"}
+                        onValueChange={v => {
+                          if (v === "geral") {
+                            setPForm({ ...pForm, client_id: "", work_order_id: "" });
+                          } else {
+                            const wo = allWorkOrders.find((w: any) => w.id === v);
+                            if (wo) {
+                              setPForm({ ...pForm, work_order_id: v, client_id: wo.client_id });
+                            } else {
+                              setPForm({ ...pForm, client_id: v, work_order_id: "" });
+                            }
+                          }
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Uso Geral / Estoque" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="geral">Uso Geral / Estoque</SelectItem>
+                          {allWorkOrders.map((wo: any) => (
+                            <SelectItem key={wo.id} value={wo.id}>
+                              {wo.clients?.name || "Cliente"} — OS #{wo.id.slice(0, 8)}
+                            </SelectItem>
+                          ))}
+                          {clients.filter(c => !allWorkOrders.some((wo: any) => wo.client_id === c.id)).map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name} (sem OS)</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="grid grid-cols-3 gap-2">
                       <div><Label>Quantidade *</Label><Input type="number" step="0.01" value={pForm.quantity} onChange={e => setPForm({ ...pForm, quantity: e.target.value })} required /></div>
                       <div>
@@ -583,6 +700,7 @@ const Purchases = () => {
                 <TableRow>
                   <TableHead>Material</TableHead>
                   <TableHead className="hidden md:table-cell">Fornecedor</TableHead>
+                  <TableHead className="hidden md:table-cell">Cliente / Obra</TableHead>
                   <TableHead className="hidden md:table-cell">Qtd</TableHead>
                   <TableHead>Valor</TableHead>
                   <TableHead className="hidden md:table-cell">Data</TableHead>
@@ -595,6 +713,7 @@ const Purchases = () => {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.material}</TableCell>
                     <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs">{getClientLabel(p)}</TableCell>
                     <TableCell className="hidden md:table-cell">{p.quantity} {p.unit}</TableCell>
                     <TableCell>{fmt(Number(p.total))}</TableCell>
                     <TableCell className="hidden md:table-cell">{new Date(p.purchase_date).toLocaleDateString("pt-BR")}</TableCell>
@@ -607,7 +726,7 @@ const Purchases = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredPurchases.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma compra encontrada.</TableCell></TableRow>}
+                {filteredPurchases.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma compra encontrada.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>
@@ -718,6 +837,41 @@ const Purchases = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* CUSTOS POR CLIENTE */}
+        <TabsContent value="custos-cliente" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Custo de Materiais por Cliente / Obra (Mês Atual)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cliente / Obra</TableHead>
+                      <TableHead>Itens</TableHead>
+                      <TableHead>Total Gasto</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clientCosts.map((cc, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{cc.name}</TableCell>
+                        <TableCell>{cc.count}</TableCell>
+                        <TableCell className="font-bold">{fmt(cc.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {clientCosts.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Nenhuma compra no mês atual.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <ConfirmDeleteDialog
@@ -732,16 +886,16 @@ const Purchases = () => {
         onOpenChange={setPhotoDialogOpen}
         suppliers={suppliers}
         purchaseRequests={purchaseRequests}
+        clients={clients}
+        workOrders={allWorkOrders}
         onSave={async (data: any) => {
           const { items, linked_wo_id } = data;
-          // Insert each item as a separate purchase record
           for (const item of items) {
             const { error } = await supabase.from("purchases").insert(item);
             if (error) {
               toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
               return;
             }
-            // Create financial transaction if not paid
             if (item.payment_status !== "pago") {
               const supplierName = suppliers.find(s => s.id === item.supplier_id)?.name ?? "Fornecedor";
               await supabase.from("financial_transactions").insert({
@@ -753,8 +907,13 @@ const Purchases = () => {
                 status: "pendente" as any,
               });
             }
+            // Update work order material status if linked
+            if (item.work_order_id) {
+              await supabase.from("work_orders")
+                .update({ material_status: "comprado" } as any)
+                .eq("id", item.work_order_id);
+            }
           }
-          // Link to purchase request if selected
           if (linked_wo_id && linked_wo_id !== "none") {
             const req = purchaseRequests.find((r: any) => r.work_order_id === linked_wo_id);
             if (req) {
@@ -769,6 +928,8 @@ const Purchases = () => {
           qc.invalidateQueries({ queryKey: ["purchases"] });
           qc.invalidateQueries({ queryKey: ["financial"] });
           qc.invalidateQueries({ queryKey: ["purchase-requests"] });
+          qc.invalidateQueries({ queryKey: ["work-orders"] });
+          qc.invalidateQueries({ queryKey: ["production-orders"] });
           toast({ title: `${items.length} item(ns) registrado(s) por foto!` });
         }}
       />
