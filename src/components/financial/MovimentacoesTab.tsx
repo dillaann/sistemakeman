@@ -309,6 +309,13 @@ export default function MovimentacoesTab() {
                   <TableCell className={`text-right font-medium ${isCredit ? "text-green-700" : "text-red-700"}`}>
                     {isCredit ? "+" : "-"}{fmt(Number(m.amount))}
                   </TableCell>
+                  {userRole === "admin" && (
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(m.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
