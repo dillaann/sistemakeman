@@ -221,11 +221,12 @@ const Quotes = () => {
 
       // Create financial transaction (a_receber) for the full amount
       if (total > 0) {
+        const clientName = clients.find(c => c.id === clientId)?.name ?? "";
         // If there's a down payment received, create a paid transaction for it
         if (dpAmount > 0) {
           await supabase.from("financial_transactions").insert({
             type: "a_receber" as any,
-            description: `Entrada - Orçamento ${quoteId.slice(0, 8)}`,
+            description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
             amount: dpAmount,
             due_date: downPaymentDate,
             paid_date: downPaymentDate,
@@ -241,7 +242,7 @@ const Quotes = () => {
         if (pendingAmount > 0) {
           await supabase.from("financial_transactions").insert({
             type: "a_receber" as any,
-            description: `Saldo - Orçamento ${quoteId.slice(0, 8)}`,
+            description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
             amount: pendingAmount,
             due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             status: "pendente" as any,
@@ -333,9 +334,10 @@ const Quotes = () => {
       const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quote.id).single();
 
       // Create paid financial transaction
+      const clientName = clients.find(c => c.id === quote.client_id)?.name ?? "";
       await supabase.from("financial_transactions").insert({
         type: "a_receber" as any,
-        description: `Recebimento - Orçamento ${quote.id.slice(0, 8)}`,
+        description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
         amount,
         due_date: payRegForm.date,
         paid_date: payRegForm.date,

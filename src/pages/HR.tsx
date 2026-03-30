@@ -203,10 +203,23 @@ const HR = () => {
 
   const markPaidMutation = useMutation({
     mutationFn: async (closingId: string) => {
+      const closing = closings.find(c => c.id === closingId);
+      if (!closing) throw new Error("Fechamento não encontrado");
       const { error } = await supabase.from("monthly_closings").update({ paid: true, paid_date: new Date().toISOString().slice(0, 10) }).eq("id", closingId);
       if (error) throw error;
+      // Create financial transaction for payroll payment
+      const empName = (closing as any).employees?.name ?? employees.find(e => e.id === closing.employee_id)?.name ?? "Funcionário";
+      await supabase.from("financial_transactions").insert({
+        type: "a_pagar" as any,
+        description: `Folha de Pagamento - ${empName} (${monthLabel(closing.month_ref)})`,
+        amount: Number(closing.net_pay),
+        due_date: new Date().toISOString().slice(0, 10),
+        paid_date: new Date().toISOString().slice(0, 10),
+        status: "pago" as any,
+        category: "Folha de Pagamento",
+      });
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); toast({ title: "Marcado como pago!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Marcado como pago!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 

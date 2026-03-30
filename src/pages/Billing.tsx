@@ -158,7 +158,7 @@ const Billing = () => {
       // Create paid financial transaction
       const { error } = await supabase.from("financial_transactions").insert({
         type: "a_receber" as any,
-        description: `Recebimento - Orçamento ${q.id.slice(0, 8)} - ${q.clientName}`,
+        description: `Recebimento - ${q.clientName} (Orçamento ${q.id.slice(0, 8)})`,
         amount,
         due_date: payForm.date,
         paid_date: payForm.date,
