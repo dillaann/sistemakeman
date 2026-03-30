@@ -288,6 +288,8 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-campaigns"] });
       toast({ title: "Orçamento aprovado!", description: "OS, pagamento e lançamentos financeiros criados." });
     } catch (e: any) {
       toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" });
