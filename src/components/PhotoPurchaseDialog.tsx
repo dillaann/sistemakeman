@@ -16,6 +16,8 @@ interface PhotoPurchaseDialogProps {
   onOpenChange: (open: boolean) => void;
   suppliers: any[];
   purchaseRequests: any[];
+  clients: any[];
+  workOrders: any[];
   onSave: (data: any) => void;
 }
 
@@ -26,7 +28,7 @@ const paymentStatuses: Record<string, string> = {
   pago: "Pago", pendente: "Pendente", parcelado: "Parcelado",
 };
 
-const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, onSave }: PhotoPurchaseDialogProps) => {
+const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, clients, workOrders, onSave }: PhotoPurchaseDialogProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -42,7 +44,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     supplier_name: "",
     purchase_date: new Date().toISOString().split("T")[0],
     invoice_number: "",
-    items: [{ material: "", quantity: "1", unit: "un", unit_price: "0" }],
+    items: [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
     original_total: "",
     final_total: "",
     payment_method: "pix",
@@ -61,7 +63,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       supplier_id: "", supplier_name: "",
       purchase_date: new Date().toISOString().split("T")[0],
       invoice_number: "",
-      items: [{ material: "", quantity: "1", unit: "un", unit_price: "0" }],
+      items: [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
       original_total: "", final_total: "",
       payment_method: "pix", payment_status: "pendente",
       due_date: "", notes: "", linked_wo_id: "",
@@ -80,10 +82,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   };
 
   const removePhoto = (index: number) => {
-    setPhotos(prev => {
-      const updated = prev.filter((_, i) => i !== index);
-      return updated;
-    });
+    setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
   const uploadPhotos = async (): Promise<string[]> => {
@@ -132,12 +131,10 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       const data = result.data;
       setExtractedData(data);
 
-      // Find supplier by name
       const matchedSupplier = suppliers.find(
         s => s.name.toLowerCase().includes((data.supplier_name || "").toLowerCase())
       );
 
-      // Identify missing fields
       const missing: string[] = [];
       if (!data.supplier_name) missing.push("supplier_name");
       if (!data.purchase_date) missing.push("purchase_date");
@@ -145,7 +142,6 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       if (!data.final_total && data.final_total !== 0) missing.push("final_total");
       setMissingFields(missing);
 
-      // Populate form
       setForm({
         supplier_id: matchedSupplier?.id || "",
         supplier_name: data.supplier_name || "",
@@ -157,8 +153,10 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
               quantity: String(item.quantity || 1),
               unit: item.unit || "un",
               unit_price: String(item.unit_price || 0),
+              client_id: "",
+              work_order_id: "",
             }))
-          : [{ material: "", quantity: "1", unit: "un", unit_price: "0" }],
+          : [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
         original_total: String(data.original_total || ""),
         final_total: String(data.final_total || ""),
         payment_method: data.payment_method || "pix",
@@ -184,10 +182,35 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     }));
   };
 
+  const updateItemDestination = (index: number, value: string) => {
+    if (value === "geral") {
+      updateItem(index, "client_id", "");
+      updateItem(index, "work_order_id", "");
+      // Need to set both at once
+      setForm(prev => ({
+        ...prev,
+        items: prev.items.map((item, i) => i === index ? { ...item, client_id: "", work_order_id: "" } : item),
+      }));
+    } else {
+      const wo = workOrders.find((w: any) => w.id === value);
+      if (wo) {
+        setForm(prev => ({
+          ...prev,
+          items: prev.items.map((item, i) => i === index ? { ...item, work_order_id: value, client_id: wo.client_id } : item),
+        }));
+      } else {
+        setForm(prev => ({
+          ...prev,
+          items: prev.items.map((item, i) => i === index ? { ...item, client_id: value, work_order_id: "" } : item),
+        }));
+      }
+    }
+  };
+
   const addItem = () => {
     setForm(prev => ({
       ...prev,
-      items: [...prev.items, { material: "", quantity: "1", unit: "un", unit_price: "0" }],
+      items: [...prev.items, { material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
     }));
   };
 
@@ -214,12 +237,10 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       const originalTotal = parseFloat(form.original_total) || 0;
       const itemsTotal = calcItemsTotal();
 
-      // Build individual purchase records for each item
       const items = form.items.filter(i => i.material).map(item => {
         const qty = parseFloat(item.quantity) || 1;
         const unitPrice = parseFloat(item.unit_price) || 0;
         const itemTotal = qty * unitPrice;
-        // Distribute discount proportionally based on item's share of total
         const itemShare = itemsTotal > 0 ? itemTotal / itemsTotal : 1 / form.items.length;
         const itemOriginalTotal = originalTotal > 0 ? originalTotal * itemShare : 0;
         const itemFinalTotal = finalTotal > 0 ? finalTotal * itemShare : itemTotal;
@@ -242,6 +263,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           discount_percentage: itemDiscountPct,
           discount_amount: itemDiscount > 0 ? itemDiscount : 0,
           notes: form.notes || null,
+          client_id: item.client_id || null,
+          work_order_id: item.work_order_id || null,
         };
       });
 
@@ -435,6 +458,27 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                         </Button>
                       )}
                     </div>
+                  </div>
+                  {/* Client / Obra per item */}
+                  <div>
+                    <Label className="text-xs">Cliente / Obra</Label>
+                    <Select
+                      value={item.work_order_id || item.client_id || "geral"}
+                      onValueChange={v => updateItemDestination(i, v)}
+                    >
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Uso Geral / Estoque" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="geral">Uso Geral / Estoque</SelectItem>
+                        {workOrders.map((wo: any) => (
+                          <SelectItem key={wo.id} value={wo.id}>
+                            {wo.clients?.name || "Cliente"} — OS #{wo.id.slice(0, 8)}
+                          </SelectItem>
+                        ))}
+                        {clients.filter((c: any) => !workOrders.some((wo: any) => wo.client_id === c.id)).map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name} (sem OS)</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <p className="text-xs text-muted-foreground text-right">
                     Total: {fmt((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0))}
