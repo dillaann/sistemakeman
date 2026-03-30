@@ -79,6 +79,18 @@ const Purchases = () => {
     },
   });
 
+  // All work orders for Compras view
+  const { data: allWorkOrders = [] } = useQuery({
+    queryKey: ["compras-work-orders"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("work_orders")
+        .select("*, clients(name)")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
   const { data: requestMaterials = {} } = useQuery({
     queryKey: ["purchase-request-materials"],
     queryFn: async () => {
