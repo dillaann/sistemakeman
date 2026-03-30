@@ -10,11 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trophy, DollarSign, Target, TrendingUp, Check, ShoppingBag, Trash2 } from "lucide-react";
+import { Plus, Search, Trophy, DollarSign, Target, TrendingUp, Check, ShoppingBag, Trash2, Megaphone, Building2, HardHat } from "lucide-react";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -29,6 +31,9 @@ const commStatusColors: Record<string, string> = {
   aprovada: "bg-blue-500/10 text-blue-700 border-blue-500/20",
   paga: "bg-green-500/10 text-green-700 border-green-500/20",
 };
+
+const origemLabels: Record<string, string> = { marketing: "Marketing", obras: "Obras", empresa: "Empresa" };
+const ORIGIN_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--secondary))"];
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -46,7 +51,7 @@ const SellerSalesView = () => {
   const [newClientOpen, setNewClientOpen] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
-  const [form, setForm] = useState({ client_id: "", description: "", amount: "", delivery_deadline: "", notes: "" });
+  const [form, setForm] = useState({ client_id: "", description: "", amount: "", delivery_deadline: "", notes: "", origem_venda: "" });
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
@@ -90,6 +95,14 @@ const SellerSalesView = () => {
   const goalAmount = myGoal?.goal_amount ? Number(myGoal.goal_amount) : 0;
   const goalProgress = goalAmount > 0 ? Math.min((monthlyTotal / goalAmount) * 100, 100) : 0;
 
+  // Per-origin totals
+  const originTotals = ["marketing", "obras", "empresa"].map(o => ({
+    key: o,
+    label: origemLabels[o],
+    total: monthlySales.filter(s => (s as any).origem_venda === o).reduce((a, s) => a + Number(s.amount), 0),
+  }));
+  const pieData = originTotals.filter(o => o.total > 0).map(o => ({ name: o.label, value: o.total }));
+
   const createClientMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.from("clients").insert({ name: newClientName, phone: newClientPhone || null }).select("id").single();
@@ -109,18 +122,18 @@ const SellerSalesView = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
       const amount = parseFloat(form.amount) || 0;
-      // Create work order
       const { data: wo, error: woErr } = await supabase.from("work_orders").insert({
         client_id: form.client_id,
         description: form.description,
         total: amount,
         status: "aguardando" as any,
         priority: "normal",
-      }).select("id").single();
+        origem_venda: form.origem_venda,
+      } as any).select("id").single();
       if (woErr) throw woErr;
 
-      // Create sale (commission will be created by admin)
       const { error: saleErr } = await supabase.from("sales").insert({
         seller_id: user!.id,
         client_id: form.client_id,
@@ -130,14 +143,15 @@ const SellerSalesView = () => {
         delivery_deadline: form.delivery_deadline || null,
         notes: form.notes || null,
         status: "aguardando",
-      });
+        origem_venda: form.origem_venda,
+      } as any);
       if (saleErr) throw saleErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-sales"] });
       queryClient.invalidateQueries({ queryKey: ["my-commissions"] });
       setOpen(false);
-      setForm({ client_id: "", description: "", amount: "", delivery_deadline: "", notes: "" });
+      setForm({ client_id: "", description: "", amount: "", delivery_deadline: "", notes: "", origem_venda: "" });
       toast({ title: "Venda registrada com sucesso!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -149,7 +163,7 @@ const SellerSalesView = () => {
         <h1 className="text-xl md:text-2xl font-bold">Minhas Vendas</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Venda</Button></DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Registrar Nova Venda</DialogTitle></DialogHeader>
             <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-3">
               <div>
@@ -172,11 +186,21 @@ const SellerSalesView = () => {
                   </Dialog>
                 </div>
               </div>
+              <div><Label>Origem da Venda *</Label>
+                <Select value={form.origem_venda} onValueChange={v => setForm({ ...form, origem_venda: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="marketing">Marketing</SelectItem>
+                    <SelectItem value="obras">Obras</SelectItem>
+                    <SelectItem value="empresa">Empresa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Descrição do serviço/produto *</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required /></div>
               <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
               <div><Label>Prazo de entrega</Label><Input type="date" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
               <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.description}>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.description || !form.origem_venda}>
                 {saveMutation.isPending ? "Salvando..." : "Registrar Venda"}
               </Button>
             </form>
@@ -185,7 +209,7 @@ const SellerSalesView = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Vendas no Mês</CardTitle>
@@ -224,34 +248,55 @@ const SellerSalesView = () => {
         </Card>
       </div>
 
-      {/* Sales list */}
-      <div className="border rounded-lg overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cliente</TableHead>
-              <TableHead className="hidden md:table-cell">Descrição</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="hidden md:table-cell">Data</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sales.map(s => (
-              <TableRow key={s.id}>
-                <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
-                <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
-                <TableCell>{fmt(Number(s.amount))}</TableCell>
-                <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
-                <TableCell className="hidden md:table-cell">{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
-              </TableRow>
-            ))}
-            {sales.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma venda registrada.</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
+      {/* Per-origin cards */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        {originTotals.map(o => (
+          <Card key={o.key}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Vendas {o.label}</CardTitle>
+              {o.key === "marketing" ? <Megaphone className="h-4 w-4 text-muted-foreground" /> :
+               o.key === "obras" ? <HardHat className="h-4 w-4 text-muted-foreground" /> :
+               <Building2 className="h-4 w-4 text-muted-foreground" />}
+            </CardHeader>
+            <CardContent><div className="text-xl font-bold">{fmt(o.total)}</div></CardContent>
+          </Card>
+        ))}
       </div>
+
+      {/* Pie chart */}
+      {pieData.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Distribuição por Origem</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                  {pieData.map((_, i) => <Cell key={i} fill={ORIGIN_COLORS[i % ORIGIN_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v: number) => fmt(v)} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sales tabs by origin */}
+      <Tabs defaultValue="all">
+        <TabsList>
+          <TabsTrigger value="all">Todas</TabsTrigger>
+          <TabsTrigger value="marketing">Marketing</TabsTrigger>
+          <TabsTrigger value="obras">Obras</TabsTrigger>
+          <TabsTrigger value="empresa">Empresa</TabsTrigger>
+        </TabsList>
+        {["all", "marketing", "obras", "empresa"].map(origin => (
+          <TabsContent key={origin} value={origin}>
+            <SalesTable
+              sales={origin === "all" ? sales : sales.filter(s => (s as any).origem_venda === origin)}
+              showSeller={false}
+            />
+          </TabsContent>
+        ))}
+      </Tabs>
 
       {/* Read-only commissions list */}
       <h2 className="text-lg font-semibold mt-6">Minhas Comissões</h2>
@@ -288,6 +333,41 @@ const SellerSalesView = () => {
   );
 };
 
+// ─── Shared Sales Table ───
+const SalesTable = ({ sales, showSeller = true, sellerName }: { sales: any[]; showSeller?: boolean; sellerName?: (id: string) => string }) => (
+  <div className="border rounded-lg overflow-auto">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {showSeller && <TableHead>Vendedor</TableHead>}
+          <TableHead>Cliente</TableHead>
+          <TableHead className="hidden md:table-cell">Descrição</TableHead>
+          <TableHead>Valor</TableHead>
+          <TableHead>Origem</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="hidden md:table-cell">Data</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sales.map(s => (
+          <TableRow key={s.id}>
+            {showSeller && <TableCell>{sellerName ? sellerName(s.seller_id) : "—"}</TableCell>}
+            <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
+            <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
+            <TableCell>{fmt(Number(s.amount))}</TableCell>
+            <TableCell><Badge variant="outline">{origemLabels[(s as any).origem_venda] || "—"}</Badge></TableCell>
+            <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
+            <TableCell className="hidden md:table-cell">{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
+          </TableRow>
+        ))}
+        {sales.length === 0 && (
+          <TableRow><TableCell colSpan={showSeller ? 7 : 6} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>
+        )}
+      </TableBody>
+    </Table>
+  </div>
+);
+
 // ─── ADMIN VIEW ───
 const AdminSalesView = () => {
   const { toast } = useToast();
@@ -295,15 +375,13 @@ const AdminSalesView = () => {
   const [search, setSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [tab, setTab] = useState<"sales" | "commissions" | "goals">("sales");
+  const [tab, setTab] = useState<"vendas" | "commissions" | "goals">("vendas");
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
 
-  // Commission rate dialog
   const [rateOpen, setRateOpen] = useState(false);
   const [rateSellerId, setRateSellerId] = useState("");
   const [rateValue, setRateValue] = useState("");
 
-  // Goal dialog
   const [goalOpen, setGoalOpen] = useState(false);
   const [goalSellerId, setGoalSellerId] = useState("");
   const [goalMonth, setGoalMonth] = useState(() => {
@@ -311,6 +389,7 @@ const AdminSalesView = () => {
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
   });
   const [goalValue, setGoalValue] = useState("");
+  const [rankingOrigin, setRankingOrigin] = useState("all");
 
   const { data: sellers = [] } = useQuery({
     queryKey: ["sellers"],
@@ -436,6 +515,13 @@ const AdminSalesView = () => {
   const totalCommPaid = commissions.filter(c => c.status === "paga").reduce((s, c) => s + Number(c.amount), 0);
   const ticketMedio = monthlySales.length > 0 ? monthlyTotal / monthlySales.length : 0;
 
+  const originTotals = ["marketing", "obras", "empresa"].map(o => ({
+    key: o,
+    label: origemLabels[o],
+    total: monthlySales.filter(s => (s as any).origem_venda === o).reduce((a, s) => a + Number(s.amount), 0),
+    count: monthlySales.filter(s => (s as any).origem_venda === o).length,
+  }));
+
   const filtered = sales.filter(s => {
     if (sellerFilter !== "all" && s.seller_id !== sellerFilter) return false;
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
@@ -446,15 +532,34 @@ const AdminSalesView = () => {
     return true;
   });
 
-  // Ranking
+  // Ranking per origin
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const ranking = sellers.map(seller => {
-    const sellerSales = monthlySales.filter(s => s.seller_id === seller.id);
-    const total = sellerSales.reduce((acc, s) => acc + Number(s.amount), 0);
+    const sellerMonthly = monthlySales.filter(s => s.seller_id === seller.id);
+    const filteredSales = rankingOrigin === "all" ? sellerMonthly : sellerMonthly.filter(s => (s as any).origem_venda === rankingOrigin);
+    const total = filteredSales.reduce((acc, s) => acc + Number(s.amount), 0);
     const goal = goals.find(g => g.seller_id === seller.id && g.month_ref === monthKey);
     const goalAmt = goal ? Number(goal.goal_amount) : 0;
-    return { ...seller, total, goalAmt, pct: goalAmt > 0 ? (total / goalAmt) * 100 : 0 };
+
+    // Per-origin breakdown
+    const mkt = sellerMonthly.filter(s => (s as any).origem_venda === "marketing").reduce((a, s) => a + Number(s.amount), 0);
+    const obras = sellerMonthly.filter(s => (s as any).origem_venda === "obras").reduce((a, s) => a + Number(s.amount), 0);
+    const empresa = sellerMonthly.filter(s => (s as any).origem_venda === "empresa").reduce((a, s) => a + Number(s.amount), 0);
+    const allTotal = sellerMonthly.reduce((a, s) => a + Number(s.amount), 0);
+
+    return { ...seller, total, goalAmt, pct: goalAmt > 0 ? (total / goalAmt) * 100 : 0, mkt, obras, empresa, allTotal };
   }).sort((a, b) => b.total - a.total);
+
+  // Chart data: bar chart per seller per origin
+  const barChartData = sellers.map(s => {
+    const ss = monthlySales.filter(sale => sale.seller_id === s.id);
+    return {
+      name: s.full_name?.split(" ")[0] || "—",
+      Marketing: ss.filter(sale => (sale as any).origem_venda === "marketing").reduce((a, sale) => a + Number(sale.amount), 0),
+      Obras: ss.filter(sale => (sale as any).origem_venda === "obras").reduce((a, sale) => a + Number(sale.amount), 0),
+      Empresa: ss.filter(sale => (sale as any).origem_venda === "empresa").reduce((a, sale) => a + Number(sale.amount), 0),
+    };
+  }).filter(d => d.Marketing + d.Obras + d.Empresa > 0);
 
   return (
     <div className="space-y-6">
@@ -492,10 +597,62 @@ const AdminSalesView = () => {
         </Card>
       </div>
 
-      {/* Ranking */}
+      {/* Origin cards */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        {originTotals.map(o => (
+          <Card key={o.key}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Vendas {o.label}</CardTitle>
+              {o.key === "marketing" ? <Megaphone className="h-4 w-4 text-muted-foreground" /> :
+               o.key === "obras" ? <HardHat className="h-4 w-4 text-muted-foreground" /> :
+               <Building2 className="h-4 w-4 text-muted-foreground" />}
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">{fmt(o.total)}</div>
+              <p className="text-xs text-muted-foreground">{o.count} vendas</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Bar chart vendas por vendedor por origem */}
+      {barChartData.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Vendas por Vendedor × Origem (Mês Atual)</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={barChartData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" className="text-xs" />
+                <YAxis tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} className="text-xs" />
+                <Tooltip formatter={(v: number) => fmt(v)} />
+                <Legend />
+                <Bar dataKey="Marketing" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Obras" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Empresa" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Ranking with origin filter */}
       {ranking.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Trophy className="h-4 w-4" /> Ranking de Vendedores do Mês</CardTitle></CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base"><Trophy className="h-4 w-4" /> Ranking de Vendedores</CardTitle>
+              <Select value={rankingOrigin} onValueChange={setRankingOrigin}>
+                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Total</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="obras">Obras</SelectItem>
+                  <SelectItem value="empresa">Empresa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {ranking.map((r, i) => (
@@ -505,6 +662,11 @@ const AdminSalesView = () => {
                     <div className="flex justify-between items-center">
                       <span className="font-medium">{r.full_name}</span>
                       <span className="text-sm font-bold">{fmt(r.total)}</span>
+                    </div>
+                    <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                      <span>Mkt: {fmt(r.mkt)}</span>
+                      <span>Obras: {fmt(r.obras)}</span>
+                      <span>Empresa: {fmt(r.empresa)}</span>
                     </div>
                     {r.goalAmt > 0 && (
                       <>
@@ -520,14 +682,14 @@ const AdminSalesView = () => {
         </Card>
       )}
 
-      {/* Tabs */}
+      {/* Main tabs */}
       <div className="flex gap-2 overflow-x-auto">
-        <Button variant={tab === "sales" ? "default" : "outline"} size="sm" onClick={() => setTab("sales")}>Vendas</Button>
+        <Button variant={tab === "vendas" ? "default" : "outline"} size="sm" onClick={() => setTab("vendas")}>Vendas</Button>
         <Button variant={tab === "commissions" ? "default" : "outline"} size="sm" onClick={() => setTab("commissions")}>Comissões</Button>
         <Button variant={tab === "goals" ? "default" : "outline"} size="sm" onClick={() => setTab("goals")}>Metas</Button>
       </div>
 
-      {tab === "sales" && (
+      {tab === "vendas" && (
         <>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
@@ -551,39 +713,73 @@ const AdminSalesView = () => {
               </Select>
             </div>
           </div>
-          <div className="border rounded-lg overflow-auto">
-            <Table>
-              <TableHeader>
-                 <TableRow>
-                   <TableHead>Vendedor</TableHead>
-                   <TableHead>Cliente</TableHead>
-                   <TableHead className="hidden md:table-cell">Descrição</TableHead>
-                   <TableHead>Valor</TableHead>
-                   <TableHead>Data</TableHead>
-                   <TableHead>Status</TableHead>
-                   <TableHead className="w-16">Ação</TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {filtered.map(s => (
-                   <TableRow key={s.id}>
-                     <TableCell>{sellerName(s.seller_id)}</TableCell>
-                     <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
-                     <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
-                     <TableCell>{fmt(Number(s.amount))}</TableCell>
-                     <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                     <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
-                     <TableCell>
-                       <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
-                         <Trash2 className="h-4 w-4 text-destructive" />
-                       </Button>
-                     </TableCell>
-                   </TableRow>
-                 ))}
-                 {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
-              </TableBody>
-            </Table>
-          </div>
+
+          {/* Origin sub-tabs */}
+          <Tabs defaultValue="all">
+            <TabsList>
+              <TabsTrigger value="all">Todas</TabsTrigger>
+              <TabsTrigger value="marketing">Marketing</TabsTrigger>
+              <TabsTrigger value="obras">Obras</TabsTrigger>
+              <TabsTrigger value="empresa">Empresa</TabsTrigger>
+            </TabsList>
+            {["all", "marketing", "obras", "empresa"].map(origin => {
+              const originFiltered = origin === "all" ? filtered : filtered.filter(s => (s as any).origem_venda === origin);
+              const originTotal = originFiltered.reduce((a, s) => a + Number(s.amount), 0);
+              return (
+                <TabsContent key={origin} value={origin}>
+                  <div className="flex gap-4 mb-4">
+                    <Card className="flex-1">
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">Quantidade</p>
+                        <p className="text-lg font-bold">{originFiltered.length}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="flex-1">
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground">Valor Total</p>
+                        <p className="text-lg font-bold">{fmt(originTotal)}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  <div className="border rounded-lg overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Vendedor</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead className="hidden md:table-cell">Descrição</TableHead>
+                          <TableHead>Valor</TableHead>
+                          <TableHead>Origem</TableHead>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-16">Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {originFiltered.map(s => (
+                          <TableRow key={s.id}>
+                            <TableCell>{sellerName(s.seller_id)}</TableCell>
+                            <TableCell className="font-medium">{(s.clients as any)?.name}</TableCell>
+                            <TableCell className="hidden md:table-cell max-w-[200px] truncate">{s.description}</TableCell>
+                            <TableCell>{fmt(Number(s.amount))}</TableCell>
+                            <TableCell><Badge variant="outline">{origemLabels[(s as any).origem_venda] || "—"}</Badge></TableCell>
+                            <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                            <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {originFiltered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
         </>
       )}
 
@@ -673,7 +869,6 @@ const AdminSalesView = () => {
             </Dialog>
           </div>
 
-          {/* Rates table */}
           <Card>
             <CardHeader><CardTitle className="text-base">Taxas de Comissão por Vendedor</CardTitle></CardHeader>
             <CardContent>

@@ -30,7 +30,7 @@ const WorkOrders = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ client_id: "", description: "", total: "", status: "aguardando" as string });
+  const [form, setForm] = useState({ client_id: "", description: "", total: "", status: "aguardando" as string, origem_venda: "" });
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
@@ -47,10 +47,12 @@ const WorkOrders = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
       const { error } = await supabase.from("work_orders").insert({
         client_id: form.client_id, description: form.description,
         total: parseFloat(form.total) || 0, status: form.status as any,
-      });
+        origem_venda: form.origem_venda,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["work-orders"] }); setOpen(false); toast({ title: "OS criada!" }); },
@@ -106,8 +108,18 @@ const WorkOrders = () => {
                 </Select>
               </div>
               <div><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              <div><Label>Origem da Venda *</Label>
+                <Select value={form.origem_venda} onValueChange={v => setForm({ ...form, origem_venda: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="marketing">Marketing</SelectItem>
+                    <SelectItem value="obras">Obras</SelectItem>
+                    <SelectItem value="empresa">Empresa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {userRole !== "producao" && <div><Label>Valor Total (R$)</Label><Input type="number" step="0.01" value={form.total} onChange={e => setForm({ ...form, total: e.target.value })} required /></div>}
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar</Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda}>Salvar</Button>
             </form>
           </DialogContent>
         </Dialog>

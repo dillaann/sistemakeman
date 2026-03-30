@@ -45,7 +45,7 @@ const Quotes = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "" });
+  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
 
   // Approval modal state (commission + payment)
@@ -58,6 +58,7 @@ const Quotes = () => {
     sellerName: string;
     description: string;
     percentage: number;
+    origemVenda: string;
   } | null>(null);
   const [commPercentage, setCommPercentage] = useState(5);
   const [paymentType, setPaymentType] = useState<"a_vista" | "entrada_restante">("a_vista");
@@ -131,6 +132,7 @@ const Quotes = () => {
       const validItems = items.filter(it => it.description.trim());
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
 
+      if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
       const { data: quote, error } = await supabase.from("quotes").insert({
         client_id: form.client_id,
         description: form.description,
@@ -139,6 +141,7 @@ const Quotes = () => {
         created_by: user?.id,
         seller_id: effectiveSellerId || null,
         delivery_deadline: form.delivery_deadline || null,
+        origem_venda: form.origem_venda,
       } as any).select().single();
       if (error) throw error;
 
@@ -155,7 +158,7 @@ const Quotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
-      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "" });
+      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
       setItems([{ description: "", quantity: "1", unit_price: "" }]);
       toast({ title: "Orçamento criado!" });
     },
@@ -179,12 +182,13 @@ const Quotes = () => {
       sellerName: sellerId ? (profilesMap[sellerId] || "Vendedor") : "",
       description: quote.description || "",
       percentage: defaultPct,
+      origemVenda: (quote as any).origem_venda || "empresa",
     });
   };
 
   const approveAndCreateOS = async (
     quoteId: string, clientId: string, total: number, description: string,
-    sellerId: string | null, commissionPct: number | null
+    sellerId: string | null, commissionPct: number | null, origemVenda: string
   ) => {
     try {
       const now = new Date().toISOString();
@@ -211,7 +215,8 @@ const Quotes = () => {
         total,
         description: description || "OS gerada a partir de orçamento",
         status: "aguardando" as any,
-      }).select().single();
+        origem_venda: origemVenda,
+      } as any).select().single();
       if (woError) throw woError;
 
       // Create financial transaction (a_receber) for the full amount
@@ -256,7 +261,8 @@ const Quotes = () => {
           description: description || "Venda gerada por orçamento",
           amount: total,
           status: "aguardando",
-        }).select().single();
+          origem_venda: origemVenda,
+        } as any).select().single();
         if (saleError) throw saleError;
 
         if (commissionPct !== null && commissionPct > 0) {
@@ -284,11 +290,12 @@ const Quotes = () => {
 
   const handleApprovalConfirm = (withCommission: boolean) => {
     if (!approvalModal) return;
-    const { quoteId, clientId, total, sellerId, description } = approvalModal;
+    const { quoteId, clientId, total, sellerId, description, origemVenda } = approvalModal;
     approveAndCreateOS(
       quoteId, clientId, total, description,
       sellerId || null,
-      sellerId && withCommission ? commPercentage : null
+      sellerId && withCommission ? commPercentage : null,
+      origemVenda
     );
     setApprovalModal(null);
   };
@@ -439,6 +446,16 @@ const Quotes = () => {
                 )}
               </div>
 
+              <div><Label>Origem da Venda *</Label>
+                <Select value={form.origem_venda} onValueChange={v => setForm({ ...form, origem_venda: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="marketing">Marketing</SelectItem>
+                    <SelectItem value="obras">Obras</SelectItem>
+                    <SelectItem value="empresa">Empresa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
@@ -476,7 +493,7 @@ const Quotes = () => {
               <div><Label>Observações</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
               <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
               <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar Orçamento</Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -541,6 +558,7 @@ const Quotes = () => {
             <TableRow>
               <TableHead>Cliente</TableHead>
               <TableHead>Vendedor</TableHead>
+              <TableHead>Origem</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
@@ -557,6 +575,7 @@ const Quotes = () => {
                   <TableCell className="text-sm text-muted-foreground">
                     {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
                   </TableCell>
+                  <TableCell><Badge variant="outline">{{ marketing: "Marketing", obras: "Obras", empresa: "Empresa" }[(q as any).origem_venda] || "—"}</Badge></TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.description}</TableCell>
                   <TableCell>{fmt(Number(q.total))}</TableCell>
                   <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
@@ -597,7 +616,7 @@ const Quotes = () => {
                 </TableRow>
               );
             })}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

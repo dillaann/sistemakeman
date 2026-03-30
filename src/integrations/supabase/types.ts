@@ -800,6 +800,7 @@ export type Database = {
           down_payment: number | null
           down_payment_date: string | null
           id: string
+          origem_venda: string | null
           payment_method: string | null
           payment_status: string | null
           payment_type: string | null
@@ -820,6 +821,7 @@ export type Database = {
           down_payment?: number | null
           down_payment_date?: string | null
           id?: string
+          origem_venda?: string | null
           payment_method?: string | null
           payment_status?: string | null
           payment_type?: string | null
@@ -840,6 +842,7 @@ export type Database = {
           down_payment?: number | null
           down_payment_date?: string | null
           id?: string
+          origem_venda?: string | null
           payment_method?: string | null
           payment_status?: string | null
           payment_type?: string | null
@@ -869,6 +872,7 @@ export type Database = {
           description: string
           id: string
           notes: string | null
+          origem_venda: string | null
           seller_id: string
           status: string
           updated_at: string
@@ -882,6 +886,7 @@ export type Database = {
           description: string
           id?: string
           notes?: string | null
+          origem_venda?: string | null
           seller_id: string
           status?: string
           updated_at?: string
@@ -895,6 +900,7 @@ export type Database = {
           description?: string
           id?: string
           notes?: string | null
+          origem_venda?: string | null
           seller_id?: string
           status?: string
           updated_at?: string
@@ -1173,6 +1179,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           material_status: string | null
+          origem_venda: string | null
           priority: string
           quote_id: string | null
           started_at: string | null
@@ -1190,6 +1197,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           material_status?: string | null
+          origem_venda?: string | null
           priority?: string
           quote_id?: string | null
           started_at?: string | null
@@ -1207,6 +1215,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           material_status?: string | null
+          origem_venda?: string | null
           priority?: string
           quote_id?: string | null
           started_at?: string | null
