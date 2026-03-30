@@ -267,8 +267,20 @@ const Purchases = () => {
       if (!map[sid]) map[sid] = { name, totalOriginal: 0, totalPaid: 0, totalSaved: 0, count: 0 };
       const origPrice = Number((p as any).original_price ?? 0);
       const paidTotal = Number(p.total);
-      // original_price is already a total (qty × unit original), not per-unit
-      const originalTotal = origPrice > 0 ? origPrice : paidTotal;
+      const qty = Number(p.quantity);
+      // Determine if original_price is per-unit or total:
+      // If original_price * qty is close to or less than 2x paidTotal, it's per-unit
+      // If original_price alone is close to paidTotal, it's already a total
+      let originalTotal: number;
+      if (origPrice > 0) {
+        const asPerUnit = origPrice * qty;
+        const asTotalDiff = Math.abs(origPrice - paidTotal);
+        const asPerUnitDiff = Math.abs(asPerUnit - paidTotal);
+        // Use whichever interpretation yields a value closer to (but >= ) paidTotal
+        originalTotal = asTotalDiff < asPerUnitDiff ? origPrice : asPerUnit;
+      } else {
+        originalTotal = paidTotal;
+      }
       map[sid].totalOriginal += originalTotal;
       map[sid].totalPaid += paidTotal;
       map[sid].totalSaved += originalTotal - paidTotal;
