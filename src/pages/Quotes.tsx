@@ -157,7 +157,7 @@ const Quotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
-      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "" });
+      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
       setItems([{ description: "", quantity: "1", unit_price: "" }]);
       toast({ title: "Orçamento criado!" });
     },
