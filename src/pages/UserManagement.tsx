@@ -350,6 +350,7 @@ const UserManagement = () => {
                           <SelectItem value="producao">Produção</SelectItem>
                           <SelectItem value="vendedor">Vendedor</SelectItem>
                           <SelectItem value="compras">Compras</SelectItem>
+                          <SelectItem value="marketing">Marketing</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
