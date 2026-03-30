@@ -480,8 +480,8 @@ const Marketing = () => {
                   <TableBody>
                     {marketingSales.map((s: any) => (
                       <TableRow key={s.id}>
-                        <TableCell>{(s.clients as any)?.name || "—"}</TableCell>
-                        <TableCell>{(s.profiles as any)?.full_name || "—"}</TableCell>
+                        <TableCell>{s.client_name || "—"}</TableCell>
+                        <TableCell>{s.seller_name || "—"}</TableCell>
                         <TableCell className="font-medium">{fmt(Number(s.amount))}</TableCell>
                         <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
                         <TableCell><Badge variant={s.status === "concluida" ? "default" : "secondary"}>{s.status}</Badge></TableCell>
