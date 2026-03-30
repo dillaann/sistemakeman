@@ -182,6 +182,7 @@ const Quotes = () => {
       sellerName: sellerId ? (profilesMap[sellerId] || "Vendedor") : "",
       description: quote.description || "",
       percentage: defaultPct,
+      origemVenda: (quote as any).origem_venda || "empresa",
     });
   };
 
