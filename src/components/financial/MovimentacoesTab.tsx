@@ -37,8 +37,11 @@ type FormType = "entrada" | "saida" | "transferencia";
 
 export default function MovimentacoesTab() {
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
   const [formType, setFormType] = useState<FormType>("entrada");
   const [form, setForm] = useState({
     account_id: "",
