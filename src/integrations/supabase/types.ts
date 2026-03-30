@@ -561,6 +561,78 @@ export type Database = {
           },
         ]
       }
+      marketing_campaigns: {
+        Row: {
+          amount_invested: number
+          clicks: number | null
+          created_at: string
+          end_date: string | null
+          financial_transaction_id: string | null
+          id: string
+          impressions: number | null
+          leads_generated: number | null
+          name: string
+          notes: string | null
+          objective: string | null
+          payment_status: string | null
+          platform: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount_invested?: number
+          clicks?: number | null
+          created_at?: string
+          end_date?: string | null
+          financial_transaction_id?: string | null
+          id?: string
+          impressions?: number | null
+          leads_generated?: number | null
+          name: string
+          notes?: string | null
+          objective?: string | null
+          payment_status?: string | null
+          platform?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_invested?: number
+          clicks?: number | null
+          created_at?: string
+          end_date?: string | null
+          financial_transaction_id?: string | null
+          id?: string
+          impressions?: number | null
+          leads_generated?: number | null
+          name?: string
+          notes?: string | null
+          objective?: string | null
+          payment_status?: string | null
+          platform?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      marketing_settings: {
+        Row: {
+          cac_limit: number | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          cac_limit?: number | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          cac_limit?: number | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       materials: {
         Row: {
           created_at: string
@@ -1435,6 +1507,7 @@ export type Database = {
         | "producao"
         | "vendedor"
         | "compras"
+        | "marketing"
       quote_status: "pendente" | "aprovado" | "rejeitado"
       transaction_status: "pendente" | "pago" | "atrasado" | "cancelado"
       transaction_type: "a_pagar" | "a_receber"
@@ -1573,6 +1646,7 @@ export const Constants = {
         "producao",
         "vendedor",
         "compras",
+        "marketing",
       ],
       quote_status: ["pendente", "aprovado", "rejeitado"],
       transaction_status: ["pendente", "pago", "atrasado", "cancelado"],
