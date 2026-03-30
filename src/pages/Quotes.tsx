@@ -131,6 +131,7 @@ const Quotes = () => {
       const validItems = items.filter(it => it.description.trim());
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
 
+      if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
       const { data: quote, error } = await supabase.from("quotes").insert({
         client_id: form.client_id,
         description: form.description,
@@ -139,6 +140,7 @@ const Quotes = () => {
         created_by: user?.id,
         seller_id: effectiveSellerId || null,
         delivery_deadline: form.delivery_deadline || null,
+        origem_venda: form.origem_venda,
       } as any).select().single();
       if (error) throw error;
 
