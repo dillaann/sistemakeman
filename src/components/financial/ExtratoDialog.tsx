@@ -109,6 +109,7 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
   });
 
   return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
         <DialogHeader>
           <DialogTitle>Extrato — {accountName}</DialogTitle>
