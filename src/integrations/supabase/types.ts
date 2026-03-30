@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_movements: {
+        Row: {
+          account_id: string
+          amount: number
+          category: string | null
+          client_id: string | null
+          created_at: string
+          date: string
+          description: string
+          financial_transaction_id: string | null
+          id: string
+          notes: string | null
+          related_account_id: string | null
+          supplier_id: string | null
+          type: string
+          work_order_id: string | null
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          date?: string
+          description: string
+          financial_transaction_id?: string | null
+          id?: string
+          notes?: string | null
+          related_account_id?: string | null
+          supplier_id?: string | null
+          type: string
+          work_order_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string
+          financial_transaction_id?: string | null
+          id?: string
+          notes?: string | null
+          related_account_id?: string | null
+          supplier_id?: string | null
+          type?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_movements_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_movements_related_account_id_fkey"
+            columns: ["related_account_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -379,6 +445,39 @@ export type Database = {
           saturday_value?: number | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      financial_accounts: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          initial_balance: number
+          name: string
+          notes: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          name: string
+          notes?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          name?: string
+          notes?: string | null
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }
