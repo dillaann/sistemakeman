@@ -74,9 +74,38 @@ const Marketing = () => {
   const { data: marketingSales = [] } = useQuery({
     queryKey: ["marketing-sales"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("sales").select("*, clients(name), profiles:seller_id(full_name)").eq("origem_venda", "marketing");
-      if (error) throw error;
-      return data;
+      const { data: salesData, error: salesError } = await supabase
+        .from("sales")
+        .select("*")
+        .eq("origem_venda", "marketing")
+        .order("created_at", { ascending: false });
+
+      if (salesError) throw salesError;
+      if (!salesData?.length) return [];
+
+      const clientIds = Array.from(new Set(salesData.map((sale: any) => sale.client_id).filter(Boolean)));
+      const sellerIds = Array.from(new Set(salesData.map((sale: any) => sale.seller_id).filter(Boolean)));
+
+      const [clientsResult, profilesResult] = await Promise.all([
+        clientIds.length
+          ? supabase.from("clients").select("id, name").in("id", clientIds)
+          : Promise.resolve({ data: [], error: null }),
+        sellerIds.length
+          ? supabase.from("profiles").select("id, full_name").in("id", sellerIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      if (clientsResult.error) throw clientsResult.error;
+      if (profilesResult.error) throw profilesResult.error;
+
+      const clientsMap = new Map((clientsResult.data ?? []).map((client: any) => [client.id, client.name]));
+      const profilesMap = new Map((profilesResult.data ?? []).map((profile: any) => [profile.id, profile.full_name]));
+
+      return salesData.map((sale: any) => ({
+        ...sale,
+        client_name: sale.client_id ? clientsMap.get(sale.client_id) ?? "—" : "—",
+        seller_name: sale.seller_id ? profilesMap.get(sale.seller_id) ?? "—" : "—",
+      }));
     },
   });
 
