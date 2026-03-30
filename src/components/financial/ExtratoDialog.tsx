@@ -85,8 +85,30 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
     URL.revokeObjectURL(url);
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const movement = movements.find(m => m.id === id);
+      if (movement?.financial_transaction_id) {
+        await supabase.from("financial_transactions").delete().eq("id", movement.financial_transaction_id);
+      }
+      const { error } = await supabase.from("account_movements").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account-extrato", accountId] });
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["financial-accounts"] });
+      qc.invalidateQueries({ queryKey: ["financial-entradas"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      setDeleteTarget(null);
+      setDeleteReason("");
+      toast({ title: "Movimentação excluída!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
         <DialogHeader>
           <DialogTitle>Extrato — {accountName}</DialogTitle>
