@@ -149,6 +149,31 @@ export default function MovimentacoesTab() {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const movement = movements.find(m => m.id === id);
+      // Delete linked financial_transaction if exists
+      if (movement?.financial_transaction_id) {
+        await supabase.from("financial_transactions").delete().eq("id", movement.financial_transaction_id);
+      }
+      const { error } = await supabase.from("account_movements").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["financial-accounts"] });
+      qc.invalidateQueries({ queryKey: ["financial-entradas"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setDeleteTarget(null);
+      setDeleteReason("");
+      toast({ title: "Movimentação excluída!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const getAccountName = (id: string | null) => {
     if (!id) return "—";
     return accounts.find(a => a.id === id)?.name ?? "—";
