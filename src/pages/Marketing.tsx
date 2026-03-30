@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +45,17 @@ const Marketing = () => {
     objective: "leads", notes: "", leads_generated: "", clicks: "", impressions: "",
   });
 
+  // Realtime subscription for sales updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('marketing-sales-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   const resetForm = () => {
     setForm({ name: "", platform: "meta_ads", amount_invested: "", start_date: "", end_date: "", objective: "leads", notes: "", leads_generated: "", clicks: "", impressions: "" });
     setEditingCampaign(null);
@@ -63,7 +74,7 @@ const Marketing = () => {
   const { data: marketingSales = [] } = useQuery({
     queryKey: ["marketing-sales"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("sales").select("*, clients(name), profiles:seller_id(full_name)").eq("origem_venda", "Marketing");
+      const { data, error } = await supabase.from("sales").select("*, clients(name), profiles:seller_id(full_name)").eq("origem_venda", "marketing");
       if (error) throw error;
       return data;
     },
