@@ -479,7 +479,11 @@ const Purchases = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
+                <Camera className="h-4 w-4 mr-2" />Registrar por Foto
+              </Button>
+              <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
               <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
               <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Registrar Compra</DialogTitle></DialogHeader>
