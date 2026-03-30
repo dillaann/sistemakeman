@@ -405,38 +405,43 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                 <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" />Adicionar</Button>
               </div>
               {form.items.map((item, i) => (
-                <div key={i} className="grid grid-cols-12 gap-1 items-end">
-                  <div className="col-span-4">
-                    {i === 0 && <Label className="text-xs">Material</Label>}
-                    <Input value={item.material} onChange={e => updateItem(i, "material", e.target.value)} placeholder="Material" />
+                <div key={i} className="space-y-1 border rounded-md p-2">
+                  <div className="grid grid-cols-12 gap-1 items-end">
+                    <div className="col-span-5">
+                      {i === 0 && <Label className="text-xs">Material</Label>}
+                      <Input value={item.material} onChange={e => updateItem(i, "material", e.target.value)} placeholder="Material" />
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Qtd</Label>}
+                      <Input type="number" step="0.01" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Un</Label>}
+                      <Select value={item.unit} onValueChange={v => updateItem(i, "unit", v)}>
+                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      {i === 0 && <Label className="text-xs">Valor Un.</Label>}
+                      <Input type="number" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", e.target.value)} />
+                    </div>
+                    <div className="col-span-1">
+                      {form.items.length > 1 && (
+                        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => removeItem(i)}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="col-span-2">
-                    {i === 0 && <Label className="text-xs">Qtd</Label>}
-                    <Input type="number" step="0.01" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
-                  </div>
-                  <div className="col-span-2">
-                    {i === 0 && <Label className="text-xs">Un</Label>}
-                    <Select value={item.unit} onValueChange={v => updateItem(i, "unit", v)}>
-                      <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-3">
-                    {i === 0 && <Label className="text-xs">Valor Un.</Label>}
-                    <Input type="number" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", e.target.value)} />
-                  </div>
-                  <div className="col-span-1">
-                    {form.items.length > 1 && (
-                      <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => removeItem(i)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
+                  <p className="text-xs text-muted-foreground text-right">
+                    Total: {fmt((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0))}
+                  </p>
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground">Total itens: {fmt(calcItemsTotal())}</p>
+              <p className="text-xs text-muted-foreground font-medium">Total itens: {fmt(calcItemsTotal())}</p>
             </div>
 
             {/* Totals */}
