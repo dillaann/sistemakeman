@@ -541,6 +541,61 @@ export type Database = {
           },
         ]
       }
+      production: {
+        Row: {
+          created_at: string
+          id: string
+          observacoes: string | null
+          os_id: string
+          priority: string | null
+          responsavel: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          os_id: string
+          priority?: string | null
+          responsavel?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          os_id?: string
+          priority?: string | null
+          responsavel?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_os_id_fkey"
+            columns: ["os_id"]
+            isOneToOne: true
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_os_id_fkey"
+            columns: ["os_id"]
+            isOneToOne: true
+            referencedRelation: "work_orders_production"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_responsavel_fkey"
+            columns: ["responsavel"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
