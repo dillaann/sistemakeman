@@ -493,7 +493,7 @@ const Quotes = () => {
               <div><Label>Observações</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
               <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
               <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar Orçamento</Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
