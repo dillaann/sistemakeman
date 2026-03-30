@@ -190,7 +190,7 @@ const Financial = () => {
           <TableBody>
             {filtered.map(t => (
               <TableRow key={t.id}>
-                <TableCell className="font-medium">{t.description}</TableCell>
+                <TableCell className="font-medium">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{fmt(Number(t.amount))}</TableCell>
                 <TableCell className="hidden md:table-cell">{new Date(t.due_date).toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell><Badge className={statusColors[t.status]}>{statusLabels[t.status]}</Badge></TableCell>
