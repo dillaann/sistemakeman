@@ -513,6 +513,7 @@ const Quotes = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">
