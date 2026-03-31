@@ -749,7 +749,15 @@ const AdminSalesView = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar vendas..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Select value={vendedorTypeFilter} onValueChange={setVendedorTypeFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="com_vendedor">Com vendedor</SelectItem>
+                  <SelectItem value="sem_vendedor">Sem vendedor</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={sellerFilter} onValueChange={setSellerFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
                 <SelectContent>
