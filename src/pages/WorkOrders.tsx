@@ -45,7 +45,17 @@ const WorkOrders = () => {
     queryKey: ["work-orders"],
     queryFn: async () => {
       const { data } = await supabase.from("work_orders").select("*, clients(name)").order("created_at", { ascending: false });
-      return data ?? [];
+      const woIds = (data ?? []).map((o: any) => o.id);
+      let itemsMap = new Map<string, any[]>();
+      if (woIds.length > 0) {
+        const { data: items } = await supabase.from("work_order_items" as any).select("work_order_id, description, quantity, unit_price, total").in("work_order_id", woIds);
+        (items ?? []).forEach((item: any) => {
+          const list = itemsMap.get(item.work_order_id) || [];
+          list.push(item);
+          itemsMap.set(item.work_order_id, list);
+        });
+      }
+      return (data ?? []).map((o: any) => ({ ...o, items: itemsMap.get(o.id) || [] }));
     },
   });
 
@@ -90,6 +100,13 @@ const WorkOrders = () => {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const nextStatus: Record<string, string> = { aguardando: "em_producao", em_producao: "concluido", concluido: "entregue" };
+
+  const getItemSummary = (o: any) => {
+    const items = o.items || [];
+    if (items.length === 0) return o.description || "Sem descrição";
+    const first = items[0].description;
+    return items.length > 1 ? `${first} + ${items.length - 1} itens` : first;
+  };
 
   const filtered = orders.filter(o => {
     if (!isInRange(o.created_at, dateRange)) return false;
@@ -145,7 +162,7 @@ const WorkOrders = () => {
             <div className="flex items-start justify-between mb-2">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">{(o.clients as any)?.name}</p>
-                {o.description && <p className="text-xs text-muted-foreground truncate">{o.description}</p>}
+                {<p className="text-xs text-muted-foreground truncate">{getItemSummary(o)}</p>}
               </div>
               <Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge>
             </div>
@@ -185,7 +202,7 @@ const WorkOrders = () => {
             {filtered.map(o => (
               <TableRow key={o.id}>
                 <TableCell className="font-medium">{(o.clients as any)?.name}</TableCell>
-                <TableCell className="max-w-[200px] truncate">{o.description}</TableCell>
+                <TableCell className="max-w-[200px] truncate">{getItemSummary(o)}</TableCell>
                 {userRole !== "producao" && <TableCell>{fmt(Number(o.total))}</TableCell>}
                 <TableCell><Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge></TableCell>
                 <TableCell>
