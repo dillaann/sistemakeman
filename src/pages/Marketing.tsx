@@ -41,6 +41,9 @@ const Marketing = () => {
   const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<any>(null);
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [form, setForm] = useState({
     name: "", platform: "meta_ads", amount_invested: "", start_date: "", end_date: "",
     objective: "leads", notes: "", leads_generated: "", clicks: "", impressions: "",
