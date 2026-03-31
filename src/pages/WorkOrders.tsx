@@ -162,7 +162,7 @@ const WorkOrders = () => {
             <div className="flex items-start justify-between mb-2">
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">{(o.clients as any)?.name}</p>
-                {o.description && <p className="text-xs text-muted-foreground truncate">{o.description}</p>}
+                {<p className="text-xs text-muted-foreground truncate">{getItemSummary(o)}</p>}
               </div>
               <Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge>
             </div>
