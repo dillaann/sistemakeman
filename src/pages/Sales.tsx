@@ -934,3 +934,174 @@ const AdminSalesView = () => {
 };
 
 export default Sales;
+
+// ─── COMMISSIONS PER SELLER ───
+const CommissionsPerSeller = ({
+  sellers,
+  commissions,
+  rates,
+  sellerName,
+  updateCommissionStatus,
+  setDeleteTarget,
+}: {
+  sellers: any[];
+  commissions: any[];
+  rates: any[];
+  sellerName: (id: string | null) => string;
+  updateCommissionStatus: any;
+  setDeleteTarget: (t: { type: string; id: string } | null) => void;
+}) => {
+  const [expandedSeller, setExpandedSeller] = useState<string | null>(null);
+
+  const totalAll = commissions.reduce((s, c) => s + Number(c.amount), 0);
+  const totalPaid = commissions.filter(c => c.status === "paga").reduce((s, c) => s + Number(c.amount), 0);
+  const totalPending = commissions.filter(c => c.status !== "paga").reduce((s, c) => s + Number(c.amount), 0);
+
+  // Group commissions by seller
+  const sellerCommissions = useMemo(() => {
+    const sellerIds = new Set<string>();
+    commissions.forEach(c => { if (c.seller_id) sellerIds.add(c.seller_id); });
+
+    return Array.from(sellerIds).map(sellerId => {
+      const sellerComms = commissions.filter(c => c.seller_id === sellerId);
+      const seller = sellers.find(s => s.id === sellerId);
+      const rate = rates.find(r => r.seller_id === sellerId);
+      const total = sellerComms.reduce((s, c) => s + Number(c.amount), 0);
+      const paid = sellerComms.filter(c => c.status === "paga").reduce((s, c) => s + Number(c.amount), 0);
+      const pending = sellerComms.filter(c => c.status !== "paga").reduce((s, c) => s + Number(c.amount), 0);
+      const salesTotal = sellerComms.reduce((s, c) => {
+        const saleAmount = (c.sales as any)?.amount;
+        return s + (saleAmount ? Number(saleAmount) : (Number(c.percentage) > 0 ? Number(c.amount) / (Number(c.percentage) / 100) : 0));
+      }, 0);
+
+      return {
+        sellerId,
+        name: seller?.full_name || sellerName(sellerId),
+        percentage: rate ? Number(rate.percentage) : 5,
+        total,
+        paid,
+        pending,
+        salesTotal,
+        commissions: sellerComms,
+      };
+    }).sort((a, b) => b.total - a.total);
+  }, [commissions, sellers, rates, sellerName]);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Comissões</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{fmt(totalAll)}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Pagas</CardTitle>
+            <Check className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold text-green-600">{fmt(totalPaid)}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold text-yellow-600">{fmt(totalPending)}</div></CardContent>
+        </Card>
+      </div>
+
+      {/* Per-seller cards */}
+      <div className="space-y-3">
+        {sellerCommissions.map(sc => {
+          const isExpanded = expandedSeller === sc.sellerId;
+          return (
+            <Card key={sc.sellerId}>
+              <button
+                type="button"
+                className="w-full text-left"
+                onClick={() => setExpandedSeller(isExpanded ? null : sc.sellerId)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{sc.name}</CardTitle>
+                        <p className="text-xs text-muted-foreground">{sc.commissions.length} comissões · {sc.percentage}%</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm font-bold">{fmt(sc.total)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          <span className="text-green-600">{fmt(sc.paid)} pago</span> · <span className="text-yellow-600">{fmt(sc.pending)} pendente</span>
+                        </p>
+                      </div>
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </div>
+                </CardHeader>
+              </button>
+
+              {isExpanded && (
+                <CardContent className="pt-0">
+                  <div className="border rounded-lg overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Venda</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>%</TableHead>
+                          <TableHead>Comissão</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sc.commissions.map(c => (
+                          <TableRow key={c.id}>
+                            <TableCell className="max-w-[150px] truncate">{(c.sales as any)?.description || "—"}</TableCell>
+                            <TableCell>{(c.sales as any)?.clients?.name || "—"}</TableCell>
+                            <TableCell>{Number(c.percentage)}%</TableCell>
+                            <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
+                            <TableCell>
+                              <Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {c.status === "pendente" && (
+                                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateCommissionStatus.mutate({ id: c.id, status: "aprovada" }); }}>Aprovar</Button>
+                                )}
+                                {c.status === "aprovada" && (
+                                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateCommissionStatus.mutate({ id: c.id, status: "paga" }); }}>Pagar</Button>
+                                )}
+                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: "commission", id: c.id }); }}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          );
+        })}
+        {sellerCommissions.length === 0 && (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">Nenhuma comissão registrada.</CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
