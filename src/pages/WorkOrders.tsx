@@ -91,15 +91,18 @@ const WorkOrders = () => {
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const nextStatus: Record<string, string> = { aguardando: "em_producao", em_producao: "concluido", concluido: "entregue" };
 
-  const filtered = orders.filter(o =>
-    (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    (o.description ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = orders.filter(o => {
+    if (!isInRange(o.created_at, dateRange)) return false;
+    return (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      (o.description ?? "").toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <h1 className="text-xl md:text-2xl font-bold">Ordens de Serviço</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
