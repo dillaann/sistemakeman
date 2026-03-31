@@ -58,6 +58,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
+      if (dateRange && !isInRange(t.due_date, dateRange)) return false;
       if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (dateFrom && t.due_date < dateFrom) return false;

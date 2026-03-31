@@ -80,6 +80,7 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
 
   const filtered = useMemo(() => {
     return movements.filter(m => {
+      if (dateRange && !isInRange(m.date, dateRange)) return false;
       if (filterAccount !== "all" && m.account_id !== filterAccount) return false;
       if (filterType === "entrada" && m.type !== "entrada" && m.type !== "transferencia_entrada") return false;
       if (filterType === "saida" && m.type !== "saida" && m.type !== "transferencia_saida") return false;
