@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -402,13 +402,59 @@ const AdminSalesView = () => {
     },
   });
 
-  const { data: sales = [] } = useQuery({
+  const { data: salesRaw = [] } = useQuery({
     queryKey: ["all-sales"],
     queryFn: async () => {
       const { data } = await supabase.from("sales").select("*, clients(name)").order("created_at", { ascending: false });
       return data ?? [];
     },
   });
+
+  // Fetch approved quotes that may not have a sale record (no seller)
+  const { data: approvedQuotes = [] } = useQuery({
+    queryKey: ["approved-quotes-for-sales"],
+    queryFn: async () => {
+      const { data } = await supabase.from("quotes").select("*, clients(name)").eq("status", "aprovado").order("approved_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  // Merge: use sales as base, add approved quotes that have no matching sale
+  const sales = useMemo(() => {
+    const saleWorkOrderIds = new Set(salesRaw.map(s => s.work_order_id).filter(Boolean));
+    const saleQuoteIds = new Set<string>();
+    // Also check by matching quote->work_order relationship
+    // For quotes without a sale, create a virtual sale entry
+    const quotesWithoutSale = approvedQuotes.filter(q => {
+      // Check if any sale references this quote's work order or matches by client+amount+date
+      const hasSale = salesRaw.some(s => {
+        if (s.work_order_id) {
+          // We can't directly check quote_id from sales, so match by client+amount
+        }
+        return s.client_id === q.client_id && Math.abs(Number(s.amount) - Number(q.total)) < 0.01;
+      });
+      return !hasSale;
+    });
+
+    const virtualSales = quotesWithoutSale.map(q => ({
+      id: `quote-${q.id}`,
+      seller_id: q.seller_id || null,
+      client_id: q.client_id,
+      work_order_id: null,
+      description: q.description || "Orçamento aprovado",
+      amount: q.total,
+      delivery_deadline: q.delivery_deadline,
+      notes: null,
+      status: "aguardando",
+      origem_venda: q.origem_venda || "empresa",
+      created_at: q.approved_at || q.created_at,
+      updated_at: q.updated_at,
+      clients: q.clients,
+      _isFromQuote: true,
+    }));
+
+    return [...salesRaw, ...virtualSales];
+  }, [salesRaw, approvedQuotes]);
 
   const { data: commissions = [] } = useQuery({
     queryKey: ["all-commissions"],
@@ -505,7 +551,12 @@ const AdminSalesView = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const sellerName = (id: string) => sellers.find(s => s.id === id)?.full_name || "—";
+  const [vendedorTypeFilter, setVendedorTypeFilter] = useState("all"); // all | com_vendedor | sem_vendedor
+
+  const sellerName = (id: string | null) => {
+    if (!id) return "Direto / Administrador";
+    return sellers.find(s => s.id === id)?.full_name || "Direto / Administrador";
+  };
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -523,6 +574,8 @@ const AdminSalesView = () => {
   }));
 
   const filtered = sales.filter(s => {
+    if (vendedorTypeFilter === "com_vendedor" && !s.seller_id) return false;
+    if (vendedorTypeFilter === "sem_vendedor" && s.seller_id) return false;
     if (sellerFilter !== "all" && s.seller_id !== sellerFilter) return false;
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
     if (search) {
@@ -696,7 +749,15 @@ const AdminSalesView = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar vendas..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Select value={vendedorTypeFilter} onValueChange={setVendedorTypeFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="com_vendedor">Com vendedor</SelectItem>
+                  <SelectItem value="sem_vendedor">Sem vendedor</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={sellerFilter} onValueChange={setSellerFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Vendedor" /></SelectTrigger>
                 <SelectContent>
@@ -766,9 +827,11 @@ const AdminSalesView = () => {
                             <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
                             <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              {!(s as any)._isFromQuote && (
+                                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
