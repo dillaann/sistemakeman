@@ -199,7 +199,7 @@ const Dashboard = () => {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Recebido</p>
-              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(billingOrders?.totalReceived ?? 0)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(billingData?.totalReceived ?? 0)}</p>
             </div>
           </div>
         </CardContent>
