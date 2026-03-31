@@ -771,6 +771,28 @@ const Purchases = () => {
                     <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setEditPurchaseId(p.id);
+                          setPForm({
+                            supplier_id: p.supplier_id || "",
+                            material: p.material,
+                            quantity: String(p.quantity),
+                            unit: p.unit,
+                            unit_price: String(p.unit_price),
+                            original_price: p.original_price ? String(p.original_price) : "",
+                            purchase_date: p.purchase_date,
+                            invoice_number: p.invoice_number || "",
+                            payment_method: p.payment_method || "pix",
+                            payment_status: p.payment_status,
+                            due_date: p.due_date || "",
+                            notes: p.notes || "",
+                            client_id: p.client_id || "",
+                            work_order_id: p.work_order_id || "",
+                          });
+                          setPurchaseOpen(true);
+                        }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         {p.payment_status !== "pago" && <Button size="sm" variant="outline" onClick={() => markPurchasePaid.mutate(p.id)}>Pagar</Button>}
                         {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "purchases", id: p.id })}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                       </div>
