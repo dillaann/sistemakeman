@@ -13,6 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { isInRange } from "@/components/MonthFilter";
+
+interface EntradasTabProps {
+  dateRange?: { start: Date; end: Date };
+}
 
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -27,7 +32,7 @@ const categorias = ["Venda de Produto", "Serviço", "Faturamento", "Sinal/Entrad
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function EntradasTab() {
+export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { toast } = useToast();
   const { userRole } = useAuth();
   const qc = useQueryClient();
