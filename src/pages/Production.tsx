@@ -169,12 +169,15 @@ const Production = () => {
   };
 
   const getColumnItems = (columnKey: string) => {
-    return productionItems.filter((p: any) => p.status === columnKey);
+    return productionItems.filter((p: any) => p.status === columnKey && isInRange(p.created_at, dateRange));
   };
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Produção</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-2xl font-bold">Produção</h1>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+      </div>
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
