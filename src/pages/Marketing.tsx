@@ -199,7 +199,7 @@ const Marketing = () => {
   const monthCampaigns = campaigns.filter((c: any) => {
     const cStart = new Date(c.start_date + "T00:00:00");
     const cEnd = c.end_date ? new Date(c.end_date + "T00:00:00") : cStart;
-    const [rangeStart, rangeEnd] = dateRange;
+    const rangeStart = dateRange.start; const rangeEnd = dateRange.end;
     return cStart <= rangeEnd && cEnd >= rangeStart;
   });
   const totalInvestedMonth = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
