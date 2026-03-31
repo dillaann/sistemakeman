@@ -420,8 +420,9 @@ const Quotes = () => {
   };
 
   const filtered = quotes.filter(q =>
+    isInRange(q.created_at, dateRange) && (
     (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    (q.description ?? "").toLowerCase().includes(search.toLowerCase())
+    (q.description ?? "").toLowerCase().includes(search.toLowerCase()))
   );
 
   const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
