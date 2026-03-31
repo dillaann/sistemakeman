@@ -551,7 +551,12 @@ const AdminSalesView = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const sellerName = (id: string) => sellers.find(s => s.id === id)?.full_name || "—";
+  const [vendedorTypeFilter, setVendedorTypeFilter] = useState("all"); // all | com_vendedor | sem_vendedor
+
+  const sellerName = (id: string | null) => {
+    if (!id) return "Direto / Administrador";
+    return sellers.find(s => s.id === id)?.full_name || "Direto / Administrador";
+  };
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
