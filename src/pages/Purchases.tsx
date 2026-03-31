@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera, Users, Package } from "lucide-react";
+import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera, Users, Package, Pencil } from "lucide-react";
 import MaterialsTab from "@/components/purchases/MaterialsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
@@ -59,6 +59,7 @@ const Purchases = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
+  const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
 
   // Queries
   const { data: suppliers = [] } = useQuery({
@@ -198,32 +199,68 @@ const Purchases = () => {
         work_order_id: pForm.work_order_id || null,
       };
 
-      const { error } = await supabase.from("purchases").insert(payload).select().single();
-      if (error) throw error;
+      if (editPurchaseId) {
+        // UPDATE existing purchase
+        const { error } = await supabase.from("purchases").update(payload).eq("id", editPurchaseId);
+        if (error) throw error;
 
-      // Update work order material_status if linked
-      if (pForm.work_order_id) {
-        await supabase.from("work_orders")
-          .update({ material_status: "comprado" } as any)
-          .eq("id", pForm.work_order_id);
+        // Update linked financial transaction
+        const oldPurchase = purchases.find(p => p.id === editPurchaseId);
+        if (oldPurchase) {
+          const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
+          const clientName = pForm.client_id ? clients.find(c => c.id === pForm.client_id)?.name : null;
+          const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
+          if (clientName) descParts.push(`(${clientName})`);
+
+          // Try to update existing financial transaction by matching old description
+          const oldSupplierName = (oldPurchase as any).suppliers?.name ?? "Fornecedor";
+          await supabase.from("financial_transactions")
+            .update({
+              description: descParts.join(" "),
+              amount: total,
+              due_date: pForm.due_date || pForm.purchase_date,
+              paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
+              status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
+              client_id: pForm.client_id || null,
+              work_order_id: pForm.work_order_id || null,
+            })
+            .ilike("description", `%${oldPurchase.material}%${oldSupplierName}%`)
+            .eq("category", "Compras");
+        }
+
+        if (pForm.work_order_id) {
+          await supabase.from("work_orders")
+            .update({ material_status: "comprado" } as any)
+            .eq("id", pForm.work_order_id);
+        }
+      } else {
+        // INSERT new purchase
+        const { error } = await supabase.from("purchases").insert(payload).select().single();
+        if (error) throw error;
+
+        if (pForm.work_order_id) {
+          await supabase.from("work_orders")
+            .update({ material_status: "comprado" } as any)
+            .eq("id", pForm.work_order_id);
+        }
+
+        const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
+        const clientName = pForm.client_id ? clients.find(c => c.id === pForm.client_id)?.name : null;
+        const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
+        if (clientName) descParts.push(`(${clientName})`);
+        
+        await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          description: descParts.join(" "),
+          amount: total,
+          due_date: pForm.due_date || pForm.purchase_date,
+          paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
+          category: "Compras",
+          status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
+          client_id: pForm.client_id || null,
+          work_order_id: pForm.work_order_id || null,
+        });
       }
-
-      const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
-      const clientName = pForm.client_id ? clients.find(c => c.id === pForm.client_id)?.name : null;
-      const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
-      if (clientName) descParts.push(`(${clientName})`);
-      
-      await supabase.from("financial_transactions").insert({
-        type: "a_pagar" as any,
-        description: descParts.join(" "),
-        amount: total,
-        due_date: pForm.due_date || pForm.purchase_date,
-        paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
-        category: "Compras",
-        status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
-        client_id: pForm.client_id || null,
-        work_order_id: pForm.work_order_id || null,
-      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
@@ -236,12 +273,13 @@ const Purchases = () => {
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       qc.invalidateQueries({ queryKey: ["production-orders"] });
       setPurchaseOpen(false);
+      setEditPurchaseId(null);
       setPForm({
         supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
         invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
         client_id: "", work_order_id: "",
       });
-      toast({ title: "Compra registrada!" });
+      toast({ title: editPurchaseId ? "Compra atualizada!" : "Compra registrada!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -592,10 +630,10 @@ const Purchases = () => {
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
-              <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
+              <Dialog open={purchaseOpen} onOpenChange={(v) => { setPurchaseOpen(v); if (!v) { setEditPurchaseId(null); setPForm({ supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0], invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "", client_id: "", work_order_id: "" }); } }}>
                 <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
                 <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>Registrar Compra</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{editPurchaseId ? "Editar Compra" : "Registrar Compra"}</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); savePurchase.mutate(); }} className="space-y-3">
                     <div>
                       <Label>Fornecedor</Label>
@@ -700,7 +738,7 @@ const Purchases = () => {
                       <div><Label>Data de Vencimento</Label><Input type="date" value={pForm.due_date} onChange={e => setPForm({ ...pForm, due_date: e.target.value })} /></div>
                     )}
                     <div><Label>Observações</Label><Textarea value={pForm.notes} onChange={e => setPForm({ ...pForm, notes: e.target.value })} /></div>
-                    <Button type="submit" className="w-full" disabled={savePurchase.isPending}>Registrar Compra</Button>
+                    <Button type="submit" className="w-full" disabled={savePurchase.isPending}>{editPurchaseId ? "Salvar Alterações" : "Registrar Compra"}</Button>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -733,6 +771,28 @@ const Purchases = () => {
                     <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setEditPurchaseId(p.id);
+                          setPForm({
+                            supplier_id: p.supplier_id || "",
+                            material: p.material,
+                            quantity: String(p.quantity),
+                            unit: p.unit,
+                            unit_price: String(p.unit_price),
+                            original_price: p.original_price ? String(p.original_price) : "",
+                            purchase_date: p.purchase_date,
+                            invoice_number: p.invoice_number || "",
+                            payment_method: p.payment_method || "pix",
+                            payment_status: p.payment_status,
+                            due_date: p.due_date || "",
+                            notes: p.notes || "",
+                            client_id: p.client_id || "",
+                            work_order_id: p.work_order_id || "",
+                          });
+                          setPurchaseOpen(true);
+                        }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         {p.payment_status !== "pago" && <Button size="sm" variant="outline" onClick={() => markPurchasePaid.mutate(p.id)}>Pagar</Button>}
                         {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "purchases", id: p.id })}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                       </div>
