@@ -202,7 +202,7 @@ const WorkOrders = () => {
             {filtered.map(o => (
               <TableRow key={o.id}>
                 <TableCell className="font-medium">{(o.clients as any)?.name}</TableCell>
-                <TableCell className="max-w-[200px] truncate">{o.description}</TableCell>
+                <TableCell className="max-w-[200px] truncate">{getItemSummary(o)}</TableCell>
                 {userRole !== "producao" && <TableCell>{fmt(Number(o.total))}</TableCell>}
                 <TableCell><Badge className={statusColors[o.status]}>{statusLabels[o.status]}</Badge></TableCell>
                 <TableCell>
