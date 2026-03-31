@@ -75,7 +75,7 @@ const Dashboard = () => {
   const { data: allCampaigns = [] } = useQuery({
     queryKey: ["marketing-dashboard-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("marketing_campaigns").select("amount_invested, start_date");
+      const { data } = await supabase.from("marketing_campaigns").select("amount_invested, start_date, end_date");
       return data ?? [];
     },
   });
