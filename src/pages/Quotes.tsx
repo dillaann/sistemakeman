@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Check, X, FileDown, Trash2, DollarSign } from "lucide-react";
+import { Plus, Search, Check, X, FileDown, Trash2, DollarSign, Pencil } from "lucide-react";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
@@ -52,6 +52,12 @@ const Quotes = () => {
   const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
 
+  // Edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editQuote, setEditQuote] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
+  const [editItems, setEditItems] = useState<ItemRow[]>([]);
+
   // Approval modal state (commission + payment)
   const [approvalModal, setApprovalModal] = useState<{
     open: boolean;
@@ -82,8 +88,17 @@ const Quotes = () => {
     setItems(updated);
   };
 
+  const addEditItem = () => setEditItems([...editItems, { description: "", quantity: "1", unit_price: "" }]);
+  const removeEditItem = (i: number) => setEditItems(editItems.filter((_, idx) => idx !== i));
+  const updateEditItem = (i: number, field: keyof ItemRow, value: string) => {
+    const updated = [...editItems];
+    updated[i] = { ...updated[i], [field]: value };
+    setEditItems(updated);
+  };
+
   const calcItemTotal = (item: ItemRow) => (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
   const grandTotal = items.reduce((s, it) => s + calcItemTotal(it), 0);
+  const editGrandTotal = editItems.reduce((s, it) => s + calcItemTotal(it), 0);
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
@@ -169,6 +184,178 @@ const Quotes = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // --- EDIT QUOTE ---
+  const openEditDialog = (quote: any) => {
+    setEditQuote(quote);
+    setEditForm({
+      client_id: quote.client_id,
+      description: quote.description || "",
+      valid_until: quote.valid_until || "",
+      seller_id: (quote as any).seller_id || "",
+      delivery_deadline: (quote as any).delivery_deadline || "",
+      origem_venda: (quote as any).origem_venda || "",
+    });
+    const quoteItems = (quote.quote_items ?? []) as any[];
+    setEditItems(
+      quoteItems.length > 0
+        ? quoteItems.map((it: any) => ({ description: it.description, quantity: String(it.quantity), unit_price: String(it.unit_price) }))
+        : [{ description: "", quantity: "1", unit_price: "" }]
+    );
+    setEditOpen(true);
+  };
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editQuote) throw new Error("Nenhum orçamento selecionado");
+      const validItems = editItems.filter(it => it.description.trim());
+      if (!validItems.length) throw new Error("Adicione pelo menos um item");
+      if (!editForm.client_id) throw new Error("Selecione um cliente");
+      if (!editForm.origem_venda) throw new Error("Selecione a Origem da Venda");
+
+      const oldTotal = Number(editQuote.total);
+      const newTotal = editGrandTotal;
+      const quoteId = editQuote.id;
+      const isApproved = editQuote.status === "aprovado";
+
+      // Check if approved and OS already delivered
+      if (isApproved) {
+        const { data: wo } = await supabase.from("work_orders").select("id, status").eq("quote_id", quoteId).maybeSingle();
+        if (wo && (wo.status === "concluido" || wo.status === "entregue")) {
+          throw new Error("Não é possível editar: a OS vinculada já foi concluída/entregue.");
+        }
+      }
+
+      // Update quote
+      const { error: quoteError } = await supabase.from("quotes").update({
+        client_id: editForm.client_id,
+        description: editForm.description,
+        total: newTotal,
+        valid_until: editForm.valid_until || null,
+        seller_id: editForm.seller_id || null,
+        delivery_deadline: editForm.delivery_deadline || null,
+        origem_venda: editForm.origem_venda,
+      } as any).eq("id", quoteId);
+      if (quoteError) throw quoteError;
+
+      // Delete old items and insert new ones
+      await supabase.from("quote_items").delete().eq("quote_id", quoteId);
+      const itemsToInsert = validItems.map(it => ({
+        quote_id: quoteId,
+        description: it.description,
+        quantity: parseFloat(it.quantity) || 1,
+        unit_price: parseFloat(it.unit_price) || 0,
+        total: calcItemTotal(it),
+      }));
+      const { error: itemsError } = await supabase.from("quote_items").insert(itemsToInsert);
+      if (itemsError) throw itemsError;
+
+      const syncMessages: string[] = [];
+
+      // Cascade sync if approved
+      if (isApproved) {
+        // Update work order
+        const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quoteId).maybeSingle();
+        if (wo) {
+          await supabase.from("work_orders").update({
+            total: newTotal,
+            client_id: editForm.client_id,
+            description: editForm.description || "OS gerada a partir de orçamento",
+            origem_venda: editForm.origem_venda,
+          } as any).eq("id", wo.id);
+          syncMessages.push("OS atualizada");
+
+          // Update financial transactions linked to the work order
+          if (oldTotal !== newTotal) {
+            const { data: txns } = await supabase.from("financial_transactions")
+              .select("id, status, amount")
+              .eq("work_order_id", wo.id)
+              .eq("type", "a_receber");
+
+            // Update pending transactions with new remaining amount
+            const paidAmount = (txns ?? []).filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
+            const pendingTxns = (txns ?? []).filter(t => t.status === "pendente");
+            const newRemaining = Math.max(newTotal - paidAmount, 0);
+
+            if (pendingTxns.length > 0) {
+              // Update the first pending transaction with new remaining
+              await supabase.from("financial_transactions").update({
+                amount: newRemaining,
+              }).eq("id", pendingTxns[0].id);
+              // Delete extra pending transactions if any
+              for (let i = 1; i < pendingTxns.length; i++) {
+                await supabase.from("financial_transactions").delete().eq("id", pendingTxns[i].id);
+              }
+            } else if (newRemaining > 0) {
+              // Create new pending transaction for remaining
+              const clientName = clients.find(c => c.id === editForm.client_id)?.name ?? "";
+              await supabase.from("financial_transactions").insert({
+                type: "a_receber" as any,
+                description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+                amount: newRemaining,
+                due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+                status: "pendente" as any,
+                category: "Faturamento",
+                work_order_id: wo.id,
+                client_id: editForm.client_id,
+              });
+            }
+
+            // Update quote payment info
+            await supabase.from("quotes").update({
+              remaining_amount: newRemaining,
+              payment_status: paidAmount >= newTotal ? "pago_total" : (paidAmount > 0 ? "entrada_recebida" : "aguardando"),
+              down_payment: paidAmount,
+            } as any).eq("id", quoteId);
+
+            syncMessages.push("Financeiro atualizado");
+          }
+
+          // Update sale if exists
+          const { data: sale } = await supabase.from("sales").select("id").eq("work_order_id", wo.id).maybeSingle();
+          if (sale) {
+            await supabase.from("sales").update({
+              amount: newTotal,
+              client_id: editForm.client_id,
+              description: editForm.description || "Venda gerada por orçamento",
+              origem_venda: editForm.origem_venda,
+            } as any).eq("id", sale.id);
+            syncMessages.push("Venda atualizada");
+
+            // Recalculate commission if total changed
+            if (oldTotal !== newTotal) {
+              const { data: comm } = await supabase.from("sales_commissions").select("id, percentage").eq("sale_id", sale.id).maybeSingle();
+              if (comm) {
+                const newCommAmount = newTotal * (Number(comm.percentage) / 100);
+                await supabase.from("sales_commissions").update({ amount: newCommAmount }).eq("id", comm.id);
+                syncMessages.push("Comissão recalculada");
+              }
+            }
+          }
+        }
+      }
+
+      return syncMessages;
+    },
+    onSuccess: (syncMessages) => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
+      setEditOpen(false);
+      setEditQuote(null);
+      const desc = syncMessages && syncMessages.length > 0
+        ? `Atualizado: ${syncMessages.join(", ")}`
+        : undefined;
+      toast({ title: "Orçamento editado com sucesso!", description: desc });
+    },
+    onError: (e: any) => toast({ title: "Erro ao editar", description: e.message, variant: "destructive" }),
+  });
+
   const handleApprove = (quote: any) => {
     const sellerId = (quote as any).seller_id;
     const defaultPct = sellerId ? (commissionRates[sellerId] ?? 5) : 5;
@@ -198,9 +385,7 @@ const Quotes = () => {
       const now = new Date().toISOString();
       const dpAmount = paymentType === "entrada_restante" ? (parseFloat(downPayment) || 0) : 0;
       const remaining = paymentType === "entrada_restante" ? Math.max(total - dpAmount, 0) : 0;
-      const pStatus = paymentType === "a_vista" ? "aguardando" : (dpAmount > 0 ? "aguardando" : "aguardando");
 
-      // Update quote with approval info and payment config
       await supabase.from("quotes").update({
         status: "aprovado" as any,
         approved_at: now,
@@ -212,7 +397,6 @@ const Quotes = () => {
         payment_status: dpAmount >= total ? "pago_total" : (dpAmount > 0 ? "entrada_recebida" : "aguardando"),
       } as any).eq("id", quoteId);
 
-      // Create work order
       const { data: wo, error: woError } = await supabase.from("work_orders").insert({
         client_id: clientId,
         quote_id: quoteId,
@@ -223,10 +407,8 @@ const Quotes = () => {
       } as any).select().single();
       if (woError) throw woError;
 
-      // Create financial transaction (a_receber) for the full amount
       if (total > 0) {
         const clientName = clients.find(c => c.id === clientId)?.name ?? "";
-        // If there's a down payment received, create a paid transaction for it
         if (dpAmount > 0) {
           await supabase.from("financial_transactions").insert({
             type: "a_receber" as any,
@@ -241,7 +423,6 @@ const Quotes = () => {
           });
         }
 
-        // Create pending transaction for the remaining amount
         const pendingAmount = total - dpAmount;
         if (pendingAmount > 0) {
           await supabase.from("financial_transactions").insert({
@@ -257,7 +438,6 @@ const Quotes = () => {
         }
       }
 
-      // Create sale + commission if seller exists
       if (sellerId) {
         const { data: sale, error: saleError } = await supabase.from("sales").insert({
           seller_id: sellerId,
@@ -335,16 +515,13 @@ const Quotes = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // Register payment on approved quote
   const registerQuotePayment = useMutation({
     mutationFn: async (quote: any) => {
       const amount = parseFloat(payRegForm.amount);
       if (!amount || amount <= 0) throw new Error("Valor inválido");
 
-      // Find the work order linked to this quote
       const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quote.id).single();
 
-      // Create paid financial transaction
       const clientName = clients.find(c => c.id === quote.client_id)?.name ?? "";
       await supabase.from("financial_transactions").insert({
         type: "a_receber" as any,
@@ -358,7 +535,6 @@ const Quotes = () => {
         client_id: quote.client_id,
       });
 
-      // Update quote payment status
       const currentPaid = Number(quote.down_payment || 0);
       const totalPaidNow = currentPaid + amount;
       const total = Number(quote.total);
@@ -371,7 +547,6 @@ const Quotes = () => {
         payment_status: newStatus,
       } as any).eq("id", quote.id);
 
-      // If fully paid, also update any pending financial transaction to paid
       if (totalPaidNow >= total) {
         const { data: pendingTxns } = await supabase.from("financial_transactions")
           .select("id")
@@ -545,6 +720,9 @@ const Quotes = () => {
               )}
               <div className="flex gap-1 flex-wrap">
                 <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(q)}><FileDown className="h-4 w-4 mr-1" />PDF</Button>
+                {userRole === "admin" && (
+                  <Button variant="ghost" size="sm" onClick={() => openEditDialog(q)}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
+                )}
                 {q.status === "pendente" && userRole === "admin" && (
                   <>
                     <Button variant="ghost" size="sm" onClick={() => handleApprove(q)}><Check className="h-4 w-4 mr-1 text-green-600" />Aprovar</Button>
@@ -580,7 +758,7 @@ const Quotes = () => {
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Pagamento</TableHead>
-              <TableHead className="w-36">Ações</TableHead>
+              <TableHead className="w-44">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -608,6 +786,11 @@ const Quotes = () => {
                       <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
+                      {userRole === "admin" && (
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(q)} title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
                       {q.status === "pendente" && userRole === "admin" && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => handleApprove(q)} title="Aprovar"><Check className="h-4 w-4 text-green-600" /></Button>
@@ -637,6 +820,87 @@ const Quotes = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Quote Modal */}
+      <Dialog open={editOpen} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditQuote(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Orçamento</DialogTitle>
+            {editQuote?.status === "aprovado" && (
+              <p className="text-sm text-amber-600 font-medium mt-1">⚠️ Este orçamento já está aprovado. Alterações serão refletidas na OS, Faturamento e Financeiro.</p>
+            )}
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4">
+            <div><Label>Cliente *</Label>
+              <Select value={editForm.client_id} onValueChange={v => setEditForm({ ...editForm, client_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+
+            <div><Label>Vendedor Responsável</Label>
+              <Select value={editForm.seller_id} onValueChange={v => setEditForm({ ...editForm, seller_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
+                <SelectContent>
+                  {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div><Label>Origem da Venda *</Label>
+              <Select value={editForm.origem_venda} onValueChange={v => setEditForm({ ...editForm, origem_venda: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="obras">Obras</SelectItem>
+                  <SelectItem value="empresa">Empresa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Itens do Orçamento</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addEditItem}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar Item
+                </Button>
+              </div>
+              {editItems.map((item, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-5">
+                    {i === 0 && <Label className="text-xs">Descrição</Label>}
+                    <Input placeholder="Descrição do item" value={item.description} onChange={e => updateEditItem(i, "description", e.target.value)} />
+                  </div>
+                  <div className="col-span-2">
+                    {i === 0 && <Label className="text-xs">Qtd</Label>}
+                    <Input type="number" min="1" value={item.quantity} onChange={e => updateEditItem(i, "quantity", e.target.value)} />
+                  </div>
+                  <div className="col-span-2">
+                    {i === 0 && <Label className="text-xs">Preço Un.</Label>}
+                    <Input type="number" step="0.01" placeholder="0,00" value={item.unit_price} onChange={e => updateEditItem(i, "unit_price", e.target.value)} />
+                  </div>
+                  <div className="col-span-2 text-right text-sm font-medium pt-2">{fmt(calcItemTotal(item))}</div>
+                  <div className="col-span-1">
+                    {editItems.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeEditItem(i)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="text-right font-bold text-lg border-t pt-2">Total: {fmt(editGrandTotal)}</div>
+            </div>
+
+            <div><Label>Observações</Label><Textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} /></div>
+            <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={editForm.delivery_deadline} onChange={e => setEditForm({ ...editForm, delivery_deadline: e.target.value })} /></div>
+            <div><Label>Válido até</Label><Input type="date" value={editForm.valid_until} onChange={e => setEditForm({ ...editForm, valid_until: e.target.value })} /></div>
+            <Button type="submit" className="w-full" disabled={editMutation.isPending || !editForm.client_id || !editForm.origem_venda}>
+              {editMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Approval Modal (Payment + Commission) */}
       <Dialog open={!!approvalModal?.open} onOpenChange={(o) => { if (!o) setApprovalModal(null); }}>
