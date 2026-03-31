@@ -195,7 +195,13 @@ const Marketing = () => {
   };
 
   // Calculations
-  const monthCampaigns = campaigns.filter((c: any) => isInRange(c.start_date, dateRange));
+  // Campaign overlaps the selected period if its date range intersects
+  const monthCampaigns = campaigns.filter((c: any) => {
+    const cStart = new Date(c.start_date + "T00:00:00");
+    const cEnd = c.end_date ? new Date(c.end_date + "T00:00:00") : cStart;
+    const rangeStart = dateRange.start; const rangeEnd = dateRange.end;
+    return cStart <= rangeEnd && cEnd >= rangeStart;
+  });
   const totalInvestedMonth = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
   const totalLeadsMonth = monthCampaigns.reduce((s: number, c: any) => s + (c.leads_generated || 0), 0);
 
