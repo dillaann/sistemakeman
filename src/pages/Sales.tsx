@@ -574,6 +574,8 @@ const AdminSalesView = () => {
   }));
 
   const filtered = sales.filter(s => {
+    if (vendedorTypeFilter === "com_vendedor" && !s.seller_id) return false;
+    if (vendedorTypeFilter === "sem_vendedor" && s.seller_id) return false;
     if (sellerFilter !== "all" && s.seller_id !== sellerFilter) return false;
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
     if (search) {
