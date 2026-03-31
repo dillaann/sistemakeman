@@ -45,6 +45,9 @@ const Quotes = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
