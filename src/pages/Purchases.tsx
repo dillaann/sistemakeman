@@ -407,6 +407,7 @@ const Purchases = () => {
           <TabsTrigger value="solicitacoes">Solicitações</TabsTrigger>
           <TabsTrigger value="compras">Compras</TabsTrigger>
           <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
+          <TabsTrigger value="materiais">Materiais</TabsTrigger>
           <TabsTrigger value="descontos">Descontos</TabsTrigger>
           <TabsTrigger value="custos-cliente">Custos por Cliente</TabsTrigger>
         </TabsList>
