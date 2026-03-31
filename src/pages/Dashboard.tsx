@@ -21,7 +21,7 @@ const Dashboard = () => {
   const { data: quotes } = useQuery({
     queryKey: ["quotes-summary"],
     queryFn: async () => {
-      const { data } = await supabase.from("quotes").select("status, total");
+      const { data } = await supabase.from("quotes").select("status, total, created_at, approved_at");
       return data ?? [];
     },
   });
@@ -29,7 +29,7 @@ const Dashboard = () => {
   const { data: workOrders } = useQuery({
     queryKey: ["work-orders-summary"],
     queryFn: async () => {
-      const { data } = await supabase.from("work_orders").select("status, total");
+      const { data } = await supabase.from("work_orders").select("status, total, created_at");
       return data ?? [];
     },
   });
@@ -37,7 +37,7 @@ const Dashboard = () => {
   const { data: transactions } = useQuery({
     queryKey: ["financial-summary"],
     queryFn: async () => {
-      const { data } = await supabase.from("financial_transactions").select("type, status, amount");
+      const { data } = await supabase.from("financial_transactions").select("type, status, amount, due_date, paid_date");
       return data ?? [];
     },
   });
