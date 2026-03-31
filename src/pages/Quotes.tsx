@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
 
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -44,6 +45,9 @@ const Quotes = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
@@ -416,8 +420,9 @@ const Quotes = () => {
   };
 
   const filtered = quotes.filter(q =>
+    isInRange(q.created_at, dateRange) && (
     (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    (q.description ?? "").toLowerCase().includes(search.toLowerCase())
+    (q.description ?? "").toLowerCase().includes(search.toLowerCase()))
   );
 
   const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
@@ -426,8 +431,10 @@ const Quotes = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl md:text-2xl font-bold">Orçamentos</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Novo Orçamento</Button>
@@ -506,6 +513,7 @@ const Quotes = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">

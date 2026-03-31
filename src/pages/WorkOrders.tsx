@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Plus, Search, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
 
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -28,6 +29,9 @@ const WorkOrders = () => {
   const { userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [open, setOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ client_id: "", description: "", total: "", status: "aguardando" as string, origem_venda: "" });
@@ -87,16 +91,19 @@ const WorkOrders = () => {
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const nextStatus: Record<string, string> = { aguardando: "em_producao", em_producao: "concluido", concluido: "entregue" };
 
-  const filtered = orders.filter(o =>
-    (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    (o.description ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = orders.filter(o => {
+    if (!isInRange(o.created_at, dateRange)) return false;
+    return (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      (o.description ?? "").toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <h1 className="text-xl md:text-2xl font-bold">Ordens de Serviço</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Nova OS</Button></DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nova Ordem de Serviço</DialogTitle></DialogHeader>
@@ -123,6 +130,7 @@ const WorkOrders = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">

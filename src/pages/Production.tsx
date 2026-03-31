@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, ArrowRight, MessageSquare } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
 
 const columns = [
   { key: "Fila de Produção", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30" },
@@ -30,6 +31,9 @@ const Production = () => {
   const queryClient = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [notesText, setNotesText] = useState("");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
@@ -165,12 +169,15 @@ const Production = () => {
   };
 
   const getColumnItems = (columnKey: string) => {
-    return productionItems.filter((p: any) => p.status === columnKey);
+    return productionItems.filter((p: any) => p.status === columnKey && isInRange(p.created_at, dateRange));
   };
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Produção</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-2xl font-bold">Produção</h1>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+      </div>
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>

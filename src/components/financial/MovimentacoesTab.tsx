@@ -13,6 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { isInRange } from "@/components/MonthFilter";
+
+interface MovimentacoesTabProps {
+  dateRange?: { start: Date; end: Date };
+}
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -35,7 +40,7 @@ const typeLabels: Record<string, string> = {
 
 type FormType = "entrada" | "saida" | "transferencia";
 
-export default function MovimentacoesTab() {
+export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
   const { toast } = useToast();
   const { userRole } = useAuth();
   const qc = useQueryClient();
@@ -75,6 +80,7 @@ export default function MovimentacoesTab() {
 
   const filtered = useMemo(() => {
     return movements.filter(m => {
+      if (dateRange && !isInRange(m.date, dateRange)) return false;
       if (filterAccount !== "all" && m.account_id !== filterAccount) return false;
       if (filterType === "entrada" && m.type !== "entrada" && m.type !== "transferencia_entrada") return false;
       if (filterType === "saida" && m.type !== "saida" && m.type !== "transferencia_saida") return false;
@@ -82,7 +88,7 @@ export default function MovimentacoesTab() {
       if (dateTo && m.date > dateTo) return false;
       return true;
     });
-  }, [movements, filterAccount, filterType, dateFrom, dateTo]);
+  }, [movements, filterAccount, filterType, dateFrom, dateTo, dateRange]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {

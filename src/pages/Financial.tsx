@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
@@ -5,13 +6,21 @@ import SaidasTab from "@/components/financial/SaidasTab";
 import MovimentacaoTab from "@/components/financial/MovimentacaoTab";
 import ContasTab from "@/components/financial/ContasTab";
 import MovimentacoesTab from "@/components/financial/MovimentacoesTab";
+import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Financial = () => {
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <DollarSign className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Financeiro</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Financeiro</h1>
+        </div>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
@@ -32,11 +41,11 @@ const Financial = () => {
             <BarChart3 className="h-4 w-4" /> Visão Geral
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="entradas"><EntradasTab /></TabsContent>
-        <TabsContent value="saidas"><SaidasTab /></TabsContent>
+        <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="contas"><ContasTab /></TabsContent>
-        <TabsContent value="movimentacoes"><MovimentacoesTab /></TabsContent>
-        <TabsContent value="movimentacao"><MovimentacaoTab /></TabsContent>
+        <TabsContent value="movimentacoes"><MovimentacoesTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="movimentacao"><MovimentacaoTab dateRange={dateRange} /></TabsContent>
       </Tabs>
     </div>
   );

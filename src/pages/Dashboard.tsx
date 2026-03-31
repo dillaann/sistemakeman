@@ -1,10 +1,15 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown, ShoppingBag, ShoppingCart, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Dashboard = () => {
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const { data: clients } = useQuery({
     queryKey: ["clients-count"],
     queryFn: async () => {
@@ -16,7 +21,7 @@ const Dashboard = () => {
   const { data: quotes } = useQuery({
     queryKey: ["quotes-summary"],
     queryFn: async () => {
-      const { data } = await supabase.from("quotes").select("status, total");
+      const { data } = await supabase.from("quotes").select("status, total, created_at, approved_at");
       return data ?? [];
     },
   });
@@ -24,7 +29,7 @@ const Dashboard = () => {
   const { data: workOrders } = useQuery({
     queryKey: ["work-orders-summary"],
     queryFn: async () => {
-      const { data } = await supabase.from("work_orders").select("status, total");
+      const { data } = await supabase.from("work_orders").select("status, total, created_at");
       return data ?? [];
     },
   });
@@ -32,122 +37,93 @@ const Dashboard = () => {
   const { data: transactions } = useQuery({
     queryKey: ["financial-summary"],
     queryFn: async () => {
-      const { data } = await supabase.from("financial_transactions").select("type, status, amount");
+      const { data } = await supabase.from("financial_transactions").select("type, status, amount, due_date, paid_date");
       return data ?? [];
     },
   });
 
-  const { data: billingOrders } = useQuery({
-    queryKey: ["billing-dashboard"],
-    queryFn: async () => {
-      const { data: approvedQuotes } = await supabase
-        .from("quotes")
-        .select("id, total, approved_at, down_payment, remaining_amount, payment_status")
-        .eq("status", "aprovado");
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const monthQuotes = (approvedQuotes ?? []).filter((q: any) => {
-        if (!q.approved_at) return false;
-        const d = new Date(q.approved_at);
-        return d >= monthStart && d <= monthEnd;
-      });
-      const totalBilled = monthQuotes.reduce((s: number, q: any) => s + Number(q.total), 0);
-      const totalReceived = monthQuotes.reduce((s: number, q: any) => s + Number(q.down_payment || 0), 0);
-      return { totalBilled, totalReceived };
-    },
-  });
+  const billingData = useMemo(() => {
+    const approvedInRange = (quotes ?? []).filter(q => q.status === "aprovado" && isInRange(q.approved_at, dateRange));
+    const totalBilled = approvedInRange.reduce((s, q) => s + Number(q.total), 0);
+    return { totalBilled, totalReceived: 0 };
+  }, [quotes, dateRange]);
 
-  // DRE result for current month
-  const { data: dreResult } = useQuery({
-    queryKey: ["dre-dashboard"],
-    queryFn: async () => {
-      const n = new Date();
-      const monthKey = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
-      const prevMonth = n.getMonth() === 0
-        ? `${n.getFullYear() - 1}-12`
-        : `${n.getFullYear()}-${String(n.getMonth()).padStart(2, "0")}`;
-      const start = new Date(n.getFullYear(), n.getMonth(), 1);
-      const end = new Date(n.getFullYear(), n.getMonth() + 1, 0, 23, 59, 59);
-      const prevStart = new Date(n.getMonth() === 0 ? n.getFullYear() - 1 : n.getFullYear(), n.getMonth() === 0 ? 11 : n.getMonth() - 1, 1);
-      const prevEnd = new Date(n.getFullYear(), n.getMonth(), 0, 23, 59, 59);
-      const inRange = (ds: string | null, s: Date, e: Date) => { if (!ds) return false; const d = new Date(ds); return d >= s && d <= e; };
-      // Revenue from approved quotes by approved_at
-      const { data: qs } = await supabase.from("quotes").select("total, approved_at").eq("status", "aprovado");
-      const currRev = (qs ?? []).filter((q: any) => inRange(q.approved_at, start, end)).reduce((s: number, q: any) => s + Number(q.total), 0);
-      const prevRev = (qs ?? []).filter((q: any) => inRange(q.approved_at, prevStart, prevEnd)).reduce((s: number, q: any) => s + Number(q.total), 0);
-      const { data: txns } = await supabase.from("financial_transactions").select("amount, due_date, type").eq("type", "a_pagar");
-      const currExp = (txns ?? []).filter(t => inRange(t.due_date, start, end)).reduce((s, t) => s + Number(t.amount), 0);
-      const prevExp = (txns ?? []).filter(t => inRange(t.due_date, prevStart, prevEnd)).reduce((s, t) => s + Number(t.amount), 0);
-      const { data: cls } = await supabase.from("monthly_closings").select("net_pay, month_ref");
-      const currPers = (cls ?? []).filter(c => c.month_ref === monthKey).reduce((s, c) => s + Number(c.net_pay), 0);
-      const prevPers = (cls ?? []).filter(c => c.month_ref === prevMonth).reduce((s, c) => s + Number(c.net_pay), 0);
-      const currResult = currRev - currExp - currPers;
-      const prevResult = prevRev - prevExp - prevPers;
-      const variation = prevResult === 0 ? 0 : ((currResult - prevResult) / Math.abs(prevResult)) * 100;
-      return { currResult, variation };
-    },
-  });
+  // Filtered data
+  const filteredQuotes = useMemo(() => (quotes ?? []).filter(q => isInRange(q.created_at, dateRange)), [quotes, dateRange]);
+  const filteredWO = useMemo(() => (workOrders ?? []).filter(w => isInRange(w.created_at, dateRange)), [workOrders, dateRange]);
+  const filteredTxns = useMemo(() => (transactions ?? []).filter(t => isInRange(t.due_date, dateRange)), [transactions, dateRange]);
 
   // Sales summary
-  const { data: salesSummary } = useQuery({
-    queryKey: ["sales-dashboard"],
+  const { data: allSales = [] } = useQuery({
+    queryKey: ["sales-dashboard-all"],
     queryFn: async () => {
-      const n = new Date();
-      const monthStart = new Date(n.getFullYear(), n.getMonth(), 1);
-      const { data: sales } = await supabase.from("sales").select("amount, created_at, seller_id");
-      const monthlySales = (sales ?? []).filter(s => new Date(s.created_at) >= monthStart);
-      const totalSold = monthlySales.reduce((s, sale) => s + Number(sale.amount), 0);
-      const uniqueSellers = new Set(monthlySales.map(s => s.seller_id)).size;
-      return { totalSold, count: monthlySales.length, sellers: uniqueSellers };
+      const { data } = await supabase.from("sales").select("amount, created_at, seller_id, origem_venda");
+      return data ?? [];
     },
   });
 
   // Purchases summary
-  const { data: purchasesSummary } = useQuery({
-    queryKey: ["purchases-dashboard"],
+  const { data: allPurchases = [] } = useQuery({
+    queryKey: ["purchases-dashboard-all"],
     queryFn: async () => {
-      const n = new Date();
-      const monthStart = new Date(n.getFullYear(), n.getMonth(), 1);
-      const { data: purchases } = await supabase.from("purchases").select("total, discount_amount, purchase_date");
-      const monthPurchases = (purchases ?? []).filter(p => new Date(p.purchase_date) >= monthStart);
-      const totalSpent = monthPurchases.reduce((s, p) => s + Number(p.total), 0);
-      const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
-      return { totalSpent, totalDiscount };
+      const { data } = await supabase.from("purchases").select("total, discount_amount, purchase_date");
+      return data ?? [];
     },
   });
 
   // Marketing summary
-  const { data: marketingSummary } = useQuery({
-    queryKey: ["marketing-dashboard"],
+  const { data: allCampaigns = [] } = useQuery({
+    queryKey: ["marketing-dashboard-all"],
     queryFn: async () => {
-      const n = new Date();
-      const monthStart = new Date(n.getFullYear(), n.getMonth(), 1);
-      const { data: campaigns } = await supabase.from("marketing_campaigns").select("amount_invested, start_date");
-      const monthCampaigns = (campaigns ?? []).filter((c: any) => new Date(c.start_date) >= monthStart);
-      const totalInvested = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
-      const { data: sales } = await supabase.from("sales").select("amount, created_at").eq("origem_venda", "marketing");
-      const monthSales = (sales ?? []).filter((s: any) => new Date(s.created_at) >= monthStart);
-      const totalRevenue = monthSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
-      const roi = totalInvested > 0 ? ((totalRevenue - totalInvested) / totalInvested) * 100 : 0;
-      return { totalInvested, totalRevenue, roi };
+      const { data } = await supabase.from("marketing_campaigns").select("amount_invested, start_date");
+      return data ?? [];
     },
   });
 
-  const pendingQuotes = quotes?.filter(q => q.status === "pendente").length ?? 0;
-  const quotesTotal = quotes?.filter(q => q.status === "aprovado").reduce((s, q) => s + Number(q.total), 0) ?? 0;
+  const salesSummary = useMemo(() => {
+    const filtered = allSales.filter(s => isInRange(s.created_at, dateRange));
+    const totalSold = filtered.reduce((s, sale) => s + Number(sale.amount), 0);
+    const uniqueSellers = new Set(filtered.map(s => s.seller_id)).size;
+    return { totalSold, count: filtered.length, sellers: uniqueSellers };
+  }, [allSales, dateRange]);
+
+  const purchasesSummary = useMemo(() => {
+    const filtered = allPurchases.filter(p => isInRange(p.purchase_date, dateRange));
+    const totalSpent = filtered.reduce((s, p) => s + Number(p.total), 0);
+    const totalDiscount = filtered.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
+    return { totalSpent, totalDiscount };
+  }, [allPurchases, dateRange]);
+
+  const marketingSummary = useMemo(() => {
+    const filteredCamps = allCampaigns.filter(c => isInRange(c.start_date, dateRange));
+    const totalInvested = filteredCamps.reduce((s, c) => s + Number(c.amount_invested), 0);
+    const filteredSales = allSales.filter(s => (s as any).origem_venda === "marketing" && isInRange(s.created_at, dateRange));
+    const totalRevenue = filteredSales.reduce((s, sale) => s + Number(sale.amount), 0);
+    const roi = totalInvested > 0 ? ((totalRevenue - totalInvested) / totalInvested) * 100 : 0;
+    return { totalInvested, totalRevenue, roi };
+  }, [allCampaigns, allSales, dateRange]);
+
+  const pendingQuotes = filteredQuotes.filter(q => q.status === "pendente").length;
+  const quotesTotal = filteredQuotes.filter(q => q.status === "aprovado").reduce((s, q) => s + Number(q.total), 0);
 
   const woByStatus = {
-    aguardando: workOrders?.filter(w => w.status === "aguardando").length ?? 0,
-    em_producao: workOrders?.filter(w => w.status === "em_producao").length ?? 0,
-    concluido: workOrders?.filter(w => w.status === "concluido").length ?? 0,
-    entregue: workOrders?.filter(w => w.status === "entregue").length ?? 0,
+    aguardando: filteredWO.filter(w => w.status === "aguardando").length,
+    em_producao: filteredWO.filter(w => w.status === "em_producao").length,
+    concluido: filteredWO.filter(w => w.status === "concluido").length,
+    entregue: filteredWO.filter(w => w.status === "entregue").length,
   };
 
-  const totalReceivable = transactions?.filter(t => t.type === "a_receber" && t.status === "pendente").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
-  const totalPayable = transactions?.filter(t => t.type === "a_pagar" && t.status === "pendente").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
-  const totalReceived = transactions?.filter(t => t.type === "a_receber" && t.status === "pago").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
-  const totalPaid = transactions?.filter(t => t.type === "a_pagar" && t.status === "pago").reduce((s, t) => s + Number(t.amount), 0) ?? 0;
+  const totalReceivable = filteredTxns.filter(t => t.type === "a_receber" && t.status === "pendente").reduce((s, t) => s + Number(t.amount), 0);
+  const totalPayable = filteredTxns.filter(t => t.type === "a_pagar" && t.status === "pendente").reduce((s, t) => s + Number(t.amount), 0);
+  const totalReceived = filteredTxns.filter(t => t.type === "a_receber" && t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
+  const totalPaid = filteredTxns.filter(t => t.type === "a_pagar" && t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
+
+  const dreResult = useMemo(() => {
+    const revenue = filteredQuotes.filter(q => q.status === "aprovado" && isInRange(q.approved_at, dateRange)).reduce((s, q) => s + Number(q.total), 0);
+    const expenses = filteredTxns.filter(t => t.type === "a_pagar").reduce((s, t) => s + Number(t.amount), 0);
+    const currResult = revenue - expenses;
+    return { currResult, variation: 0 };
+  }, [filteredQuotes, filteredTxns, dateRange]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -160,7 +136,10 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -216,11 +195,11 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
               <p className="text-xs text-muted-foreground">Faturado</p>
-              <p className="text-lg sm:text-xl font-bold">{fmt(billingOrders?.totalBilled ?? 0)}</p>
+              <p className="text-lg sm:text-xl font-bold">{fmt(billingData?.totalBilled ?? 0)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Recebido</p>
-              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(billingOrders?.totalReceived ?? 0)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">{fmt(billingData?.totalReceived ?? 0)}</p>
             </div>
           </div>
         </CardContent>

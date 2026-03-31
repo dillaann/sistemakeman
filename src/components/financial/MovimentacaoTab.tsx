@@ -14,7 +14,11 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 
 type PeriodPreset = "month" | "3months" | "year" | "custom";
 
-export default function MovimentacaoTab() {
+interface MovimentacaoTabProps {
+  dateRange?: { start: Date; end: Date };
+}
+
+export default function MovimentacaoTab({ dateRange: parentDateRange }: MovimentacaoTabProps) {
   const now = new Date();
   const [preset, setPreset] = useState<PeriodPreset>("month");
   const [dateFrom, setDateFrom] = useState(format(startOfMonth(now), "yyyy-MM-dd"));

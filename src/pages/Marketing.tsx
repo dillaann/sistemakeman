@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, TrendingUp, DollarSign, Users, Target, BarChart3, Trash2, Edit, AlertTriangle } from "lucide-react";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 const PLATFORMS = [
@@ -40,6 +41,9 @@ const Marketing = () => {
   const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<any>(null);
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [form, setForm] = useState({
     name: "", platform: "meta_ads", amount_invested: "", start_date: "", end_date: "",
     objective: "leads", notes: "", leads_generated: "", clicks: "", impressions: "",
@@ -191,13 +195,11 @@ const Marketing = () => {
   };
 
   // Calculations
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthCampaigns = campaigns.filter((c: any) => new Date(c.start_date) >= monthStart);
+  const monthCampaigns = campaigns.filter((c: any) => isInRange(c.start_date, dateRange));
   const totalInvestedMonth = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
   const totalLeadsMonth = monthCampaigns.reduce((s: number, c: any) => s + (c.leads_generated || 0), 0);
 
-  const monthSales = marketingSales.filter((s: any) => new Date(s.created_at) >= monthStart);
+  const monthSales = marketingSales.filter((s: any) => isInRange(s.created_at, dateRange));
   const totalSalesRevenue = monthSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
   const roi = totalInvestedMonth > 0 ? ((totalSalesRevenue - totalInvestedMonth) / totalInvestedMonth) * 100 : 0;
   const cac = monthSales.length > 0 ? totalInvestedMonth / monthSales.length : 0;
@@ -244,8 +246,10 @@ const Marketing = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
         <Dialog open={openDialog} onOpenChange={(o) => { setOpenDialog(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Nova Campanha</Button>
@@ -290,6 +294,7 @@ const Marketing = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Tabs defaultValue="performance">

@@ -17,6 +17,8 @@ import MaterialsTab from "@/components/purchases/MaterialsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
+import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
 
 const paymentMethods: Record<string, string> = {
   dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", boleto: "Boleto", transferencia: "Transferência",
@@ -39,6 +41,9 @@ const Purchases = () => {
   const [filterSupplier, setFilterSupplier] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterClient, setFilterClient] = useState("all");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   // Supplier dialog
   const [supplierOpen, setSupplierOpen] = useState(false);
@@ -292,10 +297,7 @@ const Purchases = () => {
   };
 
   // Calculations
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const monthPurchases = purchases.filter(p => new Date(p.purchase_date) >= monthStart);
+  const monthPurchases = purchases.filter(p => isInRange(p.purchase_date, dateRange));
   const totalMonth = monthPurchases.reduce((s, p) => s + Number(p.total), 0);
   const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
   const pendingPayment = purchases.filter(p => p.payment_status !== "pago");
