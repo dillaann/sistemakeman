@@ -96,7 +96,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       return sortAsc ? va - vb : vb - va;
     });
     return list;
-  }, [transactions, statusFilter, catFilter, dateFrom, dateTo, search, sortField, sortAsc]);
+  }, [transactions, statusFilter, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 

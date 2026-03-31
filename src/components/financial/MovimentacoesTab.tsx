@@ -88,7 +88,7 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
       if (dateTo && m.date > dateTo) return false;
       return true;
     });
-  }, [movements, filterAccount, filterType, dateFrom, dateTo]);
+  }, [movements, filterAccount, filterType, dateFrom, dateTo, dateRange]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
