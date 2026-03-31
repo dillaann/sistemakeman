@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -213,7 +213,7 @@ const Marketing = () => {
 
   // Monthly ROI evolution (last 6 months)
   const roiEvolution = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const n = new Date(); const d = new Date(n.getFullYear(), n.getMonth() - (5 - i), 1);
     const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     const mCampaigns = campaigns.filter((c: any) => { const cd = new Date(c.start_date); return cd >= d && cd <= mEnd; });
     const mSales = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; });
@@ -550,7 +550,7 @@ const Marketing = () => {
             <CardContent className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={roiEvolution.map((item, i) => {
-                  const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+                  const n = new Date(); const d = new Date(n.getFullYear(), n.getMonth() - (5 - i), 1);
                   const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
                   const inv = campaigns.filter((c: any) => { const cd = new Date(c.start_date); return cd >= d && cd <= mEnd; }).reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
                   const rev = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; }).reduce((s: number, sale: any) => s + Number(sale.amount), 0);

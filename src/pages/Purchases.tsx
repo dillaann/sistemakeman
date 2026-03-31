@@ -18,7 +18,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
 import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
-import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
 
 const paymentMethods: Record<string, string> = {
   dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", boleto: "Boleto", transferencia: "Transferência",
