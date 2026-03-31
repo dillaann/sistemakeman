@@ -1,10 +1,15 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown, ShoppingBag, ShoppingCart, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Dashboard = () => {
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const { data: clients } = useQuery({
     queryKey: ["clients-count"],
     queryFn: async () => {
