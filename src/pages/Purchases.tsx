@@ -199,32 +199,68 @@ const Purchases = () => {
         work_order_id: pForm.work_order_id || null,
       };
 
-      const { error } = await supabase.from("purchases").insert(payload).select().single();
-      if (error) throw error;
+      if (editPurchaseId) {
+        // UPDATE existing purchase
+        const { error } = await supabase.from("purchases").update(payload).eq("id", editPurchaseId);
+        if (error) throw error;
 
-      // Update work order material_status if linked
-      if (pForm.work_order_id) {
-        await supabase.from("work_orders")
-          .update({ material_status: "comprado" } as any)
-          .eq("id", pForm.work_order_id);
+        // Update linked financial transaction
+        const oldPurchase = purchases.find(p => p.id === editPurchaseId);
+        if (oldPurchase) {
+          const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
+          const clientName = pForm.client_id ? clients.find(c => c.id === pForm.client_id)?.name : null;
+          const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
+          if (clientName) descParts.push(`(${clientName})`);
+
+          // Try to update existing financial transaction by matching old description
+          const oldSupplierName = (oldPurchase as any).suppliers?.name ?? "Fornecedor";
+          await supabase.from("financial_transactions")
+            .update({
+              description: descParts.join(" "),
+              amount: total,
+              due_date: pForm.due_date || pForm.purchase_date,
+              paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
+              status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
+              client_id: pForm.client_id || null,
+              work_order_id: pForm.work_order_id || null,
+            })
+            .ilike("description", `%${oldPurchase.material}%${oldSupplierName}%`)
+            .eq("category", "Compras");
+        }
+
+        if (pForm.work_order_id) {
+          await supabase.from("work_orders")
+            .update({ material_status: "comprado" } as any)
+            .eq("id", pForm.work_order_id);
+        }
+      } else {
+        // INSERT new purchase
+        const { error } = await supabase.from("purchases").insert(payload).select().single();
+        if (error) throw error;
+
+        if (pForm.work_order_id) {
+          await supabase.from("work_orders")
+            .update({ material_status: "comprado" } as any)
+            .eq("id", pForm.work_order_id);
+        }
+
+        const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
+        const clientName = pForm.client_id ? clients.find(c => c.id === pForm.client_id)?.name : null;
+        const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
+        if (clientName) descParts.push(`(${clientName})`);
+        
+        await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          description: descParts.join(" "),
+          amount: total,
+          due_date: pForm.due_date || pForm.purchase_date,
+          paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
+          category: "Compras",
+          status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
+          client_id: pForm.client_id || null,
+          work_order_id: pForm.work_order_id || null,
+        });
       }
-
-      const supplierName = suppliers.find(s => s.id === pForm.supplier_id)?.name ?? "Fornecedor";
-      const clientName = pForm.client_id ? clients.find(c => c.id === pForm.client_id)?.name : null;
-      const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
-      if (clientName) descParts.push(`(${clientName})`);
-      
-      await supabase.from("financial_transactions").insert({
-        type: "a_pagar" as any,
-        description: descParts.join(" "),
-        amount: total,
-        due_date: pForm.due_date || pForm.purchase_date,
-        paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
-        category: "Compras",
-        status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
-        client_id: pForm.client_id || null,
-        work_order_id: pForm.work_order_id || null,
-      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
@@ -237,12 +273,13 @@ const Purchases = () => {
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       qc.invalidateQueries({ queryKey: ["production-orders"] });
       setPurchaseOpen(false);
+      setEditPurchaseId(null);
       setPForm({
         supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
         invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
         client_id: "", work_order_id: "",
       });
-      toast({ title: "Compra registrada!" });
+      toast({ title: editPurchaseId ? "Compra atualizada!" : "Compra registrada!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
