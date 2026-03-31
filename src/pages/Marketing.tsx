@@ -246,8 +246,10 @@ const Marketing = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl md:text-2xl font-bold">Marketing</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
         <Dialog open={openDialog} onOpenChange={(o) => { setOpenDialog(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Nova Campanha</Button>

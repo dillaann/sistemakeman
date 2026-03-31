@@ -297,10 +297,7 @@ const Purchases = () => {
   };
 
   // Calculations
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const monthPurchases = purchases.filter(p => new Date(p.purchase_date) >= monthStart);
+  const monthPurchases = purchases.filter(p => isInRange(p.purchase_date, dateRange));
   const totalMonth = monthPurchases.reduce((s, p) => s + Number(p.total), 0);
   const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
   const pendingPayment = purchases.filter(p => p.payment_status !== "pago");
