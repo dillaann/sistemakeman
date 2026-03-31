@@ -13,6 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+import { isInRange } from "@/components/MonthFilter";
+
+interface SaidasTabProps {
+  dateRange?: { start: Date; end: Date };
+}
+
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
   pago: "bg-green-500/10 text-green-700 border-green-500/20",
@@ -25,7 +31,7 @@ const categorias = ["Salário", "Adiantamento", "Material", "Aluguel", "Serviço
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function SaidasTab() {
+export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const { toast } = useToast();
   const { userRole } = useAuth();
   const qc = useQueryClient();
