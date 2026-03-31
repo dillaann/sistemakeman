@@ -630,10 +630,10 @@ const Purchases = () => {
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
-              <Dialog open={purchaseOpen} onOpenChange={setPurchaseOpen}>
+              <Dialog open={purchaseOpen} onOpenChange={(v) => { setPurchaseOpen(v); if (!v) { setEditPurchaseId(null); setPForm({ supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0], invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "", client_id: "", work_order_id: "" }); } }}>
                 <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
                 <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>Registrar Compra</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{editPurchaseId ? "Editar Compra" : "Registrar Compra"}</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); savePurchase.mutate(); }} className="space-y-3">
                     <div>
                       <Label>Fornecedor</Label>
