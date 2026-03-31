@@ -847,47 +847,14 @@ const AdminSalesView = () => {
       )}
 
       {tab === "commissions" && (
-        <div className="border rounded-lg overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vendedor</TableHead>
-                <TableHead>Venda</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>%</TableHead>
-                <TableHead>Comissão</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {commissions.map(c => (
-                <TableRow key={c.id}>
-                  <TableCell>{sellerName(c.seller_id)}</TableCell>
-                  <TableCell className="max-w-[150px] truncate">{(c.sales as any)?.description}</TableCell>
-                  <TableCell>{(c.sales as any)?.clients?.name}</TableCell>
-                  <TableCell>{Number(c.percentage)}%</TableCell>
-                  <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
-                  <TableCell><Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {c.status === "pendente" && (
-                        <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "aprovada" })}>Aprovar</Button>
-                      )}
-                      {c.status === "aprovada" && (
-                        <Button size="sm" variant="outline" onClick={() => updateCommissionStatus.mutate({ id: c.id, status: "paga" })}>Pagar</Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "commission", id: c.id })}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {commissions.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma comissão.</TableCell></TableRow>}
-            </TableBody>
-          </Table>
-        </div>
+        <CommissionsPerSeller
+          sellers={sellers}
+          commissions={commissions}
+          rates={rates}
+          sellerName={sellerName}
+          updateCommissionStatus={updateCommissionStatus}
+          setDeleteTarget={setDeleteTarget}
+        />
       )}
 
       {tab === "goals" && (
