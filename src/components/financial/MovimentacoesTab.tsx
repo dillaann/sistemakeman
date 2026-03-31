@@ -13,6 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { isInRange } from "@/components/MonthFilter";
+
+interface MovimentacoesTabProps {
+  dateRange?: { start: Date; end: Date };
+}
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -35,7 +40,7 @@ const typeLabels: Record<string, string> = {
 
 type FormType = "entrada" | "saida" | "transferencia";
 
-export default function MovimentacoesTab() {
+export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
   const { toast } = useToast();
   const { userRole } = useAuth();
   const qc = useQueryClient();
