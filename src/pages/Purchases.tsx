@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera, Users } from "lucide-react";
+import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera, Users, Package } from "lucide-react";
+import MaterialsTab from "@/components/purchases/MaterialsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
@@ -406,6 +407,7 @@ const Purchases = () => {
           <TabsTrigger value="solicitacoes">Solicitações</TabsTrigger>
           <TabsTrigger value="compras">Compras</TabsTrigger>
           <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
+          <TabsTrigger value="materiais">Materiais</TabsTrigger>
           <TabsTrigger value="descontos">Descontos</TabsTrigger>
           <TabsTrigger value="custos-cliente">Custos por Cliente</TabsTrigger>
         </TabsList>
@@ -799,6 +801,11 @@ const Purchases = () => {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        {/* MATERIAIS */}
+        <TabsContent value="materiais">
+          <MaterialsTab />
         </TabsContent>
 
         {/* DESCONTOS */}
