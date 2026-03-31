@@ -294,6 +294,7 @@ const Marketing = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Tabs defaultValue="performance">
