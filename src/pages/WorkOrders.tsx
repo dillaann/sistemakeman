@@ -101,6 +101,13 @@ const WorkOrders = () => {
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const nextStatus: Record<string, string> = { aguardando: "em_producao", em_producao: "concluido", concluido: "entregue" };
 
+  const getItemSummary = (o: any) => {
+    const items = o.items || [];
+    if (items.length === 0) return o.description || "Sem descrição";
+    const first = items[0].description;
+    return items.length > 1 ? `${first} + ${items.length - 1} itens` : first;
+  };
+
   const filtered = orders.filter(o => {
     if (!isInRange(o.created_at, dateRange)) return false;
     return (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
