@@ -803,6 +803,11 @@ const Purchases = () => {
           </div>
         </TabsContent>
 
+        {/* MATERIAIS */}
+        <TabsContent value="materiais">
+          <MaterialsTab />
+        </TabsContent>
+
         {/* DESCONTOS */}
         <TabsContent value="descontos" className="space-y-4">
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
