@@ -130,6 +130,7 @@ const WorkOrders = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">
