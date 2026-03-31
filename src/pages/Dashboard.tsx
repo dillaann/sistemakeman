@@ -195,7 +195,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
               <p className="text-xs text-muted-foreground">Faturado</p>
-              <p className="text-lg sm:text-xl font-bold">{fmt(billingOrders?.totalBilled ?? 0)}</p>
+              <p className="text-lg sm:text-xl font-bold">{fmt(billingData?.totalBilled ?? 0)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Recebido</p>
