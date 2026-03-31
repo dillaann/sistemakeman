@@ -195,13 +195,11 @@ const Marketing = () => {
   };
 
   // Calculations
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthCampaigns = campaigns.filter((c: any) => new Date(c.start_date) >= monthStart);
+  const monthCampaigns = campaigns.filter((c: any) => isInRange(c.start_date, dateRange));
   const totalInvestedMonth = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
   const totalLeadsMonth = monthCampaigns.reduce((s: number, c: any) => s + (c.leads_generated || 0), 0);
 
-  const monthSales = marketingSales.filter((s: any) => new Date(s.created_at) >= monthStart);
+  const monthSales = marketingSales.filter((s: any) => isInRange(s.created_at, dateRange));
   const totalSalesRevenue = monthSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
   const roi = totalInvestedMonth > 0 ? ((totalSalesRevenue - totalInvestedMonth) / totalInvestedMonth) * 100 : 0;
   const cac = monthSales.length > 0 ? totalInvestedMonth / monthSales.length : 0;
