@@ -45,7 +45,17 @@ const WorkOrders = () => {
     queryKey: ["work-orders"],
     queryFn: async () => {
       const { data } = await supabase.from("work_orders").select("*, clients(name)").order("created_at", { ascending: false });
-      return data ?? [];
+      const woIds = (data ?? []).map((o: any) => o.id);
+      let itemsMap = new Map<string, any[]>();
+      if (woIds.length > 0) {
+        const { data: items } = await supabase.from("work_order_items" as any).select("work_order_id, description, quantity, unit_price, total").in("work_order_id", woIds);
+        (items ?? []).forEach((item: any) => {
+          const list = itemsMap.get(item.work_order_id) || [];
+          list.push(item);
+          itemsMap.set(item.work_order_id, list);
+        });
+      }
+      return (data ?? []).map((o: any) => ({ ...o, items: itemsMap.get(o.id) || [] }));
     },
   });
 
