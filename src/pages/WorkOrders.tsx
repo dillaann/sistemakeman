@@ -29,6 +29,9 @@ const WorkOrders = () => {
   const { userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [open, setOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ client_id: "", description: "", total: "", status: "aguardando" as string, origem_venda: "" });
