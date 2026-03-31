@@ -738,7 +738,7 @@ const Purchases = () => {
                       <div><Label>Data de Vencimento</Label><Input type="date" value={pForm.due_date} onChange={e => setPForm({ ...pForm, due_date: e.target.value })} /></div>
                     )}
                     <div><Label>Observações</Label><Textarea value={pForm.notes} onChange={e => setPForm({ ...pForm, notes: e.target.value })} /></div>
-                    <Button type="submit" className="w-full" disabled={savePurchase.isPending}>Registrar Compra</Button>
+                    <Button type="submit" className="w-full" disabled={savePurchase.isPending}>{editPurchaseId ? "Salvar Alterações" : "Registrar Compra"}</Button>
                   </form>
                 </DialogContent>
               </Dialog>
