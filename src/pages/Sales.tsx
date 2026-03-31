@@ -827,9 +827,11 @@ const AdminSalesView = () => {
                             <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
                             <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              {!(s as any)._isFromQuote && (
+                                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
