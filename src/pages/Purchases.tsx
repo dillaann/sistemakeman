@@ -41,6 +41,9 @@ const Purchases = () => {
   const [filterSupplier, setFilterSupplier] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterClient, setFilterClient] = useState("all");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   // Supplier dialog
   const [supplierOpen, setSupplierOpen] = useState(false);
