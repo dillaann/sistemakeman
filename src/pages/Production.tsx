@@ -227,6 +227,15 @@ const Production = () => {
                           <p className="font-medium text-sm">{wo?.clients?.name || "Cliente não encontrado"}</p>
                           <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description || "Sem descrição"}</p>
 
+                          {wo?.items && wo.items.length > 0 && (
+                            <div className="text-xs space-y-0.5 bg-muted/40 rounded p-1.5">
+                              <p className="font-medium text-muted-foreground">Serviços:</p>
+                              {wo.items.map((item: any, idx: number) => (
+                                <p key={idx} className="text-muted-foreground">• {item.description} — {Number(item.quantity)} un</p>
+                              ))}
+                            </div>
+                          )}
+
                           {wo?.employees?.name && (
                             <p className="text-xs text-muted-foreground">👤 {wo.employees.name}</p>
                           )}
