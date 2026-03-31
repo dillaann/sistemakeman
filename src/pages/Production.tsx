@@ -31,6 +31,9 @@ const Production = () => {
   const queryClient = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [notesText, setNotesText] = useState("");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
