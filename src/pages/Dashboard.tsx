@@ -75,7 +75,7 @@ const Dashboard = () => {
   const { data: allCampaigns = [] } = useQuery({
     queryKey: ["marketing-dashboard-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("marketing_campaigns").select("amount_invested, start_date");
+      const { data } = await supabase.from("marketing_campaigns").select("amount_invested, start_date, end_date");
       return data ?? [];
     },
   });
@@ -95,7 +95,12 @@ const Dashboard = () => {
   }, [allPurchases, dateRange]);
 
   const marketingSummary = useMemo(() => {
-    const filteredCamps = allCampaigns.filter(c => isInRange(c.start_date, dateRange));
+    // A campaign overlaps the selected period if it starts before the period ends AND ends after the period starts
+    const filteredCamps = allCampaigns.filter(c => {
+      const campStart = new Date(c.start_date);
+      const campEnd = c.end_date ? new Date(c.end_date) : campStart;
+      return campStart <= dateRange.end && campEnd >= dateRange.start;
+    });
     const totalInvested = filteredCamps.reduce((s, c) => s + Number(c.amount_invested), 0);
     const filteredSales = allSales.filter(s => (s as any).origem_venda === "marketing" && isInRange(s.created_at, dateRange));
     const totalRevenue = filteredSales.reduce((s, sale) => s + Number(sale.amount), 0);
