@@ -407,6 +407,21 @@ const Quotes = () => {
       } as any).select().single();
       if (woError) throw woError;
 
+      // Copy quote items to work_order_items
+      const { data: quoteItems } = await supabase.from("quote_items").select("*").eq("quote_id", quoteId);
+      if (quoteItems && quoteItems.length > 0) {
+        await supabase.from("work_order_items" as any).insert(
+          quoteItems.map((qi: any) => ({
+            work_order_id: wo.id,
+            quote_item_id: qi.id,
+            description: qi.description,
+            quantity: qi.quantity,
+            unit_price: qi.unit_price,
+            total: qi.total,
+          }))
+        );
+      }
+
       if (total > 0) {
         const clientName = clients.find(c => c.id === clientId)?.name ?? "";
         if (dpAmount > 0) {

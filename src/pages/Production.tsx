@@ -44,7 +44,6 @@ const Production = () => {
         .order("created_at", { ascending: false });
       if (error) throw error;
 
-      // Fetch related work order data separately
       const osIds = (data ?? []).map((p: any) => p.os_id).filter(Boolean);
       if (osIds.length === 0) return [];
 
@@ -55,7 +54,6 @@ const Production = () => {
 
       if (woError) throw woError;
       
-      // Fallback: if clients join failed, fetch client names separately
       const woList = workOrders ?? [];
       const missingClientIds = [...new Set(woList
         .filter((wo: any) => !wo.clients?.name && wo.client_id)
@@ -88,16 +86,27 @@ const Production = () => {
         }
       }
 
+      // Fetch work_order_items for all OS
+      const { data: woItems } = await supabase
+        .from("work_order_items" as any)
+        .select("work_order_id, description, quantity")
+        .in("work_order_id", osIds);
+      
+      const woItemsMap = new Map<string, any[]>();
+      (woItems ?? []).forEach((item: any) => {
+        const list = woItemsMap.get(item.work_order_id) || [];
+        list.push(item);
+        woItemsMap.set(item.work_order_id, list);
+      });
+
       const woMap = new Map(woList.map((wo: any) => {
-        // Attach fallback client name if join didn't return it
         if (!wo.clients?.name && wo.client_id && clientMap.has(wo.client_id)) {
           wo.clients = { name: clientMap.get(wo.client_id) };
         }
-
         if (!wo.employees?.name && wo.assigned_to && employeeMap.has(wo.assigned_to)) {
           wo.employees = { name: employeeMap.get(wo.assigned_to) };
         }
-
+        wo.items = woItemsMap.get(wo.id) || [];
         return [wo.id, wo];
       }));
 
