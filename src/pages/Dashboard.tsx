@@ -91,14 +91,20 @@ const Dashboard = () => {
   });
 
   const salesSummary = useMemo(() => {
-    const filtered = allSales.filter(s => isInRange(s.created_at, dateRange));
+    const filtered = allSales.filter(s => {
+      const isOpen = ["aguardando", "em_producao"].includes(s.status);
+      return isInRangeOrOpen(s.created_at, dateRange, isOpen, null);
+    });
     const totalSold = filtered.reduce((s, sale) => s + Number(sale.amount), 0);
     const uniqueSellers = new Set(filtered.map(s => s.seller_id)).size;
     return { totalSold, count: filtered.length, sellers: uniqueSellers };
   }, [allSales, dateRange]);
 
   const purchasesSummary = useMemo(() => {
-    const filtered = allPurchases.filter(p => isInRange(p.purchase_date, dateRange));
+    const filtered = allPurchases.filter(p => {
+      const isOpen = p.payment_status !== "pago";
+      return isInRangeOrOpen(p.purchase_date, dateRange, isOpen, p.payment_status === "pago" ? p.purchase_date : null);
+    });
     const totalSpent = filtered.reduce((s, p) => s + Number(p.total), 0);
     const totalDiscount = filtered.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
     return { totalSpent, totalDiscount };
