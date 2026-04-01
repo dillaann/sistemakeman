@@ -178,7 +178,11 @@ const Production = () => {
   };
 
   const getColumnItems = (columnKey: string) => {
-    return productionItems.filter((p: any) => p.status === columnKey && isInRange(p.created_at, dateRange));
+    return productionItems.filter((p: any) => {
+      if (p.status !== columnKey) return false;
+      const isOpen = p.status !== "Finalizado";
+      return isInRangeOrOpen(p.created_at, dateRange, isOpen, null);
+    });
   };
 
   return (

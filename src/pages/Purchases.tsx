@@ -330,7 +330,10 @@ const Purchases = () => {
   };
 
   // Calculations
-  const monthPurchases = purchases.filter(p => isInRange(p.purchase_date, dateRange));
+  const monthPurchases = purchases.filter(p => {
+    const isOpen = p.payment_status !== "pago";
+    return isInRangeOrOpen(p.purchase_date, dateRange, isOpen, p.payment_status === "pago" ? p.purchase_date : null);
+  });
   const totalMonth = monthPurchases.reduce((s, p) => s + Number(p.total), 0);
   const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
   const pendingPayment = purchases.filter(p => p.payment_status !== "pago");

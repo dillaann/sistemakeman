@@ -50,9 +50,18 @@ const Dashboard = () => {
   }, [quotes, dateRange]);
 
   // Filtered data
-  const filteredQuotes = useMemo(() => (quotes ?? []).filter(q => isInRange(q.created_at, dateRange)), [quotes, dateRange]);
-  const filteredWO = useMemo(() => (workOrders ?? []).filter(w => isInRange(w.created_at, dateRange)), [workOrders, dateRange]);
-  const filteredTxns = useMemo(() => (transactions ?? []).filter(t => isInRange(t.due_date, dateRange)), [transactions, dateRange]);
+  const filteredQuotes = useMemo(() => (quotes ?? []).filter(q => {
+    const isOpen = q.status === "pendente";
+    return isInRangeOrOpen(q.created_at, dateRange, isOpen, q.approved_at);
+  }), [quotes, dateRange]);
+  const filteredWO = useMemo(() => (workOrders ?? []).filter(w => {
+    const isOpen = ["aguardando", "em_producao"].includes(w.status);
+    return isInRangeOrOpen(w.created_at, dateRange, isOpen, null);
+  }), [workOrders, dateRange]);
+  const filteredTxns = useMemo(() => (transactions ?? []).filter(t => {
+    const isOpen = t.status === "pendente" || t.status === "atrasado";
+    return isInRangeOrOpen(t.due_date, dateRange, isOpen, t.paid_date);
+  }), [transactions, dateRange]);
 
   // Sales summary
   const { data: allSales = [] } = useQuery({
