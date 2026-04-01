@@ -213,7 +213,7 @@ const Purchases = () => {
           const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
           if (clientName) descParts.push(`(${clientName})`);
 
-          // Try to update existing financial transaction by matching old description
+          // Update existing financial transaction linked by purchase_id
           const oldSupplierName = (oldPurchase as any).suppliers?.name ?? "Fornecedor";
           await supabase.from("financial_transactions")
             .update({
@@ -225,8 +225,7 @@ const Purchases = () => {
               client_id: pForm.client_id || null,
               work_order_id: pForm.work_order_id || null,
             })
-            .ilike("description", `%${oldPurchase.material}%${oldSupplierName}%`)
-            .eq("category", "Compras");
+            .eq("purchase_id", editPurchaseId);
         }
 
         if (pForm.work_order_id) {
@@ -236,7 +235,7 @@ const Purchases = () => {
         }
       } else {
         // INSERT new purchase
-        const { error } = await supabase.from("purchases").insert(payload).select().single();
+        const { data: newPurchase, error } = await supabase.from("purchases").insert(payload).select().single();
         if (error) throw error;
 
         if (pForm.work_order_id) {
@@ -260,7 +259,8 @@ const Purchases = () => {
           status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
           client_id: pForm.client_id || null,
           work_order_id: pForm.work_order_id || null,
-        });
+          purchase_id: newPurchase.id,
+        } as any);
       }
     },
     onSuccess: () => {
@@ -303,14 +303,9 @@ const Purchases = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("purchases").update({ payment_status: "pago" }).eq("id", id);
       if (error) throw error;
-      const purchase = purchases.find(p => p.id === id);
-      if (purchase) {
-        await supabase.from("financial_transactions")
-          .update({ status: "pago" as any, paid_date: localDateString() })
-          .ilike("description", `%${purchase.material}%`)
-          .eq("category", "Compras")
-          .eq("status", "pendente" as any);
-      }
+      await supabase.from("financial_transactions")
+        .update({ status: "pago" as any, paid_date: localDateString() })
+        .eq("purchase_id", id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
@@ -970,7 +965,7 @@ const Purchases = () => {
         onSave={async (data: any) => {
           const { items, linked_wo_id } = data;
           for (const item of items) {
-            const { error } = await supabase.from("purchases").insert(item);
+            const { data: newPurchase, error } = await supabase.from("purchases").insert(item).select().single();
             if (error) {
               toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
               return;
@@ -988,7 +983,8 @@ const Purchases = () => {
               status: (item.payment_status === "pago" ? "pago" : "pendente") as any,
               client_id: item.client_id || null,
               work_order_id: item.work_order_id || null,
-            });
+              purchase_id: newPurchase.id,
+            } as any);
             // Update work order material status if linked
             if (item.work_order_id) {
               await supabase.from("work_orders")

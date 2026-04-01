@@ -28,7 +28,7 @@ const statusColors: Record<string, string> = {
 };
 const statusLabels: Record<string, string> = { pendente: "Pendente", pago: "Pago", atrasado: "Atrasado", cancelado: "Cancelado" };
 
-const categorias = ["Salário", "Adiantamento", "Material", "Aluguel", "Serviço", "Fornecedor", "Outros"];
+const categorias = ["Salário", "Adiantamento", "Material", "Aluguel", "Serviço", "Fornecedor", "Compras", "Outros"];
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
