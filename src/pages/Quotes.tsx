@@ -239,6 +239,31 @@ const Quotes = () => {
         }
       }
 
+      // Calculate payment info
+      const today = localDateString();
+      const dpAmount = editPayment.payment_type === "entrada_restante" ? (parseFloat(editPayment.down_payment) || 0) : (isApproved ? newTotal : 0);
+      const dpDate = editPayment.down_payment_date || null;
+      const isFuturePayment = dpAmount > 0 && dpDate && dpDate > today;
+      const effectivePaidAmount = isFuturePayment ? 0 : dpAmount;
+
+      // Validate
+      if (dpAmount > newTotal) throw new Error("Valor da entrada não pode ser maior que o total");
+
+      let paymentStatus = (editQuote as any).payment_status || "aguardando";
+      if (isApproved) {
+        if (dpAmount <= 0) {
+          paymentStatus = "aguardando";
+        } else if (isFuturePayment) {
+          paymentStatus = "entrada_pendente";
+        } else if (effectivePaidAmount >= newTotal) {
+          paymentStatus = "pago_total";
+        } else if (effectivePaidAmount > 0 && effectivePaidAmount < newTotal) {
+          paymentStatus = "pagamento_parcial";
+        } else {
+          paymentStatus = "entrada_recebida";
+        }
+      }
+
       // Update quote
       const { error: quoteError } = await supabase.from("quotes").update({
         client_id: editForm.client_id,
@@ -249,6 +274,14 @@ const Quotes = () => {
         delivery_deadline: editForm.delivery_deadline || null,
         origem_venda: editForm.origem_venda,
         issue_date: editForm.issue_date || null,
+        ...(isApproved ? {
+          payment_type: editPayment.payment_type,
+          down_payment: effectivePaidAmount,
+          down_payment_date: dpDate,
+          remaining_amount: Math.max(newTotal - effectivePaidAmount, 0),
+          payment_method: editPayment.payment_method,
+          payment_status: paymentStatus,
+        } : {}),
       } as any).eq("id", quoteId);
       if (quoteError) throw quoteError;
 
