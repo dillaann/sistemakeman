@@ -147,7 +147,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="rounded-lg border p-4 flex-1 min-w-[200px]">
-          <p className="text-sm text-muted-foreground">Total de Saídas no Período</p>
+          <p className="text-sm text-muted-foreground">Total Pago no Período</p>
           <p className="text-2xl font-bold text-red-600">{fmt(total)}</p>
         </div>
         <div className="flex gap-2">
