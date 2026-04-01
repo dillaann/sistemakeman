@@ -666,8 +666,11 @@ const Quotes = () => {
                     <SelectItem value="obras">Obras</SelectItem>
                     <SelectItem value="empresa">Empresa</SelectItem>
                   </SelectContent>
-                </Select>
+              </Select>
               </div>
+              {userRole === "admin" && (
+                <div><Label>Data de Emissão</Label><Input type="date" value={form.issue_date} onChange={e => setForm({ ...form, issue_date: e.target.value })} /></div>
+              )}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
