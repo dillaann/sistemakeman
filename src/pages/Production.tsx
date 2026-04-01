@@ -480,17 +480,46 @@ const Production = () => {
       )}
 
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Observações - OS #{selectedItem?.os_id?.slice(0, 8)}</DialogTitle>
+            <DialogTitle>OS #{selectedItem?.os_id?.slice(0, 8)}</DialogTitle>
           </DialogHeader>
-          <Textarea
-            value={notesText}
-            onChange={e => setNotesText(e.target.value)}
-            placeholder="Ex: aguardando tinta, falta solda..."
-            rows={4}
-          />
-          <Button onClick={saveNotes} className="w-full">Salvar Observações</Button>
+          {selectedItem && (() => {
+            const wo = selectedItem.work_orders;
+            const clientName = wo?.clients?.name || "—";
+            return (
+              <div className="space-y-3">
+                <div className="text-sm space-y-1">
+                  <p><span className="text-muted-foreground">Cliente:</span> <strong>{clientName}</strong></p>
+                  {wo?.total && <p><span className="text-muted-foreground">Valor:</span> <strong>{fmt(Number(wo.total))}</strong></p>}
+                  {wo?.description && <p><span className="text-muted-foreground">Descrição:</span> {wo.description}</p>}
+                  {wo?.employees?.name && <p><span className="text-muted-foreground">Responsável:</span> {wo.employees.name}</p>}
+                  <p><span className="text-muted-foreground">Status:</span> {selectedItem.status}</p>
+                  <p><span className="text-muted-foreground">Prioridade:</span> {selectedItem.priority === "urgente" ? "🔴 Urgente" : "Normal"}</p>
+                </div>
+
+                {wo?.items && wo.items.length > 0 && (
+                  <div className="text-xs space-y-0.5 bg-muted/40 rounded p-2">
+                    <p className="font-medium text-muted-foreground text-sm">Serviços:</p>
+                    {wo.items.map((svc: any, idx: number) => (
+                      <p key={idx} className="text-muted-foreground">• {svc.description} — {Number(svc.quantity)} un</p>
+                    ))}
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-sm font-medium mb-1">Observações</p>
+                  <Textarea
+                    value={notesText}
+                    onChange={e => setNotesText(e.target.value)}
+                    placeholder="Ex: aguardando tinta, falta solda..."
+                    rows={3}
+                  />
+                </div>
+                <Button onClick={saveNotes} className="w-full">Salvar Observações</Button>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
