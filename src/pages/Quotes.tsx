@@ -203,6 +203,12 @@ const Quotes = () => {
       origem_venda: (quote as any).origem_venda || "",
       issue_date: (quote as any).issue_date || "",
     });
+    setEditPayment({
+      payment_type: (quote as any).payment_type || "a_vista",
+      down_payment: String((quote as any).down_payment || ""),
+      down_payment_date: (quote as any).down_payment_date || "",
+      payment_method: (quote as any).payment_method || "pix",
+    });
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
       quoteItems.length > 0
