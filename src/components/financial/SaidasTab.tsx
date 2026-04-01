@@ -187,6 +187,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
