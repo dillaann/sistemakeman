@@ -1066,6 +1066,7 @@ export type Database = {
           down_payment: number | null
           down_payment_date: string | null
           id: string
+          issue_date: string
           origem_venda: string | null
           payment_method: string | null
           payment_status: string | null
@@ -1087,6 +1088,7 @@ export type Database = {
           down_payment?: number | null
           down_payment_date?: string | null
           id?: string
+          issue_date?: string
           origem_venda?: string | null
           payment_method?: string | null
           payment_status?: string | null
@@ -1108,6 +1110,7 @@ export type Database = {
           down_payment?: number | null
           down_payment_date?: string | null
           id?: string
+          issue_date?: string
           origem_venda?: string | null
           payment_method?: string | null
           payment_status?: string | null
