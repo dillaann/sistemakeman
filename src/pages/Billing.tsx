@@ -111,16 +111,7 @@ const Billing = () => {
     });
   }, [approvedQuotes, transactions, workOrders]);
 
-  // Period filter
-  const periodRange = useMemo(() => {
-    const now = new Date();
-    switch (period) {
-      case "week": return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
-      case "month": return { start: startOfMonth(now), end: endOfMonth(now) };
-      case "quarter": return { start: startOfMonth(subMonths(now, 2)), end: endOfMonth(now) };
-      case "year": return { start: startOfYear(now), end: endOfYear(now) };
-    }
-  }, [period]);
+  const periodRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   const filtered = useMemo(() => {
     return enrichedQuotes.filter((o) => {
