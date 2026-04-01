@@ -965,7 +965,7 @@ const Purchases = () => {
         onSave={async (data: any) => {
           const { items, linked_wo_id } = data;
           for (const item of items) {
-            const { error } = await supabase.from("purchases").insert(item);
+            const { data: newPurchase, error } = await supabase.from("purchases").insert(item).select().single();
             if (error) {
               toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
               return;
@@ -983,7 +983,8 @@ const Purchases = () => {
               status: (item.payment_status === "pago" ? "pago" : "pendente") as any,
               client_id: item.client_id || null,
               work_order_id: item.work_order_id || null,
-            });
+              purchase_id: newPurchase.id,
+            } as any);
             // Update work order material status if linked
             if (item.work_order_id) {
               await supabase.from("work_orders")
