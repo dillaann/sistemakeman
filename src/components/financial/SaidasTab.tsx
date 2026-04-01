@@ -82,7 +82,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, statusFilter, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
