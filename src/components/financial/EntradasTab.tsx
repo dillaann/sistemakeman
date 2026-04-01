@@ -82,10 +82,19 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     return desc;
   };
 
+  const getEffectiveStatus = (t: { status: string; due_date: string }) => {
+    if (t.status === "pendente" && t.due_date < localDateString()) return "atrasado";
+    return t.status;
+  };
+
   const filtered = useMemo(() => {
+    const today = localDateString();
     let list = transactions.filter(t => {
       if (dateRange && !isInRange(t.paid_date || t.due_date, dateRange)) return false;
-      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      const effective = getEffectiveStatus(t);
+      if (statusFilter === "atrasado") {
+        if (effective !== "atrasado") return false;
+      } else if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (dateFrom && t.due_date < dateFrom) return false;
       if (dateTo && t.due_date > dateTo) return false;
