@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare } from "lucide-react";
+import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Minimize2, Maximize2 } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const columns = [
   { key: "Fila de Produção", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30" },
@@ -26,14 +27,89 @@ const nextColumnMap: Record<string, string[]> = {
   "Finalizado": ["Entregue"],
 };
 
+const STORAGE_KEY = "production-collapsed-columns";
+
+function loadCollapsedState(): Record<string, boolean> {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+}
+
+function saveCollapsedState(state: Record<string, boolean>) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
+
+const EXPANDED_CARDS_KEY = "production-expanded-cards";
+
+function loadExpandedCards(): Set<string> {
+  try {
+    const saved = localStorage.getItem(EXPANDED_CARDS_KEY);
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  } catch { return new Set(); }
+}
+
+function saveExpandedCards(cards: Set<string>) {
+  try { localStorage.setItem(EXPANDED_CARDS_KEY, JSON.stringify([...cards])); } catch {}
+}
+
 const Production = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [notesText, setNotesText] = useState("");
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
+
+  // Column-level collapse (minimize all cards in column)
+  const [collapsedCols, setCollapsedCols] = useState<Record<string, boolean>>(() => {
+    const saved = loadCollapsedState();
+    // On mobile, default to collapsed
+    if (window.innerWidth < 768) {
+      const defaults: Record<string, boolean> = {};
+      columns.forEach(c => { defaults[c.key] = true; });
+      return { ...defaults, ...saved };
+    }
+    return saved;
+  });
+
+  // Individual card expansion (overrides column collapse)
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(() => loadExpandedCards());
+
+  const toggleColumn = useCallback((colKey: string) => {
+    setCollapsedCols(prev => {
+      const next = { ...prev, [colKey]: !prev[colKey] };
+      saveCollapsedState(next);
+      return next;
+    });
+    // Reset individual card overrides for this column
+    setExpandedCards(prev => {
+      const next = new Set(prev);
+      // Clear overrides when toggling column
+      productionItems
+        .filter((p: any) => p.status === colKey)
+        .forEach((p: any) => next.delete(p.id));
+      saveExpandedCards(next);
+      return next;
+    });
+  }, []);
+
+  const toggleCard = useCallback((cardId: string) => {
+    setExpandedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      saveExpandedCards(next);
+      return next;
+    });
+  }, []);
+
+  const isCardExpanded = useCallback((cardId: string, colKey: string) => {
+    if (expandedCards.has(cardId)) return true;
+    return !collapsedCols[colKey];
+  }, [expandedCards, collapsedCols]);
 
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
@@ -86,7 +162,6 @@ const Production = () => {
         }
       }
 
-      // Fetch work_order_items for all OS
       const { data: woItems } = await supabase
         .from("work_order_items" as any)
         .select("work_order_id, description, quantity")
@@ -151,7 +226,6 @@ const Production = () => {
   });
 
   const moveToStatus = (id: string, status: string) => {
-    // Also sync the work_order status
     const item = productionItems.find((p: any) => p.id === id);
     if (item) {
       let woStatus: "aguardando" | "em_producao" | "concluido" | "entregue" = "aguardando";
@@ -185,6 +259,8 @@ const Production = () => {
     });
   };
 
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -198,25 +274,67 @@ const Production = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {columns.map(col => {
             const colItems = getColumnItems(col.key);
+            const isColCollapsed = !!collapsedCols[col.key];
             return (
               <div key={col.key} className="space-y-3">
                 <div className={`rounded-lg border p-3 ${col.color}`}>
                   <h3 className="font-semibold text-sm flex items-center justify-between">
-                    {col.label}
-                    <Badge variant="secondary">{colItems.length}</Badge>
+                    <span className="flex items-center gap-2">
+                      {col.label}
+                      <Badge variant="secondary">{colItems.length}</Badge>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => toggleColumn(col.key)}
+                      title={isColCollapsed ? "Expandir tudo" : "Minimizar tudo"}
+                    >
+                      {isColCollapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+                    </Button>
                   </h3>
                 </div>
 
-                <div className="space-y-2 min-h-[200px]">
+                <div className="space-y-2 min-h-[100px]">
                   {colItems.map((item: any) => {
                     const wo = item.work_orders;
+                    const expanded = isCardExpanded(item.id, col.key);
+                    const clientName = wo?.clients?.name || "Cliente não encontrado";
+
                     return (
-                      <Card key={item.id} className={`border ${item.priority === "urgente" ? "border-destructive/50 bg-destructive/5" : ""}`}>
-                        <CardContent className="p-3 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground font-mono">
-                              OS #{item.os_id?.slice(0, 8)}
-                            </span>
+                      <Card
+                        key={item.id}
+                        className={`border transition-all duration-200 ${item.priority === "urgente" ? "border-destructive/50 bg-destructive/5" : ""}`}
+                      >
+                        <CardContent className="p-3 space-y-1">
+                          {/* Always visible: OS number, client, value */}
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="text-xs text-muted-foreground font-mono shrink-0">
+                                OS #{item.os_id?.slice(0, 8)}
+                              </span>
+                              <span className="text-sm font-medium truncate">
+                                {expanded ? clientName : clientName.slice(0, 15) + (clientName.length > 15 ? "…" : "")}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {wo?.total && (
+                                <span className="text-xs font-semibold text-primary">{fmt(Number(wo.total))}</span>
+                              )}
+                              <button
+                                onClick={() => toggleCard(item.id)}
+                                className="p-0.5 rounded hover:bg-muted transition-colors"
+                              >
+                                {expanded
+                                  ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                                  : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                }
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Priority badge - always visible */}
+                          <div className="flex items-center gap-1">
                             <button onClick={() => togglePriority(item)} className="text-xs" title="Alternar prioridade">
                               {item.priority === "urgente" ? (
                                 <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
@@ -228,65 +346,95 @@ const Production = () => {
                             </button>
                           </div>
 
-                          <p className="font-medium text-sm">{wo?.clients?.name || "Cliente não encontrado"}</p>
-                          <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description || "Sem descrição"}</p>
+                          {/* Expanded content */}
+                          {expanded && (
+                            <div className="space-y-2 pt-1 animate-fade-in">
+                              <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description || "Sem descrição"}</p>
 
-                          {wo?.items && wo.items.length > 0 && (
-                            <div className="text-xs space-y-0.5 bg-muted/40 rounded p-1.5">
-                              <p className="font-medium text-muted-foreground">Serviços:</p>
-                              {wo.items.map((item: any, idx: number) => (
-                                <p key={idx} className="text-muted-foreground">• {item.description} — {Number(item.quantity)} un</p>
-                              ))}
+                              {wo?.items && wo.items.length > 0 && (
+                                <div className="text-xs space-y-0.5 bg-muted/40 rounded p-1.5">
+                                  <p className="font-medium text-muted-foreground">Serviços:</p>
+                                  {wo.items.map((svc: any, idx: number) => (
+                                    <p key={idx} className="text-muted-foreground">• {svc.description} — {Number(svc.quantity)} un</p>
+                                  ))}
+                                </div>
+                              )}
+
+                              {wo?.employees?.name && (
+                                <p className="text-xs text-muted-foreground">👤 {wo.employees.name}</p>
+                              )}
+
+                              {item.observacoes && (
+                                <p className="text-xs italic text-muted-foreground bg-muted/50 rounded p-1.5">
+                                  📝 {item.observacoes}
+                                </p>
+                              )}
+
+                              <WorkOrderMaterials
+                                workOrderId={item.os_id}
+                                materialStatus={wo?.material_status || "nao_solicitado"}
+                              />
+
+                              <div className="flex items-center gap-1 pt-1">
+                                <Button
+                                  size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                                  onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
+                                >
+                                  <MessageSquare className="h-3 w-3 mr-1" /> Notas
+                                </Button>
+
+                                {col.key !== "Finalizado" && (
+                                  <Select onValueChange={(status) => moveToStatus(item.id, status)}>
+                                    <SelectTrigger className="h-7 text-xs flex-1">
+                                      <SelectValue placeholder="Mover →" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(nextColumnMap[col.key] || []).map(s => (
+                                        <SelectItem key={s} value={s}>
+                                          {s}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+
+                                {col.key === "Finalizado" && (
+                                  <Button
+                                    size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
+                                    onClick={() => moveToStatus(item.id, "Entregue")}
+                                  >
+                                    <ArrowRight className="h-3 w-3 mr-1" /> Entregar
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           )}
 
-                          {wo?.employees?.name && (
-                            <p className="text-xs text-muted-foreground">👤 {wo.employees.name}</p>
+                          {/* Minimized: quick action buttons */}
+                          {!expanded && (
+                            <div className="flex items-center gap-1 pt-0.5">
+                              {col.key !== "Finalizado" && (
+                                <Select onValueChange={(status) => moveToStatus(item.id, status)}>
+                                  <SelectTrigger className="h-6 text-[10px] flex-1">
+                                    <SelectValue placeholder="Mover →" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(nextColumnMap[col.key] || []).map(s => (
+                                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              {col.key === "Finalizado" && (
+                                <Button
+                                  size="sm" variant="outline" className="h-6 px-2 text-[10px] flex-1"
+                                  onClick={() => moveToStatus(item.id, "Entregue")}
+                                >
+                                  Entregar
+                                </Button>
+                              )}
+                            </div>
                           )}
-
-                          {item.observacoes && (
-                            <p className="text-xs italic text-muted-foreground bg-muted/50 rounded p-1.5">
-                              📝 {item.observacoes}
-                            </p>
-                          )}
-
-                          <WorkOrderMaterials
-                            workOrderId={item.os_id}
-                            materialStatus={wo?.material_status || "nao_solicitado"}
-                          />
-
-                          <div className="flex items-center gap-1 pt-1">
-                            <Button
-                              size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                              onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
-                            >
-                              <MessageSquare className="h-3 w-3 mr-1" /> Notas
-                            </Button>
-
-                            {col.key !== "Finalizado" && (
-                              <Select onValueChange={(status) => moveToStatus(item.id, status)}>
-                                <SelectTrigger className="h-7 text-xs flex-1">
-                                  <SelectValue placeholder="Mover →" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {(nextColumnMap[col.key] || []).map(s => (
-                                    <SelectItem key={s} value={s}>
-                                      {s}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-
-                            {col.key === "Finalizado" && (
-                              <Button
-                                size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
-                                onClick={() => moveToStatus(item.id, "Entregue")}
-                              >
-                                <ArrowRight className="h-3 w-3 mr-1" /> Entregar
-                              </Button>
-                            )}
-                          </div>
                         </CardContent>
                       </Card>
                     );
