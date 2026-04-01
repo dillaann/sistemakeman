@@ -266,6 +266,15 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
             <SelectItem value="recebido_total">Recebidos</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant={showAllPending ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowAllPending(!showAllPending)}
+          className="flex items-center gap-1"
+        >
+          <Eye className="h-4 w-4" />
+          {showAllPending ? "Filtrar por mês" : "Ver todos pendentes"}
+        </Button>
       </div>
 
       {/* Table */}
