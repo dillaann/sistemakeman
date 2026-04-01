@@ -149,6 +149,15 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
   const filtered = useMemo(() => {
     let list = [...grouped];
 
+    // Apply date range filter (fixed in due_date month) unless showing all pending
+    if (dateRange && !showAllPending) {
+      list = list.filter(g => isInRange(g.dueDate, dateRange));
+    }
+    // When showAllPending, only show open items
+    if (showAllPending) {
+      list = list.filter(g => g.status !== "recebido_total");
+    }
+
     if (statusFilter !== "all") {
       list = list.filter(g => g.status === statusFilter);
     }
@@ -165,7 +174,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       return sortAsc ? a.dueDate.localeCompare(b.dueDate) : b.dueDate.localeCompare(a.dueDate);
     });
     return list;
-  }, [grouped, statusFilter, search, sortField, sortAsc, clients]);
+  }, [grouped, statusFilter, search, sortField, sortAsc, clients, dateRange, showAllPending]);
 
   // Summary: only count open items, sum only REMAINING balances
   const openItems = grouped.filter(g => g.status !== "recebido_total");
