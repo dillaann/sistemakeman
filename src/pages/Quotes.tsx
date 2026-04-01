@@ -162,6 +162,7 @@ const Quotes = () => {
         seller_id: effectiveSellerId || null,
         delivery_deadline: form.delivery_deadline || null,
         origem_venda: form.origem_venda,
+        issue_date: form.issue_date || localDateString(),
       } as any).select().single();
       if (error) throw error;
 
