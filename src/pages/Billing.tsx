@@ -239,48 +239,48 @@ const Billing = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Faturado</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+            <CardTitle className="text-xs font-medium whitespace-nowrap">Total Faturado</CardTitle>
+            <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{fmt(totalBilled)}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold whitespace-nowrap">{fmt(totalBilled)}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+            <CardTitle className="text-xs font-medium whitespace-nowrap">Total Recebido</CardTitle>
+            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-green-600">{fmt(totalReceived)}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold text-green-600 whitespace-nowrap">{fmt(totalReceived)}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Em Aberto</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+            <CardTitle className="text-xs font-medium whitespace-nowrap">Em Aberto</CardTitle>
+            <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-yellow-600">{fmt(totalOpen)}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold text-yellow-600 whitespace-nowrap">{fmt(totalOpen)}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Qtd. OSs</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+            <CardTitle className="text-xs font-medium whitespace-nowrap">Qtd. OSs</CardTitle>
+            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{count}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold">{count}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Maior</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+            <CardTitle className="text-xs font-medium whitespace-nowrap">Maior</CardTitle>
+            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{fmt(maxBilling)}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold whitespace-nowrap">{fmt(maxBilling)}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+            <CardTitle className="text-xs font-medium whitespace-nowrap">Ticket Médio</CardTitle>
+            <TrendingDown className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{fmt(ticketMedio)}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold whitespace-nowrap">{fmt(ticketMedio)}</div></CardContent>
         </Card>
       </div>
 
