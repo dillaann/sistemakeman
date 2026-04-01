@@ -1,4 +1,4 @@
-import { addDaysToLocalDateString, localDateString } from "@/lib/utils";
+import { addDaysToLocalDateString, localDateString, formatDateBR } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
