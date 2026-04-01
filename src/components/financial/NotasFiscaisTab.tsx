@@ -438,9 +438,6 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget)}
         title="Excluir Nota Fiscal"
         description="Tem certeza que deseja excluir esta nota fiscal? Esta ação não pode ser desfeita."
-        requireReason
-        reason={deleteReason}
-        onReasonChange={setDeleteReason}
       />
     </div>
   );
