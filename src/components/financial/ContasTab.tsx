@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Wallet, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ExtratoDialog from "./ExtratoDialog";
+import FinancialReportDialog from "./FinancialReportDialog";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
