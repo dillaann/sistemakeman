@@ -212,6 +212,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
