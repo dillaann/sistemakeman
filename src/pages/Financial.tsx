@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
 import MovimentacaoTab from "@/components/financial/MovimentacaoTab";
 import ContasTab from "@/components/financial/ContasTab";
 import MovimentacoesTab from "@/components/financial/MovimentacoesTab";
+import NotasFiscaisTab from "@/components/financial/NotasFiscaisTab";
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Financial = () => {
