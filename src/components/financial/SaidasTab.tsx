@@ -231,10 +231,8 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
-                <TableCell><Badge className={statusColors[t.status]}>{statusLabels[t.status] ?? t.status}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    {t.status === "pendente" && <Button size="sm" variant="outline" onClick={() => markPaid.mutate(t.id)}>Pagar</Button>}
                     <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
                     {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
