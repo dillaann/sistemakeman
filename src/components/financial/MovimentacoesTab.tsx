@@ -269,6 +269,7 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
