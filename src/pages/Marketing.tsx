@@ -1,3 +1,4 @@
+import { formatDateBR, localDateString } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -197,9 +198,10 @@ const Marketing = () => {
   // Calculations
   // Campaign overlaps the selected period if its date range intersects
   const monthCampaigns = campaigns.filter((c: any) => {
-    const cStart = new Date(c.start_date + "T00:00:00");
-    const cEnd = c.end_date ? new Date(c.end_date + "T00:00:00") : cStart;
-    const rangeStart = dateRange.start; const rangeEnd = dateRange.end;
+    const rangeStart = localDateString(dateRange.start);
+    const rangeEnd = localDateString(dateRange.end);
+    const cStart = c.start_date;
+    const cEnd = c.end_date || c.start_date;
     return cStart <= rangeEnd && cEnd >= rangeStart;
   });
   const totalInvestedMonth = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
@@ -221,7 +223,12 @@ const Marketing = () => {
   const roiEvolution = Array.from({ length: 6 }, (_, i) => {
     const n = new Date(); const d = new Date(n.getFullYear(), n.getMonth() - (5 - i), 1);
     const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    const mCampaigns = campaigns.filter((c: any) => { const cd = new Date(c.start_date); return cd >= d && cd <= mEnd; });
+    const rangeStart = localDateString(d);
+    const rangeEnd = localDateString(mEnd);
+    const mCampaigns = campaigns.filter((c: any) => {
+      const campaignEnd = c.end_date || c.start_date;
+      return c.start_date <= rangeEnd && campaignEnd >= rangeStart;
+    });
     const mSales = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; });
     const inv = mCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
     const rev = mSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
@@ -424,8 +431,8 @@ const Marketing = () => {
                         <TableCell className="font-medium">{c.name}</TableCell>
                         <TableCell><Badge variant="outline">{platformLabel(c.platform)}</Badge></TableCell>
                         <TableCell className="text-sm">
-                          {new Date(c.start_date).toLocaleDateString("pt-BR")}
-                          {c.end_date && ` — ${new Date(c.end_date).toLocaleDateString("pt-BR")}`}
+                          {formatDateBR(c.start_date)}
+                          {c.end_date && ` — ${formatDateBR(c.end_date)}`}
                         </TableCell>
                         <TableCell>{fmt(Number(c.amount_invested))}</TableCell>
                         <TableCell>{c.leads_generated || 0}</TableCell>
@@ -558,7 +565,12 @@ const Marketing = () => {
                 <LineChart data={roiEvolution.map((item, i) => {
                   const n = new Date(); const d = new Date(n.getFullYear(), n.getMonth() - (5 - i), 1);
                   const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-                  const inv = campaigns.filter((c: any) => { const cd = new Date(c.start_date); return cd >= d && cd <= mEnd; }).reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
+                  const rangeStart = localDateString(d);
+                  const rangeEnd = localDateString(mEnd);
+                  const inv = campaigns.filter((c: any) => {
+                    const campaignEnd = c.end_date || c.start_date;
+                    return c.start_date <= rangeEnd && campaignEnd >= rangeStart;
+                  }).reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
                   const rev = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; }).reduce((s: number, sale: any) => s + Number(sale.amount), 0);
                   return { ...item, investido: inv, retorno: rev };
                 })}>

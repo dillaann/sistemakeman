@@ -1,4 +1,4 @@
-import { localDateString } from "@/lib/utils";
+import { addDaysToLocalDateString, localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -293,7 +293,7 @@ const Quotes = () => {
                 type: "a_receber" as any,
                 description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
                 amount: newRemaining,
-                due_date: localDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+                due_date: addDaysToLocalDateString(30),
                 status: "pendente" as any,
                 category: "Faturamento",
                 work_order_id: wo.id,
@@ -445,7 +445,7 @@ const Quotes = () => {
             type: "a_receber" as any,
             description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
             amount: pendingAmount,
-            due_date: localDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+            due_date: addDaysToLocalDateString(30),
             status: "pendente" as any,
             category: "Faturamento",
             work_order_id: wo.id,

@@ -1,3 +1,4 @@
+import { parseLocalDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -34,7 +35,8 @@ export function getDateRange(refDate: Date, mode: PeriodMode): { start: Date; en
 
 export function isInRange(dateStr: string | null | undefined, range: { start: Date; end: Date }): boolean {
   if (!dateStr) return false;
-  const d = new Date(dateStr);
+  const d = parseLocalDate(dateStr);
+  if (!d) return false;
   return d >= range.start && d <= range.end;
 }
 

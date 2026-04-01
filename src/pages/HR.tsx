@@ -1,4 +1,4 @@
-import { localDateString } from "@/lib/utils";
+import { formatDateBR, localDateString, parseLocalDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -149,8 +149,7 @@ const HR = () => {
     mutationFn: async (employeeId: string) => {
       const emp = employees.find(e => e.id === employeeId);
       const salary = Number(emp?.salary) || 0;
-      const hireDate = emp?.hire_date ? new Date(emp.hire_date + "T12:00:00") : null;
-      const yearStart = new Date(selectedYear, 0, 1);
+      const hireDate = parseLocalDate(emp?.hire_date);
       const now = new Date();
       let monthsWorked = 12;
       if (hireDate && hireDate.getFullYear() === selectedYear) {
@@ -239,9 +238,13 @@ const HR = () => {
     const today = new Date();
     return employees.map(emp => {
       if (!emp.hire_date) return null;
-      const hire = new Date(emp.hire_date + "T12:00:00");
+      const hire = parseLocalDate(emp.hire_date);
+      if (!hire) return null;
       const empVacs = vacations.filter(v => v.employee_id === emp.id);
-      const lastVacEnd = empVacs.length > 0 ? new Date(Math.max(...empVacs.map(v => new Date(v.end_date + "T12:00:00").getTime()))) : hire;
+      const vacationEndDates = empVacs
+        .map(v => parseLocalDate(v.end_date))
+        .filter((date): date is Date => date !== null);
+      const lastVacEnd = vacationEndDates.length > 0 ? new Date(Math.max(...vacationEndDates.map(date => date.getTime()))) : hire;
       const daysSinceLast = daysBetween(lastVacEnd, today);
       const daysUntilDue = 365 - daysSinceLast;
       if (daysSinceLast >= 365) return { emp, status: "vencida" as const, days: daysSinceLast - 365 };
@@ -340,7 +343,7 @@ const HR = () => {
                 </form></DialogContent></Dialog>
           </div>
           <Card><CardHeader><CardTitle className="text-base">Salários e Valores Fixos</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário Base</TableHead><TableHead>Vlr Sábado</TableHead><TableHead>Vlr H.Extra</TableHead><TableHead className="hidden md:table-cell">Obs. Pagamento</TableHead></TableRow></TableHeader><TableBody>{employees.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{e.name}</TableCell><TableCell>{e.salary ? fmt(Number(e.salary)) : "-"}</TableCell><TableCell>{fmt(Number((e as any).saturday_value) || 0)}</TableCell><TableCell>{fmt(Number((e as any).overtime_hourly_rate) || 0)}/h</TableCell><TableCell className="hidden md:table-cell text-xs">{(e as any).payment_notes || "-"}</TableCell></TableRow>))}{employees.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead></TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{new Date(a.date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell></TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead></TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell></TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </TabsContent>
 
         {/* ── Horas Extras ── */}
@@ -357,7 +360,7 @@ const HR = () => {
                   <Button type="submit" className="w-full" disabled={otMutation.isPending}>Salvar</Button>
                 </form></DialogContent></Dialog>
           </div>
-          <Card><CardHeader><CardTitle className="text-base">Horas Extras - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>%</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead></TableRow></TableHeader><TableBody>{overtime.map(o => (<TableRow key={o.id}><TableCell className="font-medium">{(o.employees as any)?.name}</TableCell><TableCell>{o.hours}h</TableCell><TableCell><Badge variant="secondary">{o.percentage}%</Badge></TableCell><TableCell>{fmt(Number(o.calculated_value))}</TableCell><TableCell>{new Date(o.date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell></TableRow>))}{overtime.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma hora extra.</TableCell></TableRow>}</TableBody></Table>{overtime.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalOvertime)} ({overtime.reduce((s, o) => s + Number(o.hours), 0)}h)</div>}</CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Horas Extras - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>%</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead></TableRow></TableHeader><TableBody>{overtime.map(o => (<TableRow key={o.id}><TableCell className="font-medium">{(o.employees as any)?.name}</TableCell><TableCell>{o.hours}h</TableCell><TableCell><Badge variant="secondary">{o.percentage}%</Badge></TableCell><TableCell>{fmt(Number(o.calculated_value))}</TableCell><TableCell>{formatDateBR(o.date)}</TableCell></TableRow>))}{overtime.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma hora extra.</TableCell></TableRow>}</TableBody></Table>{overtime.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalOvertime)} ({overtime.reduce((s, o) => s + Number(o.hours), 0)}h)</div>}</CardContent></Card>
         </TabsContent>
 
         {/* ── Sábados ── */}
@@ -374,7 +377,7 @@ const HR = () => {
                   <Button type="submit" className="w-full" disabled={satMutation.isPending}>Salvar</Button>
                 </form></DialogContent></Dialog>
           </div>
-          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead></TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}h</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{new Date(s.date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell></TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)}h)</div>}</CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead></TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}h</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell></TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)}h)</div>}</CardContent></Card>
         </TabsContent>
 
         {/* ── Gastos ── */}
@@ -390,7 +393,7 @@ const HR = () => {
                   <Button type="submit" className="w-full" disabled={expMutation.isPending}>Salvar</Button>
                 </form></DialogContent></Dialog>
           </div>
-          <Card><CardHeader><CardTitle className="text-base">Gastos - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Categoria</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead></TableRow></TableHeader><TableBody>{expenses.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{(e.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{e.category}</Badge></TableCell><TableCell>{fmt(Number(e.amount))}</TableCell><TableCell>{new Date(e.date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell><TableCell className="hidden md:table-cell">{e.description || "-"}</TableCell></TableRow>))}{expenses.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum gasto.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Gastos - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Categoria</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead></TableRow></TableHeader><TableBody>{expenses.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{(e.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{e.category}</Badge></TableCell><TableCell>{fmt(Number(e.amount))}</TableCell><TableCell>{formatDateBR(e.date)}</TableCell><TableCell className="hidden md:table-cell">{e.description || "-"}</TableCell></TableRow>))}{expenses.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum gasto.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </TabsContent>
 
         {/* ── Férias ── */}
@@ -417,8 +420,8 @@ const HR = () => {
                   {employees.map(emp => {
                     const empVacs = vacations.filter(v => v.employee_id === emp.id);
                     const lastVac = empVacs.length > 0 ? empVacs[0] : null;
-                    const hireDate = emp.hire_date ? new Date(emp.hire_date + "T12:00:00") : null;
-                    const refDate = lastVac ? new Date(lastVac.end_date + "T12:00:00") : hireDate;
+                    const hireDate = parseLocalDate(emp.hire_date);
+                    const refDate = lastVac ? parseLocalDate(lastVac.end_date) : hireDate;
                     const daysSince = refDate ? daysBetween(refDate, new Date()) : 0;
                     const daysUntil = 365 - daysSince;
                     let statusBadge;
@@ -429,8 +432,8 @@ const HR = () => {
                     return (
                       <TableRow key={emp.id}>
                         <TableCell className="font-medium">{emp.name}</TableCell>
-                        <TableCell>{hireDate ? hireDate.toLocaleDateString("pt-BR") : "-"}</TableCell>
-                        <TableCell>{lastVac ? `${new Date(lastVac.start_date + "T12:00:00").toLocaleDateString("pt-BR")} (${lastVac.days}d)` : "Nunca"}</TableCell>
+                        <TableCell>{formatDateBR(hireDate)}</TableCell>
+                        <TableCell>{lastVac ? `${formatDateBR(lastVac.start_date)} (${lastVac.days}d)` : "Nunca"}</TableCell>
                         <TableCell>{statusBadge}</TableCell>
                       </TableRow>
                     );
@@ -449,7 +452,7 @@ const HR = () => {
                   {vacations.map(v => (
                     <TableRow key={v.id}>
                       <TableCell className="font-medium">{(v.employees as any)?.name}</TableCell>
-                      <TableCell>{new Date(v.start_date + "T12:00:00").toLocaleDateString("pt-BR")} - {new Date(v.end_date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell>{formatDateBR(v.start_date)} - {formatDateBR(v.end_date)}</TableCell>
                       <TableCell>{v.days}d</TableCell>
                       <TableCell>{fmt(Number(v.vacation_value))}</TableCell>
                       <TableCell>{fmt(Number(v.constitutional_third))}</TableCell>

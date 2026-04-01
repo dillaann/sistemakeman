@@ -1,3 +1,4 @@
+import { formatDateBR } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -155,7 +156,7 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
                 const isCredit = r.type === "entrada" || r.type === "transferencia_entrada";
                 return (
                   <TableRow key={r.id}>
-                    <TableCell>{new Date(r.date).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell>{formatDateBR(r.date)}</TableCell>
                     <TableCell className="max-w-[250px] truncate">{r.description}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={isCredit ? "text-green-700 border-green-500/30" : "text-red-700 border-red-500/30"}>

@@ -1,3 +1,4 @@
+import { localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,11 +96,13 @@ const Dashboard = () => {
   }, [allPurchases, dateRange]);
 
   const marketingSummary = useMemo(() => {
-    // A campaign overlaps the selected period if it starts before the period ends AND ends after the period starts
+    const rangeStart = localDateString(dateRange.start);
+    const rangeEnd = localDateString(dateRange.end);
+
     const filteredCamps = allCampaigns.filter(c => {
-      const campStart = new Date(c.start_date);
-      const campEnd = c.end_date ? new Date(c.end_date) : campStart;
-      return campStart <= dateRange.end && campEnd >= dateRange.start;
+      const campStart = c.start_date;
+      const campEnd = c.end_date || c.start_date;
+      return campStart <= rangeEnd && campEnd >= rangeStart;
     });
     const totalInvested = filteredCamps.reduce((s, c) => s + Number(c.amount_invested), 0);
     const filteredSales = allSales.filter(s => (s as any).origem_venda === "marketing" && isInRange(s.created_at, dateRange));

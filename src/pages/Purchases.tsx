@@ -1,4 +1,4 @@
-import { localDateString } from "@/lib/utils";
+import { formatDateBR, localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -768,7 +768,7 @@ const Purchases = () => {
                     <TableCell className="hidden md:table-cell text-xs">{getClientLabel(p)}</TableCell>
                     <TableCell className="hidden md:table-cell">{p.quantity} {p.unit}</TableCell>
                     <TableCell>{fmt(Number(p.total))}</TableCell>
-                    <TableCell className="hidden md:table-cell">{new Date(p.purchase_date).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatDateBR(p.purchase_date)}</TableCell>
                     <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
