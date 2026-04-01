@@ -799,7 +799,7 @@ const Quotes = () => {
               )}
               <div className="flex gap-1 flex-wrap">
                 <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(q)}><FileDown className="h-4 w-4 mr-1" />PDF</Button>
-                {userRole === "admin" && (
+                {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                   <Button variant="ghost" size="sm" onClick={() => openEditDialog(q)}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
                 )}
                 {q.status === "pendente" && userRole === "admin" && (
@@ -867,7 +867,7 @@ const Quotes = () => {
                       <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {userRole === "admin" && (
+                      {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(q)} title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -919,14 +919,16 @@ const Quotes = () => {
               </Select>
             </div>
 
-            <div><Label>Vendedor Responsável</Label>
-              <Select value={editForm.seller_id} onValueChange={v => setEditForm({ ...editForm, seller_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
-                <SelectContent>
-                  {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {userRole === "admin" && (
+              <div><Label>Vendedor Responsável</Label>
+                <Select value={editForm.seller_id} onValueChange={v => setEditForm({ ...editForm, seller_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div><Label>Origem da Venda *</Label>
               <Select value={editForm.origem_venda} onValueChange={v => setEditForm({ ...editForm, origem_venda: v })}>
