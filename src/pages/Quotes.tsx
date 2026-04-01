@@ -919,14 +919,16 @@ const Quotes = () => {
               </Select>
             </div>
 
-            <div><Label>Vendedor Responsável</Label>
-              <Select value={editForm.seller_id} onValueChange={v => setEditForm({ ...editForm, seller_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
-                <SelectContent>
-                  {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {userRole === "admin" && (
+              <div><Label>Vendedor Responsável</Label>
+                <Select value={editForm.seller_id} onValueChange={v => setEditForm({ ...editForm, seller_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div><Label>Origem da Venda *</Label>
               <Select value={editForm.origem_venda} onValueChange={v => setEditForm({ ...editForm, origem_venda: v })}>
