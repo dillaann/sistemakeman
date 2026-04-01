@@ -42,7 +42,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   const [form, setForm] = useState({
     supplier_id: "",
     supplier_name: "",
-    purchase_date: new Date().toISOString().split("T")[0],
+    purchase_date: localDateString(),
     invoice_number: "",
     items: [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
     original_total: "",
@@ -61,7 +61,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setMissingFields([]);
     setForm({
       supplier_id: "", supplier_name: "",
-      purchase_date: new Date().toISOString().split("T")[0],
+      purchase_date: localDateString(),
       invoice_number: "",
       items: [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
       original_total: "", final_total: "",
@@ -145,7 +145,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       setForm({
         supplier_id: matchedSupplier?.id || "",
         supplier_name: data.supplier_name || "",
-        purchase_date: data.purchase_date || new Date().toISOString().split("T")[0],
+        purchase_date: data.purchase_date || localDateString(),
         invoice_number: data.invoice_number || "",
         items: data.items?.length > 0
           ? data.items.map((item: any) => ({

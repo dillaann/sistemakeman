@@ -86,7 +86,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         due_date: form.due_date,
         category: form.category || null,
         status: form.status as any,
-        paid_date: form.status === "pago" ? new Date().toISOString().split("T")[0] : null,
+        paid_date: form.status === "pago" ? localDateString() : null,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
@@ -108,7 +108,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const markPaid = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: new Date().toISOString().split("T")[0] }).eq("id", id);
+      const { error } = await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: localDateString() }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial-saidas"] }); qc.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Marcado como pago!" }); },

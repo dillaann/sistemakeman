@@ -69,31 +69,31 @@ const HR = () => {
 
   // ── Advance ──
   const [advOpen, setAdvOpen] = useState(false);
-  const [advForm, setAdvForm] = useState({ employee_id: "", amount: "", type: "adiantamento", description: "", date: new Date().toISOString().slice(0, 10) });
+  const [advForm, setAdvForm] = useState({ employee_id: "", amount: "", type: "adiantamento", description: "", date: localDateString() });
   const advMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("employee_advances").insert({ employee_id: advForm.employee_id, amount: parseFloat(advForm.amount), type: advForm.type, description: advForm.description || null, date: advForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-advances"] }); setAdvOpen(false); setAdvForm({ employee_id: "", amount: "", type: "adiantamento", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-advances"] }); setAdvOpen(false); setAdvForm({ employee_id: "", amount: "", type: "adiantamento", description: "", date: localDateString() }); toast({ title: "Registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   // ── Expense ──
   const [expOpen, setExpOpen] = useState(false);
-  const [expForm, setExpForm] = useState({ employee_id: "", amount: "", category: "EPI", description: "", date: new Date().toISOString().slice(0, 10) });
+  const [expForm, setExpForm] = useState({ employee_id: "", amount: "", category: "EPI", description: "", date: localDateString() });
   const expMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("employee_expenses").insert({ employee_id: expForm.employee_id, amount: parseFloat(expForm.amount), category: expForm.category, description: expForm.description || null, date: expForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-expenses"] }); setExpOpen(false); setExpForm({ employee_id: "", amount: "", category: "EPI", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Gasto registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-expenses"] }); setExpOpen(false); setExpForm({ employee_id: "", amount: "", category: "EPI", description: "", date: localDateString() }); toast({ title: "Gasto registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   // ── Overtime ──
   const [otOpen, setOtOpen] = useState(false);
-  const [otForm, setOtForm] = useState({ employee_id: "", hours: "", percentage: "50", description: "", date: new Date().toISOString().slice(0, 10) });
+  const [otForm, setOtForm] = useState({ employee_id: "", hours: "", percentage: "50", description: "", date: localDateString() });
   const otMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === otForm.employee_id);
@@ -103,13 +103,13 @@ const HR = () => {
       const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", percentage: "50", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Hora extra registrada!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", percentage: "50", description: "", date: localDateString() }); toast({ title: "Hora extra registrada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   // ── Saturday ──
   const [satOpen, setSatOpen] = useState(false);
-  const [satForm, setSatForm] = useState({ employee_id: "", hours: "", description: "", date: new Date().toISOString().slice(0, 10) });
+  const [satForm, setSatForm] = useState({ employee_id: "", hours: "", description: "", date: localDateString() });
   const satMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === satForm.employee_id);
@@ -117,7 +117,7 @@ const HR = () => {
       const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: parseFloat(satForm.hours), calculated_value: fixedSatValue > 0 ? fixedSatValue : Math.round(hourlyRate(Number(emp?.salary) || 0) * 1.5 * parseFloat(satForm.hours) * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: new Date().toISOString().slice(0, 10) }); toast({ title: "Sábado registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Sábado registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -174,8 +174,8 @@ const HR = () => {
   const payInstallmentMutation = useMutation({
     mutationFn: async ({ id, installment }: { id: string; installment: 1 | 2 }) => {
       const update = installment === 1
-        ? { first_installment_paid: true, first_installment_date: new Date().toISOString().slice(0, 10) }
-        : { second_installment_paid: true, second_installment_date: new Date().toISOString().slice(0, 10) };
+        ? { first_installment_paid: true, first_installment_date: localDateString() }
+        : { second_installment_paid: true, second_installment_date: localDateString() };
       const { error } = await supabase.from("thirteenth_salary").update(update).eq("id", id);
       if (error) throw error;
     },
@@ -205,7 +205,7 @@ const HR = () => {
     mutationFn: async (closingId: string) => {
       const closing = closings.find(c => c.id === closingId);
       if (!closing) throw new Error("Fechamento não encontrado");
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateString();
       const { error } = await supabase.from("monthly_closings").update({ paid: true, paid_date: today }).eq("id", closingId);
       if (error) throw error;
 

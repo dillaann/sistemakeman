@@ -514,7 +514,7 @@ const AdminSalesView = () => {
   const updateCommissionStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const updates: any = { status };
-      if (status === "paga") updates.paid_date = new Date().toISOString().split("T")[0];
+      if (status === "paga") updates.paid_date = localDateString();
       const { error } = await supabase.from("sales_commissions").update(updates).eq("id", id);
       if (error) throw error;
     },

@@ -26,7 +26,7 @@ const Billing = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [period, setPeriod] = useState<PeriodFilter>("month");
   const [payDialog, setPayDialog] = useState<string | null>(null);
-  const [payForm, setPayForm] = useState({ amount: "", method: "pix", date: new Date().toISOString().split("T")[0] });
+  const [payForm, setPayForm] = useState({ amount: "", method: "pix", date: localDateString() });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Fetch approved quotes with client info (primary billing source)
@@ -208,7 +208,7 @@ const Billing = () => {
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setPayDialog(null);
-      setPayForm({ amount: "", method: "pix", date: new Date().toISOString().split("T")[0] });
+      setPayForm({ amount: "", method: "pix", date: localDateString() });
       toast({ title: "Recebimento registrado!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -231,7 +231,7 @@ const Billing = () => {
 
   const openPayDialog = (quoteId: string) => {
     const q = enrichedQuotes.find((o) => o.id === quoteId);
-    setPayForm({ amount: String(q?.remaining ?? 0), method: "pix", date: new Date().toISOString().split("T")[0] });
+    setPayForm({ amount: String(q?.remaining ?? 0), method: "pix", date: localDateString() });
     setPayDialog(quoteId);
   };
 

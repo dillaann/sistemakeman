@@ -52,7 +52,7 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
     account_id: "",
     dest_account_id: "",
     amount: "",
-    date: new Date().toISOString().split("T")[0],
+    date: localDateString(),
     category: "Outros",
     description: "",
     notes: "",
@@ -149,7 +149,7 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
       qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
       setOpen(false);
-      setForm({ account_id: "", dest_account_id: "", amount: "", date: new Date().toISOString().split("T")[0], category: "Outros", description: "", notes: "" });
+      setForm({ account_id: "", dest_account_id: "", amount: "", date: localDateString(), category: "Outros", description: "", notes: "" });
       toast({ title: "Movimentação registrada!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -190,7 +190,7 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold text-lg">Movimentações</h3>
-        <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setForm({ account_id: "", dest_account_id: "", amount: "", date: new Date().toISOString().split("T")[0], category: "Outros", description: "", notes: "" }); }}>
+        <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setForm({ account_id: "", dest_account_id: "", amount: "", date: localDateString(), category: "Outros", description: "", notes: "" }); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Nova Movimentação</Button>
           </DialogTrigger>
