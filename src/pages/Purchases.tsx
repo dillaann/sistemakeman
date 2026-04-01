@@ -236,7 +236,7 @@ const Purchases = () => {
         }
       } else {
         // INSERT new purchase
-        const { error } = await supabase.from("purchases").insert(payload).select().single();
+        const { data: newPurchase, error } = await supabase.from("purchases").insert(payload).select().single();
         if (error) throw error;
 
         if (pForm.work_order_id) {
@@ -260,7 +260,8 @@ const Purchases = () => {
           status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
           client_id: pForm.client_id || null,
           work_order_id: pForm.work_order_id || null,
-        });
+          purchase_id: newPurchase.id,
+        } as any);
       }
     },
     onSuccess: () => {
