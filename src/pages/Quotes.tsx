@@ -588,7 +588,7 @@ const Quotes = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const handleGeneratePDF = (quote: any) => {
+  const handleGeneratePDF = async (quote: any) => {
     const client = quote.clients as any;
     const quoteItems = (quote.quote_items ?? []) as any[];
     const createdAt = new Date(quote.created_at);
@@ -598,7 +598,7 @@ const Quotes = () => {
       ? quoteItems.map((it: any) => ({ description: it.description, quantity: Number(it.quantity), unit_price: Number(it.unit_price), total: Number(it.total) }))
       : [{ description: quote.description ?? "Serviço", quantity: 1, unit_price: Number(quote.total), total: Number(quote.total) }];
 
-    generateQuotePDF({
+    await generateQuotePDF({
       date: dateStr,
       client: { name: client?.name ?? "—", phone: client?.phone, address: client?.address, city: client?.city, state: client?.state, cpf_cnpj: client?.cpf_cnpj },
       items: pdfItems,
