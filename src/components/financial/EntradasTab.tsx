@@ -15,6 +15,8 @@ import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { isInRange } from "@/components/MonthFilter";
+import FinancialReportDialog from "./FinancialReportDialog";
+import type { ReportTransaction } from "@/lib/generateFinancialReport";
 
 interface EntradasTabProps {
   dateRange?: { start: Date; end: Date };
@@ -170,6 +172,13 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
           <p className="text-sm text-muted-foreground">Total de Entradas no Período</p>
           <p className="text-2xl font-bold text-green-600">{fmt(total)}</p>
         </div>
+        <div className="flex gap-2">
+          <FinancialReportDialog
+            type="entradas"
+            transactions={filtered.map(t => ({ date: t.due_date, description: enrichDescription(t.description, t.client_id), category: t.category ?? "", amount: Number(t.amount), status: t.status === "pago" ? "recebido" : t.status }))}
+            categories={categorias}
+            periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
+          />
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "" }); } }}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Entrada</Button></DialogTrigger>
           <DialogContent>
