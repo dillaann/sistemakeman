@@ -12,11 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, DollarSign, Receipt, AlertCircle, Trash2 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, startOfYear, endOfYear } from "date-fns";
+import { Search, DollarSign, Receipt, AlertCircle, Trash2, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { format } from "date-fns";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
-
-type PeriodFilter = "week" | "month" | "quarter" | "year";
+import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Billing = () => {
   const { toast } = useToast();
@@ -25,7 +24,8 @@ const Billing = () => {
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [period, setPeriod] = useState<PeriodFilter>("month");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const [payDialog, setPayDialog] = useState<string | null>(null);
   const [payForm, setPayForm] = useState({ amount: "", method: "pix", date: localDateString() });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -111,16 +111,7 @@ const Billing = () => {
     });
   }, [approvedQuotes, transactions, workOrders]);
 
-  // Period filter
-  const periodRange = useMemo(() => {
-    const now = new Date();
-    switch (period) {
-      case "week": return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
-      case "month": return { start: startOfMonth(now), end: endOfMonth(now) };
-      case "quarter": return { start: startOfMonth(subMonths(now, 2)), end: endOfMonth(now) };
-      case "year": return { start: startOfYear(now), end: endOfYear(now) };
-    }
-  }, [period]);
+  const periodRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   const filtered = useMemo(() => {
     return enrichedQuotes.filter((o) => {
@@ -139,6 +130,10 @@ const Billing = () => {
   const totalBilled = filtered.reduce((s, o) => s + Number(o.total), 0);
   const totalReceived = filtered.reduce((s, o) => s + o.totalPaid, 0);
   const totalOpen = filtered.reduce((s, o) => s + o.remaining, 0);
+  const count = filtered.length;
+  const ticketMedio = count > 0 ? totalBilled / count : 0;
+  const maxBilling = count > 0 ? Math.max(...filtered.map(o => Number(o.total))) : 0;
+  const minBilling = count > 0 ? Math.min(...filtered.map(o => Number(o.total))) : 0;
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -238,10 +233,13 @@ const Billing = () => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Faturamento</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-2xl font-bold">Faturamento</h1>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+      </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Faturado</CardTitle>
@@ -263,19 +261,31 @@ const Billing = () => {
           </CardHeader>
           <CardContent><div className="text-2xl font-bold text-yellow-600">{fmt(totalOpen)}</div></CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Qtd. OSs</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{count}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Maior</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{fmt(maxBilling)}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent><div className="text-2xl font-bold">{fmt(ticketMedio)}</div></CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">Semana</SelectItem>
-            <SelectItem value="month">Mês</SelectItem>
-            <SelectItem value="quarter">Trimestre</SelectItem>
-            <SelectItem value="year">Ano</SelectItem>
-          </SelectContent>
-        </Select>
         <Select value={clientFilter} onValueChange={setClientFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder="Cliente" /></SelectTrigger>
           <SelectContent>
