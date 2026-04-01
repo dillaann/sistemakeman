@@ -27,12 +27,16 @@ const statusLabels: Record<string, string> = { pendente: "Pendente", aprovado: "
 
 const paymentStatusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+  entrada_pendente: "bg-orange-500/10 text-orange-700 border-orange-500/20",
   entrada_recebida: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  pagamento_parcial: "bg-blue-500/10 text-blue-700 border-blue-500/20",
   pago_total: "bg-green-500/10 text-green-700 border-green-500/20",
 };
 const paymentStatusLabels: Record<string, string> = {
-  aguardando: "Aguardando",
+  aguardando: "Aguardando Entrada",
+  entrada_pendente: "Entrada Pendente",
   entrada_recebida: "Entrada Recebida",
+  pagamento_parcial: "Pagamento Parcial",
   pago_total: "Pago Total",
 };
 
@@ -387,18 +391,35 @@ const Quotes = () => {
   ) => {
     try {
       const now = new Date().toISOString();
+      const today = localDateString();
       const dpAmount = paymentType === "entrada_restante" ? (parseFloat(downPayment) || 0) : 0;
       const remaining = paymentType === "entrada_restante" ? Math.max(total - dpAmount, 0) : 0;
+
+      // Check if the down payment date is future
+      const isFuturePayment = dpAmount > 0 && downPaymentDate > today;
+      const effectivePaidAmount = isFuturePayment ? 0 : dpAmount;
+
+      // Determine payment status
+      let paymentStatus = "aguardando";
+      if (dpAmount > 0) {
+        if (isFuturePayment) {
+          paymentStatus = "entrada_pendente";
+        } else if (dpAmount >= total) {
+          paymentStatus = "pago_total";
+        } else {
+          paymentStatus = "entrada_recebida";
+        }
+      }
 
       await supabase.from("quotes").update({
         status: "aprovado" as any,
         approved_at: now,
         payment_type: paymentType,
-        down_payment: dpAmount,
+        down_payment: effectivePaidAmount,
         down_payment_date: paymentType === "entrada_restante" && dpAmount > 0 ? downPaymentDate : null,
-        remaining_amount: remaining,
+        remaining_amount: isFuturePayment ? total : remaining,
         payment_method: paymentMethod,
-        payment_status: dpAmount >= total ? "pago_total" : (dpAmount > 0 ? "entrada_recebida" : "aguardando"),
+        payment_status: paymentStatus,
       } as any).eq("id", quoteId);
 
       const { data: wo, error: woError } = await supabase.from("work_orders").insert({
@@ -429,17 +450,33 @@ const Quotes = () => {
       if (total > 0) {
         const clientName = clients.find(c => c.id === clientId)?.name ?? "";
         if (dpAmount > 0) {
-          await supabase.from("financial_transactions").insert({
-            type: "a_receber" as any,
-            description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
-            amount: dpAmount,
-            due_date: downPaymentDate,
-            paid_date: downPaymentDate,
-            status: "pago" as any,
-            category: `Faturamento - ${paymentMethod}`,
-            work_order_id: wo.id,
-            client_id: clientId,
-          });
+          if (isFuturePayment) {
+            // Future payment: create as pending in Contas a Receber
+            await supabase.from("financial_transactions").insert({
+              type: "a_receber" as any,
+              description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+              amount: dpAmount,
+              due_date: downPaymentDate,
+              paid_date: null,
+              status: "pendente" as any,
+              category: `Faturamento - ${paymentMethod}`,
+              work_order_id: wo.id,
+              client_id: clientId,
+            });
+          } else {
+            // Past/today: create as paid
+            await supabase.from("financial_transactions").insert({
+              type: "a_receber" as any,
+              description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+              amount: dpAmount,
+              due_date: downPaymentDate,
+              paid_date: downPaymentDate,
+              status: "pago" as any,
+              category: `Faturamento - ${paymentMethod}`,
+              work_order_id: wo.id,
+              client_id: clientId,
+            });
+          }
         }
 
         const pendingAmount = total - dpAmount;
@@ -539,6 +576,9 @@ const Quotes = () => {
       const amount = parseFloat(payRegForm.amount);
       if (!amount || amount <= 0) throw new Error("Valor inválido");
 
+      const today = localDateString();
+      const isFuture = payRegForm.date > today;
+
       const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quote.id).single();
 
       const clientName = clients.find(c => c.id === quote.client_id)?.name ?? "";
@@ -547,18 +587,29 @@ const Quotes = () => {
         description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
         amount,
         due_date: payRegForm.date,
-        paid_date: payRegForm.date,
-        status: "pago" as any,
+        paid_date: isFuture ? null : payRegForm.date,
+        status: isFuture ? ("pendente" as any) : ("pago" as any),
         category: `Faturamento - ${payRegForm.method}`,
         work_order_id: wo?.id || null,
         client_id: quote.client_id,
       });
 
       const currentPaid = Number(quote.down_payment || 0);
-      const totalPaidNow = currentPaid + amount;
+      const effectiveNewPaid = isFuture ? 0 : amount;
+      const totalPaidNow = currentPaid + effectiveNewPaid;
       const total = Number(quote.total);
       const newRemaining = Math.max(total - totalPaidNow, 0);
-      const newStatus = totalPaidNow >= total ? "pago_total" : "entrada_recebida";
+
+      let newStatus = "aguardando";
+      if (totalPaidNow >= total) {
+        newStatus = "pago_total";
+      } else if (isFuture && currentPaid === 0) {
+        newStatus = "entrada_pendente";
+      } else if (totalPaidNow > 0 && totalPaidNow < total) {
+        newStatus = "pagamento_parcial";
+      } else if (totalPaidNow > 0) {
+        newStatus = "entrada_recebida";
+      }
 
       await supabase.from("quotes").update({
         down_payment: totalPaidNow,
