@@ -797,6 +797,7 @@ const Quotes = () => {
                     {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
                   </TableCell>
                   <TableCell><Badge variant="outline">{{ marketing: "Marketing", obras: "Obras", empresa: "Empresa" }[(q as any).origem_venda] || "—"}</Badge></TableCell>
+                  <TableCell className="text-sm">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.description}</TableCell>
                   <TableCell>{fmt(Number(q.total))}</TableCell>
                   <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
