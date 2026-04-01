@@ -241,6 +241,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="pendente">Pendente</SelectItem>
             <SelectItem value="pago">Recebido</SelectItem>
+            <SelectItem value="atrasado">Atrasado</SelectItem>
             <SelectItem value="cancelado">Cancelado</SelectItem>
           </SelectContent>
         </Select>
