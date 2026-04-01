@@ -571,6 +571,75 @@ export type Database = {
           },
         ]
       }
+      fiscal_invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          entity_cnpj: string | null
+          entity_name: string
+          file_url: string | null
+          icms_amount: number | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          payment_date: string | null
+          payment_status: string | null
+          purchase_id: string | null
+          quote_id: string | null
+          service_description: string | null
+          status: string
+          taxes: string | null
+          type: string
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          entity_cnpj?: string | null
+          entity_name: string
+          file_url?: string | null
+          icms_amount?: number | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          payment_date?: string | null
+          payment_status?: string | null
+          purchase_id?: string | null
+          quote_id?: string | null
+          service_description?: string | null
+          status?: string
+          taxes?: string | null
+          type: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          entity_cnpj?: string | null
+          entity_name?: string
+          file_url?: string | null
+          icms_amount?: number | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          payment_date?: string | null
+          payment_status?: string | null
+          purchase_id?: string | null
+          quote_id?: string | null
+          service_description?: string | null
+          status?: string
+          taxes?: string | null
+          type?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: []
+      }
       marketing_campaigns: {
         Row: {
           amount_invested: number

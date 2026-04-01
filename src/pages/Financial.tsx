@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
 import MovimentacaoTab from "@/components/financial/MovimentacaoTab";
 import ContasTab from "@/components/financial/ContasTab";
 import MovimentacoesTab from "@/components/financial/MovimentacoesTab";
+import NotasFiscaisTab from "@/components/financial/NotasFiscaisTab";
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Financial = () => {
@@ -24,7 +25,7 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="entradas" className="flex items-center gap-1">
             <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
@@ -37,6 +38,9 @@ const Financial = () => {
           <TabsTrigger value="movimentacoes" className="flex items-center gap-1">
             <ArrowRightLeft className="h-4 w-4" /> Movimentações
           </TabsTrigger>
+          <TabsTrigger value="notas" className="flex items-center gap-1">
+            <FileText className="h-4 w-4" /> Notas Fiscais
+          </TabsTrigger>
           <TabsTrigger value="movimentacao" className="flex items-center gap-1">
             <BarChart3 className="h-4 w-4" /> Visão Geral
           </TabsTrigger>
@@ -45,6 +49,7 @@ const Financial = () => {
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="contas"><ContasTab /></TabsContent>
         <TabsContent value="movimentacoes"><MovimentacoesTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="notas"><NotasFiscaisTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="movimentacao"><MovimentacaoTab dateRange={dateRange} /></TabsContent>
       </Tabs>
     </div>
