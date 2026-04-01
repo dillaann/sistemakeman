@@ -15,6 +15,7 @@ import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { isInRange } from "@/components/MonthFilter";
+import FinancialReportDialog from "./FinancialReportDialog";
 
 interface SaidasTabProps {
   dateRange?: { start: Date; end: Date };
