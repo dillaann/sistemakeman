@@ -185,6 +185,7 @@ export default function ContasTab() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Table */}
