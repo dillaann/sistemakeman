@@ -1,4 +1,4 @@
-import { localDateString } from "@/lib/utils";
+import { compareDateStrings, formatDateBR, localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,9 +92,13 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       return true;
     });
     list.sort((a, b) => {
-      const va = sortField === "amount" ? Number(a.amount) : new Date(a.due_date).getTime();
-      const vb = sortField === "amount" ? Number(b.amount) : new Date(b.due_date).getTime();
-      return sortAsc ? va - vb : vb - va;
+      if (sortField === "amount") {
+        const amountDiff = Number(a.amount) - Number(b.amount);
+        return sortAsc ? amountDiff : -amountDiff;
+      }
+
+      const dateDiff = compareDateStrings(a.due_date, b.due_date);
+      return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
   }, [transactions, statusFilter, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
@@ -242,7 +246,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
           <TableBody>
             {filtered.map(t => (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
-                <TableCell>{new Date(t.due_date).toLocaleDateString("pt-BR")}</TableCell>
+                <TableCell>{formatDateBR(t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell>{t.client_id ? (clients.find(c => c.id === t.client_id)?.name ?? "—") : "—"}</TableCell>

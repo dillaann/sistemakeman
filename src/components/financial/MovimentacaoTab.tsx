@@ -1,3 +1,4 @@
+import { formatDateBR, localDateString, parseLocalDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,14 +22,14 @@ interface MovimentacaoTabProps {
 export default function MovimentacaoTab({ dateRange: parentDateRange }: MovimentacaoTabProps) {
   const now = new Date();
   const [preset, setPreset] = useState<PeriodPreset>("month");
-  const [dateFrom, setDateFrom] = useState(format(startOfMonth(now), "yyyy-MM-dd"));
-  const [dateTo, setDateTo] = useState(format(endOfMonth(now), "yyyy-MM-dd"));
+  const [dateFrom, setDateFrom] = useState(localDateString(startOfMonth(now)));
+  const [dateTo, setDateTo] = useState(localDateString(endOfMonth(now)));
 
   const applyPreset = (p: PeriodPreset) => {
     setPreset(p);
-    if (p === "month") { setDateFrom(format(startOfMonth(now), "yyyy-MM-dd")); setDateTo(format(endOfMonth(now), "yyyy-MM-dd")); }
-    if (p === "3months") { setDateFrom(format(startOfMonth(subMonths(now, 2)), "yyyy-MM-dd")); setDateTo(format(endOfMonth(now), "yyyy-MM-dd")); }
-    if (p === "year") { setDateFrom(format(startOfYear(now), "yyyy-MM-dd")); setDateTo(format(endOfYear(now), "yyyy-MM-dd")); }
+    if (p === "month") { setDateFrom(localDateString(startOfMonth(now))); setDateTo(localDateString(endOfMonth(now))); }
+    if (p === "3months") { setDateFrom(localDateString(startOfMonth(subMonths(now, 2)))); setDateTo(localDateString(endOfMonth(now))); }
+    if (p === "year") { setDateFrom(localDateString(startOfYear(now))); setDateTo(localDateString(endOfYear(now))); }
   };
 
   const { data: clients = [] } = useQuery({
@@ -56,8 +57,8 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
     transactions.forEach(t => {
       const m = t.due_date.substring(0, 7);
       if (!map[m]) {
-        const d = new Date(t.due_date + "T12:00:00");
-        map[m] = { month: format(d, "MMM/yy", { locale: ptBR }), entradas: 0, saidas: 0 };
+        const parsedDate = parseLocalDate(t.due_date);
+        map[m] = { month: parsedDate ? format(parsedDate, "MMM/yy", { locale: ptBR }) : m, entradas: 0, saidas: 0 };
       }
       if (t.type === "a_receber") map[m].entradas += Number(t.amount);
       else map[m].saidas += Number(t.amount);
@@ -150,7 +151,7 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
           <TableBody>
             {tableRows.map(r => (
               <TableRow key={r.id}>
-                <TableCell>{new Date(r.due_date).toLocaleDateString("pt-BR")}</TableCell>
+                <TableCell>{formatDateBR(r.due_date)}</TableCell>
                 <TableCell className="max-w-[300px] truncate">{r.description}</TableCell>
                 <TableCell className="text-right font-medium text-green-700">{r.entrada ? fmt(r.entrada) : ""}</TableCell>
                 <TableCell className="text-right font-medium text-red-700">{r.saida ? fmt(r.saida) : ""}</TableCell>
