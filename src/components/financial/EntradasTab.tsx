@@ -40,7 +40,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { userRole } = useAuth();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  
   const [catFilter, setCatFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
