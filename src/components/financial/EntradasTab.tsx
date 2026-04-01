@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
-import { isInRange } from "@/components/MonthFilter";
+import { isInRangeOrOpen } from "@/components/MonthFilter";
 import FinancialReportDialog from "./FinancialReportDialog";
 import type { ReportTransaction } from "@/lib/generateFinancialReport";
 
