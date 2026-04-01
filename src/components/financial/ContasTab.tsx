@@ -149,6 +149,13 @@ export default function ContasTab() {
       {/* Header + Add button */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-lg">Contas Cadastradas</h3>
+        <div className="flex gap-2">
+          <FinancialReportDialog
+            type="contas"
+            transactions={movements.map(m => ({ date: m.date ?? "", description: m.description ?? "", category: m.category ?? "", amount: Number(m.amount), status: m.type }))}
+            categories={[...new Set(movements.map(m => m.category).filter(Boolean) as string[])]}
+            periodLabel="Todas as movimentações"
+          />
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", type: "conta_corrente", initial_balance: "0", notes: "" }); } }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Nova Conta</Button>
