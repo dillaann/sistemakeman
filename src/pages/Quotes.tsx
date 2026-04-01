@@ -391,18 +391,35 @@ const Quotes = () => {
   ) => {
     try {
       const now = new Date().toISOString();
+      const today = localDateString();
       const dpAmount = paymentType === "entrada_restante" ? (parseFloat(downPayment) || 0) : 0;
       const remaining = paymentType === "entrada_restante" ? Math.max(total - dpAmount, 0) : 0;
+
+      // Check if the down payment date is future
+      const isFuturePayment = dpAmount > 0 && downPaymentDate > today;
+      const effectivePaidAmount = isFuturePayment ? 0 : dpAmount;
+
+      // Determine payment status
+      let paymentStatus = "aguardando";
+      if (dpAmount > 0) {
+        if (isFuturePayment) {
+          paymentStatus = "entrada_pendente";
+        } else if (dpAmount >= total) {
+          paymentStatus = "pago_total";
+        } else {
+          paymentStatus = "entrada_recebida";
+        }
+      }
 
       await supabase.from("quotes").update({
         status: "aprovado" as any,
         approved_at: now,
         payment_type: paymentType,
-        down_payment: dpAmount,
+        down_payment: effectivePaidAmount,
         down_payment_date: paymentType === "entrada_restante" && dpAmount > 0 ? downPaymentDate : null,
-        remaining_amount: remaining,
+        remaining_amount: isFuturePayment ? total : remaining,
         payment_method: paymentMethod,
-        payment_status: dpAmount >= total ? "pago_total" : (dpAmount > 0 ? "entrada_recebida" : "aguardando"),
+        payment_status: paymentStatus,
       } as any).eq("id", quoteId);
 
       const { data: wo, error: woError } = await supabase.from("work_orders").insert({
@@ -433,17 +450,33 @@ const Quotes = () => {
       if (total > 0) {
         const clientName = clients.find(c => c.id === clientId)?.name ?? "";
         if (dpAmount > 0) {
-          await supabase.from("financial_transactions").insert({
-            type: "a_receber" as any,
-            description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
-            amount: dpAmount,
-            due_date: downPaymentDate,
-            paid_date: downPaymentDate,
-            status: "pago" as any,
-            category: `Faturamento - ${paymentMethod}`,
-            work_order_id: wo.id,
-            client_id: clientId,
-          });
+          if (isFuturePayment) {
+            // Future payment: create as pending in Contas a Receber
+            await supabase.from("financial_transactions").insert({
+              type: "a_receber" as any,
+              description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+              amount: dpAmount,
+              due_date: downPaymentDate,
+              paid_date: null,
+              status: "pendente" as any,
+              category: `Faturamento - ${paymentMethod}`,
+              work_order_id: wo.id,
+              client_id: clientId,
+            });
+          } else {
+            // Past/today: create as paid
+            await supabase.from("financial_transactions").insert({
+              type: "a_receber" as any,
+              description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+              amount: dpAmount,
+              due_date: downPaymentDate,
+              paid_date: downPaymentDate,
+              status: "pago" as any,
+              category: `Faturamento - ${paymentMethod}`,
+              work_order_id: wo.id,
+              client_id: clientId,
+            });
+          }
         }
 
         const pendingAmount = total - dpAmount;
