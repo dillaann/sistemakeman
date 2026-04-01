@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, Eye } from "lucide-react";
 import { formatDateBR, localDateString } from "@/lib/utils";
+import { isInRange } from "@/components/MonthFilter";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -34,7 +35,7 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   a_vencer: { label: "A Vencer", className: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
 };
 
-export default function ContasPagarTab() {
+export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -42,6 +43,7 @@ export default function ContasPagarTab() {
   const [catFilter, setCatFilter] = useState("all");
   const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
   const [sortAsc, setSortAsc] = useState(true);
+  const [showAllPending, setShowAllPending] = useState(false);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-contas-pagar"],
@@ -66,6 +68,15 @@ export default function ContasPagarTab() {
   const filtered = useMemo(() => {
     let list = transactions.map(t => ({ ...t, computedStatus: getStatus(t) }));
 
+    // Apply date range filter (fixed in due_date month) unless showing all pending
+    if (dateRange && !showAllPending) {
+      list = list.filter(t => isInRange(t.due_date, dateRange));
+    }
+    // When showAllPending, only show open items
+    if (showAllPending) {
+      list = list.filter(t => t.computedStatus !== "pago");
+    }
+
     if (statusFilter !== "all") {
       list = list.filter(t => t.computedStatus === statusFilter);
     }
@@ -82,7 +93,7 @@ export default function ContasPagarTab() {
       return sortAsc ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);
     });
     return list;
-  }, [transactions, statusFilter, catFilter, search, sortField, sortAsc]);
+  }, [transactions, statusFilter, catFilter, search, sortField, sortAsc, dateRange, showAllPending]);
 
   const openItems = transactions.filter(t => t.status !== "pago" && t.status !== "cancelado");
   const totalAberto = openItems.reduce((s, t) => s + Number(t.amount), 0);
@@ -160,6 +171,15 @@ export default function ContasPagarTab() {
             {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Button
+          variant={showAllPending ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowAllPending(!showAllPending)}
+          className="flex items-center gap-1"
+        >
+          <Eye className="h-4 w-4" />
+          {showAllPending ? "Filtrar por mês" : "Ver todos pendentes"}
+        </Button>
       </div>
 
       {/* Table */}

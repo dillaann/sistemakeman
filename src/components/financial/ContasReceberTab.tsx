@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp, Eye } from "lucide-react";
 import { formatDateBR, localDateString } from "@/lib/utils";
+import { isInRange } from "@/components/MonthFilter";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -34,13 +35,14 @@ interface GroupedReceivable {
   pendingTransactionIds: string[];
 }
 
-export default function ContasReceberTab() {
+export default function ContasReceberTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<"due_date" | "remaining">("due_date");
   const [sortAsc, setSortAsc] = useState(true);
+  const [showAllPending, setShowAllPending] = useState(false);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-contas-receber"],
@@ -147,6 +149,15 @@ export default function ContasReceberTab() {
   const filtered = useMemo(() => {
     let list = [...grouped];
 
+    // Apply date range filter (fixed in due_date month) unless showing all pending
+    if (dateRange && !showAllPending) {
+      list = list.filter(g => isInRange(g.dueDate, dateRange));
+    }
+    // When showAllPending, only show open items
+    if (showAllPending) {
+      list = list.filter(g => g.status !== "recebido_total");
+    }
+
     if (statusFilter !== "all") {
       list = list.filter(g => g.status === statusFilter);
     }
@@ -163,7 +174,7 @@ export default function ContasReceberTab() {
       return sortAsc ? a.dueDate.localeCompare(b.dueDate) : b.dueDate.localeCompare(a.dueDate);
     });
     return list;
-  }, [grouped, statusFilter, search, sortField, sortAsc, clients]);
+  }, [grouped, statusFilter, search, sortField, sortAsc, clients, dateRange, showAllPending]);
 
   // Summary: only count open items, sum only REMAINING balances
   const openItems = grouped.filter(g => g.status !== "recebido_total");
@@ -255,6 +266,15 @@ export default function ContasReceberTab() {
             <SelectItem value="recebido_total">Recebidos</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant={showAllPending ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowAllPending(!showAllPending)}
+          className="flex items-center gap-1"
+        >
+          <Eye className="h-4 w-4" />
+          {showAllPending ? "Filtrar por mês" : "Ver todos pendentes"}
+        </Button>
       </div>
 
       {/* Table */}

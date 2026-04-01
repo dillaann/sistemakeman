@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-import { isInRangeOrOpen } from "@/components/MonthFilter";
+import { isInRange } from "@/components/MonthFilter";
 import FinancialReportDialog from "./FinancialReportDialog";
 
 interface SaidasTabProps {
@@ -60,8 +60,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
-      const isOpen = t.status === "pendente" || t.status === "atrasado";
-      if (dateRange && !isInRangeOrOpen(t.due_date, dateRange, isOpen, t.paid_date)) return false;
+      if (dateRange && !isInRange(t.paid_date || t.due_date, dateRange)) return false;
       if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (dateFrom && t.due_date < dateFrom) return false;
