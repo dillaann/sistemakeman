@@ -62,6 +62,7 @@ const Quotes = () => {
   const [editQuote, setEditQuote] = useState<any>(null);
   const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
   const [editItems, setEditItems] = useState<ItemRow[]>([]);
+  const [editPayment, setEditPayment] = useState({ payment_type: "a_vista", down_payment: "", down_payment_date: "", payment_method: "pix" });
 
   // Approval modal state (commission + payment)
   const [approvalModal, setApprovalModal] = useState<{
