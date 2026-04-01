@@ -68,6 +68,15 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
   const filtered = useMemo(() => {
     let list = transactions.map(t => ({ ...t, computedStatus: getStatus(t) }));
 
+    // Apply date range filter (fixed in due_date month) unless showing all pending
+    if (dateRange && !showAllPending) {
+      list = list.filter(t => isInRange(t.due_date, dateRange));
+    }
+    // When showAllPending, only show open items
+    if (showAllPending) {
+      list = list.filter(t => t.computedStatus !== "pago");
+    }
+
     if (statusFilter !== "all") {
       list = list.filter(t => t.computedStatus === statusFilter);
     }
@@ -84,7 +93,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
       return sortAsc ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);
     });
     return list;
-  }, [transactions, statusFilter, catFilter, search, sortField, sortAsc]);
+  }, [transactions, statusFilter, catFilter, search, sortField, sortAsc, dateRange, showAllPending]);
 
   const openItems = transactions.filter(t => t.status !== "pago" && t.status !== "cancelado");
   const totalAberto = openItems.reduce((s, t) => s + Number(t.amount), 0);
