@@ -17,8 +17,6 @@ import { format } from "date-fns";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
-type PeriodFilter = "week" | "month" | "quarter" | "year";
-
 const Billing = () => {
   const { toast } = useToast();
   const { userRole } = useAuth();
@@ -26,7 +24,8 @@ const Billing = () => {
   const [search, setSearch] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [period, setPeriod] = useState<PeriodFilter>("month");
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const [payDialog, setPayDialog] = useState<string | null>(null);
   const [payForm, setPayForm] = useState({ amount: "", method: "pix", date: localDateString() });
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
