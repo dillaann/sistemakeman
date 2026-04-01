@@ -434,7 +434,10 @@ const Purchases = () => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl md:text-2xl font-bold">Compras</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-xl md:text-2xl font-bold">Compras</h1>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+      </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex flex-wrap">
