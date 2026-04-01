@@ -109,7 +109,9 @@ const WorkOrders = () => {
   };
 
   const filtered = orders.filter(o => {
-    if (!isInRange(o.created_at, dateRange)) return false;
+    const isOpen = ["aguardando", "em_producao"].includes(o.status);
+    const completionDate = o.completed_at || o.delivered_at;
+    if (!isInRangeOrOpen(o.created_at, dateRange, isOpen, completionDate)) return false;
     return (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       (o.description ?? "").toLowerCase().includes(search.toLowerCase());
   });
