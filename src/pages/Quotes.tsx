@@ -27,12 +27,16 @@ const statusLabels: Record<string, string> = { pendente: "Pendente", aprovado: "
 
 const paymentStatusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+  entrada_pendente: "bg-orange-500/10 text-orange-700 border-orange-500/20",
   entrada_recebida: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  pagamento_parcial: "bg-blue-500/10 text-blue-700 border-blue-500/20",
   pago_total: "bg-green-500/10 text-green-700 border-green-500/20",
 };
 const paymentStatusLabels: Record<string, string> = {
-  aguardando: "Aguardando",
+  aguardando: "Aguardando Entrada",
+  entrada_pendente: "Entrada Pendente",
   entrada_recebida: "Entrada Recebida",
+  pagamento_parcial: "Pagamento Parcial",
   pago_total: "Pago Total",
 };
 
