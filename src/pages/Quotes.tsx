@@ -779,6 +779,7 @@ const Quotes = () => {
               <TableHead>Cliente</TableHead>
               <TableHead>Vendedor</TableHead>
               <TableHead>Origem</TableHead>
+              <TableHead>Data Emissão</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
