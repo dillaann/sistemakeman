@@ -69,35 +69,15 @@ export async function generateQuotePDF(data: QuotePDFData) {
   y += 6;
 
   // ===== HEADER: Logo LEFT + Info RIGHT =====
-  const logoX = margin + 5;
-  const logoBaseY = y + 22;
-  const logoTopY = y + 8;
-  const logoW = 18;
-  const logoInnerW = 11;
-  const logoInnerTopY = y + 14;
-  const cx = logoX + 18;
-
-  doc.setLineWidth(1.5);
-  doc.setDrawColor(0);
-
-  // Outer roof
-  doc.line(cx - logoW, logoBaseY, cx, logoTopY);
-  doc.line(cx, logoTopY, cx + logoW, logoBaseY);
-
-  // Inner roof
-  doc.line(cx - logoInnerW, logoBaseY, cx, logoInnerTopY);
-  doc.line(cx, logoInnerTopY, cx + logoInnerW, logoBaseY);
-
-  // Base line
-  doc.line(cx - logoW - 2, logoBaseY, cx + logoW + 2, logoBaseY);
-
-  // Company name below logo
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("SERRALHERIA KEMAN", cx, logoBaseY + 7, { align: "center" });
+  // Logo image (maintains aspect ratio ~1.5:1 width:height)
+  const logoImgW = 50;
+  const logoImgH = 35;
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", margin + 2, y, logoImgW, logoImgH);
+  }
 
   // Right side: Title + services + address
-  const rightX = margin + 75;
+  const rightX = margin + 58;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.text("PEDIDOS/ ORÇAMENTOS", rightX, y + 8);
