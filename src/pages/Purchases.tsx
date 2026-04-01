@@ -213,7 +213,7 @@ const Purchases = () => {
           const descParts = [`Compra: ${pForm.material} - ${supplierName}`];
           if (clientName) descParts.push(`(${clientName})`);
 
-          // Try to update existing financial transaction by matching old description
+          // Update existing financial transaction linked by purchase_id
           const oldSupplierName = (oldPurchase as any).suppliers?.name ?? "Fornecedor";
           await supabase.from("financial_transactions")
             .update({
@@ -225,8 +225,7 @@ const Purchases = () => {
               client_id: pForm.client_id || null,
               work_order_id: pForm.work_order_id || null,
             })
-            .ilike("description", `%${oldPurchase.material}%${oldSupplierName}%`)
-            .eq("category", "Compras");
+            .eq("purchase_id", editPurchaseId);
         }
 
         if (pForm.work_order_id) {
