@@ -16,7 +16,7 @@ import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
+import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
