@@ -303,14 +303,9 @@ const Purchases = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("purchases").update({ payment_status: "pago" }).eq("id", id);
       if (error) throw error;
-      const purchase = purchases.find(p => p.id === id);
-      if (purchase) {
-        await supabase.from("financial_transactions")
-          .update({ status: "pago" as any, paid_date: localDateString() })
-          .ilike("description", `%${purchase.material}%`)
-          .eq("category", "Compras")
-          .eq("status", "pendente" as any);
-      }
+      await supabase.from("financial_transactions")
+        .update({ status: "pago" as any, paid_date: localDateString() })
+        .eq("purchase_id", id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
