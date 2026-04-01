@@ -1,4 +1,4 @@
-import { addDaysToLocalDateString, localDateString } from "@/lib/utils";
+import { addDaysToLocalDateString, localDateString, formatDateBR } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,13 +50,13 @@ const Quotes = () => {
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
+  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
 
   // Edit state
   const [editOpen, setEditOpen] = useState(false);
   const [editQuote, setEditQuote] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
+  const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
   const [editItems, setEditItems] = useState<ItemRow[]>([]);
 
   // Approval modal state (commission + payment)
@@ -162,6 +162,7 @@ const Quotes = () => {
         seller_id: effectiveSellerId || null,
         delivery_deadline: form.delivery_deadline || null,
         origem_venda: form.origem_venda,
+        issue_date: form.issue_date || localDateString(),
       } as any).select().single();
       if (error) throw error;
 
@@ -178,7 +179,7 @@ const Quotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
-      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "" });
+      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
       setItems([{ description: "", quantity: "1", unit_price: "" }]);
       toast({ title: "Orçamento criado!" });
     },
@@ -195,6 +196,7 @@ const Quotes = () => {
       seller_id: (quote as any).seller_id || "",
       delivery_deadline: (quote as any).delivery_deadline || "",
       origem_venda: (quote as any).origem_venda || "",
+      issue_date: (quote as any).issue_date || "",
     });
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
@@ -235,6 +237,7 @@ const Quotes = () => {
         seller_id: editForm.seller_id || null,
         delivery_deadline: editForm.delivery_deadline || null,
         origem_venda: editForm.origem_venda,
+        issue_date: editForm.issue_date || null,
       } as any).eq("id", quoteId);
       if (quoteError) throw quoteError;
 
@@ -591,8 +594,9 @@ const Quotes = () => {
   const handleGeneratePDF = async (quote: any) => {
     const client = quote.clients as any;
     const quoteItems = (quote.quote_items ?? []) as any[];
-    const createdAt = new Date(quote.created_at);
-    const dateStr = createdAt.toLocaleDateString("pt-BR");
+    const issueDate = (quote as any).issue_date;
+    const dateStr = issueDate ? formatDateBR(issueDate) : new Date(quote.created_at).toLocaleDateString("pt-BR");
+    const validUntilStr = quote.valid_until ? formatDateBR(quote.valid_until) : null;
 
     const pdfItems = quoteItems.length > 0
       ? quoteItems.map((it: any) => ({ description: it.description, quantity: Number(it.quantity), unit_price: Number(it.unit_price), total: Number(it.total) }))
@@ -604,7 +608,7 @@ const Quotes = () => {
       items: pdfItems,
       total: Number(quote.total),
       description: quote.description,
-      valid_until: quote.valid_until,
+      valid_until: validUntilStr,
       delivery_deadline: (quote as any).delivery_deadline,
     });
     toast({ title: "PDF gerado com sucesso!" });
@@ -663,8 +667,11 @@ const Quotes = () => {
                     <SelectItem value="obras">Obras</SelectItem>
                     <SelectItem value="empresa">Empresa</SelectItem>
                   </SelectContent>
-                </Select>
+              </Select>
               </div>
+              {userRole === "admin" && (
+                <div><Label>Data de Emissão</Label><Input type="date" value={form.issue_date} onChange={e => setForm({ ...form, issue_date: e.target.value })} /></div>
+              )}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">Itens do Orçamento</Label>
@@ -729,6 +736,9 @@ const Quotes = () => {
               </div>
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="font-bold">{fmt(Number(q.total))}</span>
+                <span className="text-muted-foreground text-xs">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm mb-2">
                 {(q as any).seller_id && <span className="text-muted-foreground text-xs">{profilesMap[(q as any).seller_id] || "—"}</span>}
               </div>
               {q.status === "aprovado" && (
@@ -772,6 +782,7 @@ const Quotes = () => {
               <TableHead>Cliente</TableHead>
               <TableHead>Vendedor</TableHead>
               <TableHead>Origem</TableHead>
+              <TableHead>Data Emissão</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
@@ -789,6 +800,7 @@ const Quotes = () => {
                     {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
                   </TableCell>
                   <TableCell><Badge variant="outline">{{ marketing: "Marketing", obras: "Obras", empresa: "Empresa" }[(q as any).origem_venda] || "—"}</Badge></TableCell>
+                  <TableCell className="text-sm">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.description}</TableCell>
                   <TableCell>{fmt(Number(q.total))}</TableCell>
                   <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
@@ -834,7 +846,7 @@ const Quotes = () => {
                 </TableRow>
               );
             })}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -911,6 +923,7 @@ const Quotes = () => {
             </div>
 
             <div><Label>Observações</Label><Textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} /></div>
+            <div><Label>Data de Emissão</Label><Input type="date" value={editForm.issue_date} onChange={e => setEditForm({ ...editForm, issue_date: e.target.value })} /></div>
             <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={editForm.delivery_deadline} onChange={e => setEditForm({ ...editForm, delivery_deadline: e.target.value })} /></div>
             <div><Label>Válido até</Label><Input type="date" value={editForm.valid_until} onChange={e => setEditForm({ ...editForm, valid_until: e.target.value })} /></div>
             <Button type="submit" className="w-full" disabled={editMutation.isPending || !editForm.client_id || !editForm.origem_venda}>
