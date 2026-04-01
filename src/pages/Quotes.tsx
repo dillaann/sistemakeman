@@ -799,7 +799,7 @@ const Quotes = () => {
               )}
               <div className="flex gap-1 flex-wrap">
                 <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(q)}><FileDown className="h-4 w-4 mr-1" />PDF</Button>
-                {userRole === "admin" && (
+                {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                   <Button variant="ghost" size="sm" onClick={() => openEditDialog(q)}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
                 )}
                 {q.status === "pendente" && userRole === "admin" && (
