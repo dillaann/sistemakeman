@@ -286,7 +286,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell>{t.client_id ? (clients.find(c => c.id === t.client_id)?.name ?? "—") : "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
-                <TableCell><Badge className={statusColors[t.status]}>{statusLabels[t.status] ?? t.status}</Badge></TableCell>
+                <TableCell><Badge className={statusColors[getEffectiveStatus(t)]}>{statusLabels[getEffectiveStatus(t)] ?? t.status}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     {t.status === "pendente" && <Button size="sm" variant="outline" onClick={() => markReceived.mutate(t.id)}>Receber</Button>}
