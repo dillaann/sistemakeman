@@ -196,6 +196,7 @@ const Quotes = () => {
       seller_id: (quote as any).seller_id || "",
       delivery_deadline: (quote as any).delivery_deadline || "",
       origem_venda: (quote as any).origem_venda || "",
+      issue_date: (quote as any).issue_date || "",
     });
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
