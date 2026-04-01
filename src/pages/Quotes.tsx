@@ -576,6 +576,9 @@ const Quotes = () => {
       const amount = parseFloat(payRegForm.amount);
       if (!amount || amount <= 0) throw new Error("Valor inválido");
 
+      const today = localDateString();
+      const isFuture = payRegForm.date > today;
+
       const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quote.id).single();
 
       const clientName = clients.find(c => c.id === quote.client_id)?.name ?? "";
@@ -584,18 +587,29 @@ const Quotes = () => {
         description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
         amount,
         due_date: payRegForm.date,
-        paid_date: payRegForm.date,
-        status: "pago" as any,
+        paid_date: isFuture ? null : payRegForm.date,
+        status: isFuture ? ("pendente" as any) : ("pago" as any),
         category: `Faturamento - ${payRegForm.method}`,
         work_order_id: wo?.id || null,
         client_id: quote.client_id,
       });
 
       const currentPaid = Number(quote.down_payment || 0);
-      const totalPaidNow = currentPaid + amount;
+      const effectiveNewPaid = isFuture ? 0 : amount;
+      const totalPaidNow = currentPaid + effectiveNewPaid;
       const total = Number(quote.total);
       const newRemaining = Math.max(total - totalPaidNow, 0);
-      const newStatus = totalPaidNow >= total ? "pago_total" : "entrada_recebida";
+
+      let newStatus = "aguardando";
+      if (totalPaidNow >= total) {
+        newStatus = "pago_total";
+      } else if (isFuture && currentPaid === 0) {
+        newStatus = "entrada_pendente";
+      } else if (totalPaidNow > 0 && totalPaidNow < total) {
+        newStatus = "pagamento_parcial";
+      } else if (totalPaidNow > 0) {
+        newStatus = "entrada_recebida";
+      }
 
       await supabase.from("quotes").update({
         down_payment: totalPaidNow,
