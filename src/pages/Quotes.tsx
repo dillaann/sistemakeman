@@ -594,8 +594,9 @@ const Quotes = () => {
   const handleGeneratePDF = async (quote: any) => {
     const client = quote.clients as any;
     const quoteItems = (quote.quote_items ?? []) as any[];
-    const createdAt = new Date(quote.created_at);
-    const dateStr = createdAt.toLocaleDateString("pt-BR");
+    const issueDate = (quote as any).issue_date;
+    const dateStr = issueDate ? formatDateBR(issueDate) : new Date(quote.created_at).toLocaleDateString("pt-BR");
+    const validUntilStr = quote.valid_until ? formatDateBR(quote.valid_until) : null;
 
     const pdfItems = quoteItems.length > 0
       ? quoteItems.map((it: any) => ({ description: it.description, quantity: Number(it.quantity), unit_price: Number(it.unit_price), total: Number(it.total) }))
