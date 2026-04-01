@@ -867,7 +867,7 @@ const Quotes = () => {
                       <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {userRole === "admin" && (
+                      {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(q)} title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
