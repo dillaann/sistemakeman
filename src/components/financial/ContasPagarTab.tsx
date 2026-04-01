@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, Eye } from "lucide-react";
 import { formatDateBR, localDateString } from "@/lib/utils";
+import { isInRange } from "@/components/MonthFilter";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
