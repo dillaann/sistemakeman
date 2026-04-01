@@ -192,6 +192,13 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold text-lg">Movimentações</h3>
+        <div className="flex gap-2">
+          <FinancialReportDialog
+            type="movimentacoes"
+            transactions={filtered.map(m => ({ date: m.date, description: m.description, category: m.category ?? "", amount: Number(m.amount), status: m.type === "entrada" || m.type === "transferencia_entrada" ? "entrada" : "saida" }))}
+            categories={categorias}
+            periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
+          />
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setForm({ account_id: "", dest_account_id: "", amount: "", date: localDateString(), category: "Outros", description: "", notes: "" }); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Nova Movimentação</Button>
