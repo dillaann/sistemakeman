@@ -96,7 +96,7 @@ export async function generateQuotePDF(data: QuotePDFData) {
   doc.text("Rua Jornalista Adolfo Ziguelli, n° 347 - Roçado", rightX, y + 25);
   doc.text("CEP 88.108-176 - São José - SC", rightX, y + 30);
 
-  y = logoBaseY + 14;
+  y += 38;
 
   // ===== INFO BOX: No. ORÇAMENTO | DATA | PRAZO DE ENTREGA =====
   const boxH = 14;
