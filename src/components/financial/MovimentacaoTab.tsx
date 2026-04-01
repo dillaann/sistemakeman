@@ -10,6 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { TrendingUp, TrendingDown, DollarSign, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import FinancialReportDialog from "./FinancialReportDialog";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -132,9 +133,17 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
         </Card>
       )}
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <h3 className="font-semibold">Tabela Consolidada</h3>
-        <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
+        <div className="flex gap-2">
+          <FinancialReportDialog
+            type="visao_geral"
+            transactions={transactions.map(t => ({ date: t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status, origin: t.type === "a_receber" ? "Entrada" : "Saída" }))}
+            categories={[...new Set(transactions.map(t => t.category).filter(Boolean) as string[])]}
+            periodLabel={`${formatDateBR(dateFrom)} a ${formatDateBR(dateTo)}`}
+          />
+          <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
+        </div>
       </div>
 
       <div className="border rounded-lg overflow-auto max-h-[500px]">

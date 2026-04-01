@@ -15,6 +15,7 @@ import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { isInRange } from "@/components/MonthFilter";
+import FinancialReportDialog from "./FinancialReportDialog";
 
 interface SaidasTabProps {
   dateRange?: { start: Date; end: Date };
@@ -146,6 +147,13 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
           <p className="text-sm text-muted-foreground">Total de Saídas no Período</p>
           <p className="text-2xl font-bold text-red-600">{fmt(total)}</p>
         </div>
+        <div className="flex gap-2">
+          <FinancialReportDialog
+            type="saidas"
+            transactions={filtered.map(t => ({ date: t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status }))}
+            categories={categorias}
+            periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
+          />
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "" }); } }}>
           <DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-2" />Nova Saída</Button></DialogTrigger>
           <DialogContent>
@@ -179,6 +187,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

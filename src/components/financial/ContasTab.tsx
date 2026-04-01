@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Wallet, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ExtratoDialog from "./ExtratoDialog";
+import FinancialReportDialog from "./FinancialReportDialog";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -148,6 +149,16 @@ export default function ContasTab() {
       {/* Header + Add button */}
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-lg">Contas Cadastradas</h3>
+        <div className="flex gap-2">
+          <FinancialReportDialog
+            type="contas"
+            transactions={accounts.filter(a => a.active).map(a => {
+              const bal = getBalance(a.id, Number(a.initial_balance));
+              return { date: "", description: a.name, category: typeLabels[a.type] ?? a.type, amount: bal, status: a.active ? "ativa" : "inativa" };
+            })}
+            categories={Object.values(typeLabels)}
+            periodLabel="Saldo atual por conta"
+          />
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", type: "conta_corrente", initial_balance: "0", notes: "" }); } }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Nova Conta</Button>
@@ -177,6 +188,7 @@ export default function ContasTab() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Table */}
