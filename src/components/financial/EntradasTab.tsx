@@ -107,16 +107,31 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
+  const isFutureDate = (dateStr: string) => {
+    if (!dateStr) return false;
+    return dateStr > localDateString();
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      let finalStatus = form.status === "recebido" ? "pago" : form.status;
+      let paidDate = form.status === "recebido" ? localDateString() : null;
+
+      // Block "recebido" for future dates
+      if (isFutureDate(form.due_date) && finalStatus === "pago") {
+        finalStatus = "pendente";
+        paidDate = null;
+        toast({ title: "Aviso", description: "Data futura detectada. Status alterado para 'Pendente'." });
+      }
+
       const payload = {
         type: "a_receber" as const,
         description: form.description,
         amount: parseFloat(form.amount),
         due_date: form.due_date,
         category: form.category || null,
-        status: (form.status === "recebido" ? "pago" : form.status) as any,
-        paid_date: form.status === "recebido" ? localDateString() : null,
+        status: finalStatus as any,
+        paid_date: paidDate,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
