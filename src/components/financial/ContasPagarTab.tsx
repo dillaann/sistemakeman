@@ -171,6 +171,15 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
             {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Button
+          variant={showAllPending ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowAllPending(!showAllPending)}
+          className="flex items-center gap-1"
+        >
+          <Eye className="h-4 w-4" />
+          {showAllPending ? "Filtrar por mês" : "Ver todos pendentes"}
+        </Button>
       </div>
 
       {/* Table */}
