@@ -1,3 +1,4 @@
+import { localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +53,7 @@ const Purchases = () => {
   // Purchase dialog
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [pForm, setPForm] = useState({
-    supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
+    supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: localDateString(),
     invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
     client_id: "", work_order_id: "",
   });
@@ -275,7 +276,7 @@ const Purchases = () => {
       setPurchaseOpen(false);
       setEditPurchaseId(null);
       setPForm({
-        supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0],
+        supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: localDateString(),
         invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "",
         client_id: "", work_order_id: "",
       });
@@ -305,7 +306,7 @@ const Purchases = () => {
       const purchase = purchases.find(p => p.id === id);
       if (purchase) {
         await supabase.from("financial_transactions")
-          .update({ status: "pago" as any, paid_date: new Date().toISOString().split("T")[0] })
+          .update({ status: "pago" as any, paid_date: localDateString() })
           .ilike("description", `%${purchase.material}%`)
           .eq("category", "Compras")
           .eq("status", "pendente" as any);
@@ -630,7 +631,7 @@ const Purchases = () => {
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
-              <Dialog open={purchaseOpen} onOpenChange={(v) => { setPurchaseOpen(v); if (!v) { setEditPurchaseId(null); setPForm({ supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: new Date().toISOString().split("T")[0], invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "", client_id: "", work_order_id: "" }); } }}>
+              <Dialog open={purchaseOpen} onOpenChange={(v) => { setPurchaseOpen(v); if (!v) { setEditPurchaseId(null); setPForm({ supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: localDateString(), invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "", client_id: "", work_order_id: "" }); } }}>
                 <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
                 <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>{editPurchaseId ? "Editar Compra" : "Registrar Compra"}</DialogTitle></DialogHeader>

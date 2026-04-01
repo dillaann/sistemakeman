@@ -1,3 +1,4 @@
+import { localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,12 +74,12 @@ const Quotes = () => {
   const [commPercentage, setCommPercentage] = useState(5);
   const [paymentType, setPaymentType] = useState<"a_vista" | "entrada_restante">("a_vista");
   const [downPayment, setDownPayment] = useState("");
-  const [downPaymentDate, setDownPaymentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [downPaymentDate, setDownPaymentDate] = useState(localDateString());
   const [paymentMethod, setPaymentMethod] = useState("pix");
 
   // Payment registration modal for approved quotes
   const [payRegDialog, setPayRegDialog] = useState<any>(null);
-  const [payRegForm, setPayRegForm] = useState({ amount: "", method: "pix", date: new Date().toISOString().split("T")[0] });
+  const [payRegForm, setPayRegForm] = useState({ amount: "", method: "pix", date: localDateString() });
 
   const addItem = () => setItems([...items, { description: "", quantity: "1", unit_price: "" }]);
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
@@ -292,7 +293,7 @@ const Quotes = () => {
                 type: "a_receber" as any,
                 description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
                 amount: newRemaining,
-                due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+                due_date: localDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
                 status: "pendente" as any,
                 category: "Faturamento",
                 work_order_id: wo.id,
@@ -362,7 +363,7 @@ const Quotes = () => {
     setCommPercentage(defaultPct);
     setPaymentType("a_vista");
     setDownPayment("");
-    setDownPaymentDate(new Date().toISOString().split("T")[0]);
+    setDownPaymentDate(localDateString());
     setPaymentMethod("pix");
     setApprovalModal({
       open: true,
@@ -444,7 +445,7 @@ const Quotes = () => {
             type: "a_receber" as any,
             description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
             amount: pendingAmount,
-            due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            due_date: localDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
             status: "pendente" as any,
             category: "Faturamento",
             work_order_id: wo.id,
@@ -747,7 +748,7 @@ const Quotes = () => {
                 {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
                   <Button variant="ghost" size="sm" onClick={() => {
                     const rem = Number((q as any).remaining_amount || q.total);
-                    setPayRegForm({ amount: String(rem), method: "pix", date: new Date().toISOString().split("T")[0] });
+                    setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
                     setPayRegDialog(q);
                   }}><DollarSign className="h-4 w-4 mr-1 text-green-600" />Pagar</Button>
                 )}
@@ -815,7 +816,7 @@ const Quotes = () => {
                       {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
                         <Button variant="ghost" size="icon" onClick={() => {
                           const rem = Number((q as any).remaining_amount || q.total);
-                          setPayRegForm({ amount: String(rem), method: "pix", date: new Date().toISOString().split("T")[0] });
+                          setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
                           setPayRegDialog(q);
                         }} title="Registrar Pagamento">
                           <DollarSign className="h-4 w-4 text-green-600" />
