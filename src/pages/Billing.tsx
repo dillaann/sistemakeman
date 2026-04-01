@@ -12,9 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, DollarSign, Receipt, AlertCircle, Trash2 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, startOfYear, endOfYear } from "date-fns";
+import { Search, DollarSign, Receipt, AlertCircle, Trash2, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { format } from "date-fns";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
 type PeriodFilter = "week" | "month" | "quarter" | "year";
 
