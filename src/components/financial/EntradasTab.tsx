@@ -82,10 +82,19 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     return desc;
   };
 
+  const getEffectiveStatus = (t: { status: string; due_date: string }) => {
+    if (t.status === "pendente" && t.due_date < localDateString()) return "atrasado";
+    return t.status;
+  };
+
   const filtered = useMemo(() => {
+    const today = localDateString();
     let list = transactions.filter(t => {
       if (dateRange && !isInRange(t.paid_date || t.due_date, dateRange)) return false;
-      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      const effective = getEffectiveStatus(t);
+      if (statusFilter === "atrasado") {
+        if (effective !== "atrasado") return false;
+      } else if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (dateFrom && t.due_date < dateFrom) return false;
       if (dateTo && t.due_date > dateTo) return false;
@@ -107,16 +116,31 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
+  const isFutureDate = (dateStr: string) => {
+    if (!dateStr) return false;
+    return dateStr > localDateString();
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      let finalStatus = form.status === "recebido" ? "pago" : form.status;
+      let paidDate = form.status === "recebido" ? localDateString() : null;
+
+      // Block "recebido" for future dates
+      if (isFutureDate(form.due_date) && finalStatus === "pago") {
+        finalStatus = "pendente";
+        paidDate = null;
+        toast({ title: "Aviso", description: "Data futura detectada. Status alterado para 'Pendente'." });
+      }
+
       const payload = {
         type: "a_receber" as const,
         description: form.description,
         amount: parseFloat(form.amount),
         due_date: form.due_date,
         category: form.category || null,
-        status: (form.status === "recebido" ? "pago" : form.status) as any,
-        paid_date: form.status === "recebido" ? localDateString() : null,
+        status: finalStatus as any,
+        paid_date: paidDate,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
@@ -226,6 +250,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="pendente">Pendente</SelectItem>
             <SelectItem value="pago">Recebido</SelectItem>
+            <SelectItem value="atrasado">Atrasado</SelectItem>
             <SelectItem value="cancelado">Cancelado</SelectItem>
           </SelectContent>
         </Select>
@@ -261,7 +286,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell>{t.client_id ? (clients.find(c => c.id === t.client_id)?.name ?? "—") : "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
-                <TableCell><Badge className={statusColors[t.status]}>{statusLabels[t.status] ?? t.status}</Badge></TableCell>
+                <TableCell><Badge className={statusColors[getEffectiveStatus(t)]}>{statusLabels[getEffectiveStatus(t)] ?? t.status}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     {t.status === "pendente" && <Button size="sm" variant="outline" onClick={() => markReceived.mutate(t.id)}>Receber</Button>}
