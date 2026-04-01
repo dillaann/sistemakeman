@@ -237,6 +237,7 @@ const Quotes = () => {
         seller_id: editForm.seller_id || null,
         delivery_deadline: editForm.delivery_deadline || null,
         origem_venda: editForm.origem_venda,
+        issue_date: editForm.issue_date || null,
       } as any).eq("id", quoteId);
       if (quoteError) throw quoteError;
 
