@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Minimize2, Maximize2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
