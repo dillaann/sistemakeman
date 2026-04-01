@@ -40,8 +40,22 @@ function drawDarkBanner(doc: jsPDF, x: number, y: number, w: number, h: number, 
   doc.setTextColor(0, 0, 0);
 }
 
-export function generateQuotePDF(data: QuotePDFData) {
+async function loadLogoBase64(): Promise<string> {
+  const response = await fetch("/images/logo-keman.png");
+  const blob = await response.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function generateQuotePDF(data: QuotePDFData) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
+  let logoDataUrl: string | null = null;
+  try {
+    logoDataUrl = await loadLogoBase64();
+  } catch { /* fallback: no logo */ }
   const pw = 210;
   const ph = 297;
   const margin = 15;
