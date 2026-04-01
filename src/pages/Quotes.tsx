@@ -736,6 +736,9 @@ const Quotes = () => {
               </div>
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="font-bold">{fmt(Number(q.total))}</span>
+                <span className="text-muted-foreground text-xs">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm mb-2">
                 {(q as any).seller_id && <span className="text-muted-foreground text-xs">{profilesMap[(q as any).seller_id] || "—"}</span>}
               </div>
               {q.status === "aprovado" && (
