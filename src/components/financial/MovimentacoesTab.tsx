@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isInRange } from "@/components/MonthFilter";
+import FinancialReportDialog from "./FinancialReportDialog";
 
 interface MovimentacoesTabProps {
   dateRange?: { start: Date; end: Date };
