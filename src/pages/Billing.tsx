@@ -130,6 +130,10 @@ const Billing = () => {
   const totalBilled = filtered.reduce((s, o) => s + Number(o.total), 0);
   const totalReceived = filtered.reduce((s, o) => s + o.totalPaid, 0);
   const totalOpen = filtered.reduce((s, o) => s + o.remaining, 0);
+  const count = filtered.length;
+  const ticketMedio = count > 0 ? totalBilled / count : 0;
+  const maxBilling = count > 0 ? Math.max(...filtered.map(o => Number(o.total))) : 0;
+  const minBilling = count > 0 ? Math.min(...filtered.map(o => Number(o.total))) : 0;
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
