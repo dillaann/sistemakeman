@@ -40,7 +40,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { userRole } = useAuth();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  
   const [catFilter, setCatFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -90,14 +90,13 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const filtered = useMemo(() => {
     const today = localDateString();
     let list = transactions.filter(t => {
+      // Only show confirmed/received entries (status = 'pago') with date <= today
+      if (t.status !== "pago") return false;
+      if (t.due_date > today && !t.paid_date) return false;
       if (dateRange && !isInRange(t.paid_date || t.due_date, dateRange)) return false;
-      const effective = getEffectiveStatus(t);
-      if (statusFilter === "atrasado") {
-        if (effective !== "atrasado") return false;
-      } else if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
-      if (dateFrom && t.due_date < dateFrom) return false;
-      if (dateTo && t.due_date > dateTo) return false;
+      if (dateFrom && (t.paid_date || t.due_date) < dateFrom) return false;
+      if (dateTo && (t.paid_date || t.due_date) > dateTo) return false;
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
@@ -112,7 +111,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, statusFilter, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
@@ -193,7 +192,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="rounded-lg border p-4 flex-1 min-w-[200px]">
-          <p className="text-sm text-muted-foreground">Total de Entradas no Período</p>
+          <p className="text-sm text-muted-foreground">Total Recebido no Período</p>
           <p className="text-2xl font-bold text-green-600">{fmt(total)}</p>
         </div>
         <div className="flex gap-2">
@@ -244,16 +243,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="pendente">Pendente</SelectItem>
-            <SelectItem value="pago">Recebido</SelectItem>
-            <SelectItem value="atrasado">Atrasado</SelectItem>
-            <SelectItem value="cancelado">Cancelado</SelectItem>
-          </SelectContent>
-        </Select>
+        
         <Select value={catFilter} onValueChange={setCatFilter}>
           <SelectTrigger className="w-[160px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
@@ -274,7 +264,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
               <TableHead>Categoria</TableHead>
               <TableHead>Cliente/Origem</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
-              <TableHead>Status</TableHead>
+              
               <TableHead className="w-28">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -286,10 +276,8 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell>{t.client_id ? (clients.find(c => c.id === t.client_id)?.name ?? "—") : "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
-                <TableCell><Badge className={statusColors[getEffectiveStatus(t)]}>{statusLabels[getEffectiveStatus(t)] ?? t.status}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    {t.status === "pendente" && <Button size="sm" variant="outline" onClick={() => markReceived.mutate(t.id)}>Receber</Button>}
                     <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
                     {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
