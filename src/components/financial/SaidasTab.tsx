@@ -219,7 +219,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
               <TableHead>Categoria</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
-              <TableHead>Status</TableHead>
+              
               <TableHead className="w-28">Ações</TableHead>
             </TableRow>
           </TableHeader>
