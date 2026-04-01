@@ -76,7 +76,7 @@ const Dashboard = () => {
   const { data: allPurchases = [] } = useQuery({
     queryKey: ["purchases-dashboard-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("purchases").select("total, discount_amount, purchase_date");
+      const { data } = await supabase.from("purchases").select("total, discount_amount, purchase_date, payment_status");
       return data ?? [];
     },
   });
