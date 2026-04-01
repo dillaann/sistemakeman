@@ -600,7 +600,7 @@ const Quotes = () => {
 
     generateQuotePDF({
       date: dateStr,
-      client: { name: client?.name ?? "—", phone: client?.phone, address: client?.address, city: client?.city, state: client?.state },
+      client: { name: client?.name ?? "—", phone: client?.phone, address: client?.address, city: client?.city, state: client?.state, cpf_cnpj: client?.cpf_cnpj },
       items: pdfItems,
       total: Number(quote.total),
       description: quote.description,
