@@ -62,6 +62,7 @@ const Quotes = () => {
   const [editQuote, setEditQuote] = useState<any>(null);
   const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
   const [editItems, setEditItems] = useState<ItemRow[]>([]);
+  const [editPayment, setEditPayment] = useState({ payment_type: "a_vista", down_payment: "", down_payment_date: "", payment_method: "pix" });
 
   // Approval modal state (commission + payment)
   const [approvalModal, setApprovalModal] = useState<{
@@ -202,6 +203,12 @@ const Quotes = () => {
       origem_venda: (quote as any).origem_venda || "",
       issue_date: (quote as any).issue_date || "",
     });
+    setEditPayment({
+      payment_type: (quote as any).payment_type || "a_vista",
+      down_payment: String((quote as any).down_payment || ""),
+      down_payment_date: (quote as any).down_payment_date || "",
+      payment_method: (quote as any).payment_method || "pix",
+    });
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
       quoteItems.length > 0
@@ -232,6 +239,31 @@ const Quotes = () => {
         }
       }
 
+      // Calculate payment info
+      const today = localDateString();
+      const dpAmount = editPayment.payment_type === "entrada_restante" ? (parseFloat(editPayment.down_payment) || 0) : (isApproved ? newTotal : 0);
+      const dpDate = editPayment.down_payment_date || null;
+      const isFuturePayment = dpAmount > 0 && dpDate && dpDate > today;
+      const effectivePaidAmount = isFuturePayment ? 0 : dpAmount;
+
+      // Validate
+      if (dpAmount > newTotal) throw new Error("Valor da entrada não pode ser maior que o total");
+
+      let paymentStatus = (editQuote as any).payment_status || "aguardando";
+      if (isApproved) {
+        if (dpAmount <= 0) {
+          paymentStatus = "aguardando";
+        } else if (isFuturePayment) {
+          paymentStatus = "entrada_pendente";
+        } else if (effectivePaidAmount >= newTotal) {
+          paymentStatus = "pago_total";
+        } else if (effectivePaidAmount > 0 && effectivePaidAmount < newTotal) {
+          paymentStatus = "pagamento_parcial";
+        } else {
+          paymentStatus = "entrada_recebida";
+        }
+      }
+
       // Update quote
       const { error: quoteError } = await supabase.from("quotes").update({
         client_id: editForm.client_id,
@@ -242,6 +274,14 @@ const Quotes = () => {
         delivery_deadline: editForm.delivery_deadline || null,
         origem_venda: editForm.origem_venda,
         issue_date: editForm.issue_date || null,
+        ...(isApproved ? {
+          payment_type: editPayment.payment_type,
+          down_payment: effectivePaidAmount,
+          down_payment_date: dpDate,
+          remaining_amount: Math.max(newTotal - effectivePaidAmount, 0),
+          payment_method: editPayment.payment_method,
+          payment_status: paymentStatus,
+        } : {}),
       } as any).eq("id", quoteId);
       if (quoteError) throw quoteError;
 
@@ -975,6 +1015,73 @@ const Quotes = () => {
               <div className="text-right font-bold text-lg border-t pt-2">Total: {fmt(editGrandTotal)}</div>
             </div>
 
+            {/* Payment Section (only for approved quotes) */}
+            {editQuote?.status === "aprovado" && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Condições de Pagamento</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label>Tipo de Pagamento</Label>
+                    <Select value={editPayment.payment_type} onValueChange={v => setEditPayment({ ...editPayment, payment_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="a_vista">Valor Total à Vista</SelectItem>
+                        <SelectItem value="entrada_restante">Entrada + Restante</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {editPayment.payment_type === "entrada_restante" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Valor da Entrada (R$)</Label>
+                          <Input type="number" step="0.01" min="0" max={editGrandTotal} value={editPayment.down_payment} onChange={e => setEditPayment({ ...editPayment, down_payment: e.target.value })} placeholder="0,00" />
+                        </div>
+                        <div>
+                          <Label>Data de Pagamento da Entrada</Label>
+                          <Input type="date" value={editPayment.down_payment_date} onChange={e => setEditPayment({ ...editPayment, down_payment_date: e.target.value })} />
+                        </div>
+                      </div>
+                      {editPayment.down_payment_date && editPayment.down_payment_date > localDateString() && (
+                        <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 p-2 rounded text-sm text-orange-700 dark:text-orange-400">
+                          ⚠️ Data futura — entrada ficará como "Pendente" até a data informada.
+                        </div>
+                      )}
+                      <div className="bg-muted p-2 rounded text-sm">
+                        Saldo restante: <strong>{fmt(Math.max(editGrandTotal - (parseFloat(editPayment.down_payment) || 0), 0))}</strong>
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <Label>Forma de Pagamento</Label>
+                    <Select value={editPayment.payment_method} onValueChange={v => setEditPayment({ ...editPayment, payment_method: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                        <SelectItem value="pix">PIX</SelectItem>
+                        <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
+                        <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
+                        <SelectItem value="boleto">Boleto</SelectItem>
+                        <SelectItem value="transferencia">Transferência</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Current payment summary */}
+                  <div className="bg-muted/50 p-3 rounded space-y-1 text-sm">
+                    <div className="flex justify-between"><span>Valor Total:</span><strong>{fmt(editGrandTotal)}</strong></div>
+                    <div className="flex justify-between"><span>Entrada:</span><strong>{fmt(parseFloat(editPayment.down_payment) || 0)}</strong></div>
+                    <div className="flex justify-between border-t pt-1"><span>Saldo a Pagar:</span><strong className="text-primary">{fmt(Math.max(editGrandTotal - (parseFloat(editPayment.down_payment) || 0), 0))}</strong></div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div><Label>Observações</Label><Textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} /></div>
             <div><Label>Data de Emissão</Label><Input type="date" value={editForm.issue_date} onChange={e => setEditForm({ ...editForm, issue_date: e.target.value })} /></div>
             <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={editForm.delivery_deadline} onChange={e => setEditForm({ ...editForm, delivery_deadline: e.target.value })} /></div>
@@ -1032,6 +1139,11 @@ const Quotes = () => {
                         <Label>Data do Pagamento da Entrada</Label>
                         <Input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} />
                       </div>
+                      {downPaymentDate && downPaymentDate > localDateString() && (
+                        <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 p-2 rounded text-sm text-orange-700 dark:text-orange-400">
+                          ⚠️ Data futura — entrada ficará como "Pendente" até a data informada.
+                        </div>
+                      )}
                       <div className="bg-muted p-2 rounded text-sm">
                         Restante a receber: <strong>{fmt(approvalRemaining)}</strong>
                       </div>
@@ -1045,9 +1157,11 @@ const Quotes = () => {
                       <SelectContent>
                         <SelectItem value="dinheiro">Dinheiro</SelectItem>
                         <SelectItem value="pix">PIX</SelectItem>
-                        <SelectItem value="cartao">Cartão</SelectItem>
+                        <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
+                        <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
                         <SelectItem value="boleto">Boleto</SelectItem>
                         <SelectItem value="transferencia">Transferência</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1106,9 +1220,11 @@ const Quotes = () => {
                   <SelectContent>
                     <SelectItem value="dinheiro">Dinheiro</SelectItem>
                     <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="cartao">Cartão</SelectItem>
+                    <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
+                    <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
                     <SelectItem value="boleto">Boleto</SelectItem>
                     <SelectItem value="transferencia">Transferência</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
