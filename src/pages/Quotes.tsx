@@ -1139,6 +1139,11 @@ const Quotes = () => {
                         <Label>Data do Pagamento da Entrada</Label>
                         <Input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} />
                       </div>
+                      {downPaymentDate && downPaymentDate > localDateString() && (
+                        <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 p-2 rounded text-sm text-orange-700 dark:text-orange-400">
+                          ⚠️ Data futura — entrada ficará como "Pendente" até a data informada.
+                        </div>
+                      )}
                       <div className="bg-muted p-2 rounded text-sm">
                         Restante a receber: <strong>{fmt(approvalRemaining)}</strong>
                       </div>
