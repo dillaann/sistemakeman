@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, ClipboardList, DollarSign, Factory, Receipt, TrendingUp, TrendingDown, ShoppingBag, ShoppingCart, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
+import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 
 const Dashboard = () => {
   const [refDate, setRefDate] = useState(new Date());
@@ -50,15 +50,24 @@ const Dashboard = () => {
   }, [quotes, dateRange]);
 
   // Filtered data
-  const filteredQuotes = useMemo(() => (quotes ?? []).filter(q => isInRange(q.created_at, dateRange)), [quotes, dateRange]);
-  const filteredWO = useMemo(() => (workOrders ?? []).filter(w => isInRange(w.created_at, dateRange)), [workOrders, dateRange]);
-  const filteredTxns = useMemo(() => (transactions ?? []).filter(t => isInRange(t.due_date, dateRange)), [transactions, dateRange]);
+  const filteredQuotes = useMemo(() => (quotes ?? []).filter(q => {
+    const isOpen = q.status === "pendente";
+    return isInRangeOrOpen(q.created_at, dateRange, isOpen, q.approved_at);
+  }), [quotes, dateRange]);
+  const filteredWO = useMemo(() => (workOrders ?? []).filter(w => {
+    const isOpen = ["aguardando", "em_producao"].includes(w.status);
+    return isInRangeOrOpen(w.created_at, dateRange, isOpen, null);
+  }), [workOrders, dateRange]);
+  const filteredTxns = useMemo(() => (transactions ?? []).filter(t => {
+    const isOpen = t.status === "pendente" || t.status === "atrasado";
+    return isInRangeOrOpen(t.due_date, dateRange, isOpen, t.paid_date);
+  }), [transactions, dateRange]);
 
   // Sales summary
   const { data: allSales = [] } = useQuery({
     queryKey: ["sales-dashboard-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("sales").select("amount, created_at, seller_id, origem_venda");
+      const { data } = await supabase.from("sales").select("amount, created_at, seller_id, origem_venda, status");
       return data ?? [];
     },
   });
@@ -67,7 +76,7 @@ const Dashboard = () => {
   const { data: allPurchases = [] } = useQuery({
     queryKey: ["purchases-dashboard-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("purchases").select("total, discount_amount, purchase_date");
+      const { data } = await supabase.from("purchases").select("total, discount_amount, purchase_date, payment_status");
       return data ?? [];
     },
   });
@@ -82,14 +91,20 @@ const Dashboard = () => {
   });
 
   const salesSummary = useMemo(() => {
-    const filtered = allSales.filter(s => isInRange(s.created_at, dateRange));
+    const filtered = allSales.filter(s => {
+      const isOpen = ["aguardando", "em_producao"].includes(s.status);
+      return isInRangeOrOpen(s.created_at, dateRange, isOpen, null);
+    });
     const totalSold = filtered.reduce((s, sale) => s + Number(sale.amount), 0);
     const uniqueSellers = new Set(filtered.map(s => s.seller_id)).size;
     return { totalSold, count: filtered.length, sellers: uniqueSellers };
   }, [allSales, dateRange]);
 
   const purchasesSummary = useMemo(() => {
-    const filtered = allPurchases.filter(p => isInRange(p.purchase_date, dateRange));
+    const filtered = allPurchases.filter(p => {
+      const isOpen = p.payment_status !== "pago";
+      return isInRangeOrOpen(p.purchase_date, dateRange, isOpen, p.payment_status === "pago" ? p.purchase_date : null);
+    });
     const totalSpent = filtered.reduce((s, p) => s + Number(p.total), 0);
     const totalDiscount = filtered.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
     return { totalSpent, totalDiscount };

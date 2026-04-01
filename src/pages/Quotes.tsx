@@ -16,7 +16,7 @@ import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
+import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 
 const statusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -610,11 +610,13 @@ const Quotes = () => {
     toast({ title: "PDF gerado com sucesso!" });
   };
 
-  const filtered = quotes.filter(q =>
-    isInRange(q.created_at, dateRange) && (
-    (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    (q.description ?? "").toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = quotes.filter(q => {
+    const isOpen = q.status === "pendente";
+    const completionDate = q.approved_at || q.created_at;
+    if (!isInRangeOrOpen(q.created_at, dateRange, isOpen, completionDate)) return false;
+    return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      (q.description ?? "").toLowerCase().includes(search.toLowerCase());
+  });
 
   const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
   const approvalDownPayment = parseFloat(downPayment) || 0;
