@@ -608,7 +608,7 @@ const Quotes = () => {
       items: pdfItems,
       total: Number(quote.total),
       description: quote.description,
-      valid_until: quote.valid_until,
+      valid_until: validUntilStr,
       delivery_deadline: (quote as any).delivery_deadline,
     });
     toast({ title: "PDF gerado com sucesso!" });
