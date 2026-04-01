@@ -55,8 +55,8 @@ const Financial = () => {
         </TabsList>
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
-        <TabsContent value="contas_pagar"><ContasPagarTab /></TabsContent>
-        <TabsContent value="contas_receber"><ContasReceberTab /></TabsContent>
+        <TabsContent value="contas_pagar"><ContasPagarTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="contas_receber"><ContasReceberTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="contas"><ContasTab /></TabsContent>
         <TabsContent value="movimentacoes"><MovimentacoesTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="notas"><NotasFiscaisTab dateRange={dateRange} /></TabsContent>
