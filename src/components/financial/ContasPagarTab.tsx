@@ -35,7 +35,7 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   a_vencer: { label: "A Vencer", className: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
 };
 
-export default function ContasPagarTab() {
+export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -43,6 +43,7 @@ export default function ContasPagarTab() {
   const [catFilter, setCatFilter] = useState("all");
   const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
   const [sortAsc, setSortAsc] = useState(true);
+  const [showAllPending, setShowAllPending] = useState(false);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-contas-pagar"],
