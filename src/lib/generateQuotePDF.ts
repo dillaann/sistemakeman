@@ -104,21 +104,24 @@ export async function generateQuotePDF(data: QuotePDFData) {
   doc.setDrawColor(0);
   doc.rect(margin, y, cw, boxH);
 
-  // Vertical dividers
-  const col1W = cw * 0.45;
-  const col2W = cw * 0.25;
+  // Vertical dividers — 4 columns now
+  const col1W = cw * 0.30;
+  const col2W = cw * 0.22;
+  const col3W = cw * 0.22;
   doc.line(margin + col1W, y, margin + col1W, y + boxH);
   doc.line(margin + col1W + col2W, y, margin + col1W + col2W, y + boxH);
+  doc.line(margin + col1W + col2W + col3W, y, margin + col1W + col2W + col3W, y + boxH);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   const textY = y + boxH / 2;
   doc.text(`No. ORÇAMENTO: ${data.quote_number ?? "___"}`, margin + 3, textY, { baseline: "middle" });
-  doc.text(`DATA: ${data.date}`, margin + col1W + 3, textY, { baseline: "middle" });
+  doc.text(`EMISSÃO: ${data.date}`, margin + col1W + 3, textY, { baseline: "middle" });
+  doc.text(`VALIDADE: ${data.valid_until ?? "___"}`, margin + col1W + col2W + 3, textY, { baseline: "middle" });
 
   const deadlineDays = data.delivery_deadline ?? "___";
-  doc.text("PRAZO DE ENTREGA", margin + col1W + col2W + 3, y + 5);
-  doc.text(`${deadlineDays} dias úteis`, margin + col1W + col2W + 3, y + 10);
+  doc.text("PRAZO DE ENTREGA", margin + col1W + col2W + col3W + 3, y + 5);
+  doc.text(`${deadlineDays} dias úteis`, margin + col1W + col2W + col3W + 3, y + 10);
 
   y += boxH + 4;
 
