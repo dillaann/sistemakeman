@@ -152,9 +152,12 @@ export default function ContasTab() {
         <div className="flex gap-2">
           <FinancialReportDialog
             type="contas"
-            transactions={movements.map(m => ({ date: m.date ?? "", description: m.description ?? "", category: m.category ?? "", amount: Number(m.amount), status: m.type }))}
-            categories={[...new Set(movements.map(m => m.category).filter(Boolean) as string[])]}
-            periodLabel="Todas as movimentações"
+            transactions={accounts.filter(a => a.active).map(a => {
+              const bal = getBalance(a.id, Number(a.initial_balance));
+              return { date: "", description: a.name, category: typeLabels[a.type] ?? a.type, amount: bal, status: a.active ? "ativa" : "inativa" };
+            })}
+            categories={Object.values(typeLabels)}
+            periodLabel="Saldo atual por conta"
           />
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm({ name: "", type: "conta_corrente", initial_balance: "0", notes: "" }); } }}>
           <DialogTrigger asChild>
