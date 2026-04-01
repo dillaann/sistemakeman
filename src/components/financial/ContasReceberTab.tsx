@@ -35,13 +35,14 @@ interface GroupedReceivable {
   pendingTransactionIds: string[];
 }
 
-export default function ContasReceberTab() {
+export default function ContasReceberTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<"due_date" | "remaining">("due_date");
   const [sortAsc, setSortAsc] = useState(true);
+  const [showAllPending, setShowAllPending] = useState(false);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-contas-receber"],
