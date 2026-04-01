@@ -40,6 +40,36 @@ export function isInRange(dateStr: string | null | undefined, range: { start: Da
   return d >= range.start && d <= range.end;
 }
 
+/** Check if selected range includes the current date (i.e. user is viewing "current" period) */
+function isCurrentPeriod(range: { start: Date; end: Date }): boolean {
+  const now = new Date();
+  return now >= range.start && now <= range.end;
+}
+
+/**
+ * Smart filter: open/pending records always show in the CURRENT period.
+ * Finished records stay fixed in the period of their completion date.
+ *
+ * @param dateStr - primary date field (created_at, due_date, purchase_date, etc.)
+ * @param range - the selected period range
+ * @param isOpen - whether the record is considered "open" / pending
+ * @param completionDateStr - optional: the date when the record was finalized (paid_date, approved_at, completed_at)
+ */
+export function isInRangeOrOpen(
+  dateStr: string | null | undefined,
+  range: { start: Date; end: Date },
+  isOpen: boolean,
+  completionDateStr?: string | null
+): boolean {
+  // If record is open/pending → only show in current period
+  if (isOpen) {
+    return isCurrentPeriod(range);
+  }
+  // Record is finalized → show in the period of the completion date (or fallback to primary date)
+  const effectiveDate = completionDateStr || dateStr;
+  return isInRange(effectiveDate, range);
+}
+
 function getLabel(refDate: Date, mode: PeriodMode): string {
   const y = refDate.getFullYear();
   const m = refDate.getMonth();
