@@ -129,7 +129,22 @@ const Billing = () => {
 
   const totalBilled = filtered.reduce((s, o) => s + Number(o.total), 0);
   const totalReceived = filtered.reduce((s, o) => s + o.totalPaid, 0);
-  const totalOpen = filtered.reduce((s, o) => s + o.remaining, 0);
+
+  // Accumulated open balance: all unpaid/partial quotes approved up to end of selected period
+  const totalOpenAcumulado = useMemo(() => {
+    return enrichedQuotes
+      .filter((o) => {
+        const approved = o.approvedDate;
+        if (!approved) return false;
+        // Include all quotes approved up to the end of the selected period
+        return approved <= periodRange.end && o.paymentStatus !== "pago";
+      })
+      .reduce((s, o) => s + o.remaining, 0);
+  }, [enrichedQuotes, periodRange]);
+
+  // Open balance only from the current period (for breakdown)
+  const totalOpenDoMes = filtered.filter(o => o.paymentStatus !== "pago").reduce((s, o) => s + o.remaining, 0);
+  const totalOpenAnterior = totalOpenAcumulado - totalOpenDoMes;
   const count = filtered.length;
   const ticketMedio = count > 0 ? totalBilled / count : 0;
   const maxBilling = count > 0 ? Math.max(...filtered.map(o => Number(o.total))) : 0;
