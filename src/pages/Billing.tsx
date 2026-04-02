@@ -90,13 +90,13 @@ const Billing = () => {
       if (totalPaid >= quoteTotal && quoteTotal > 0) paymentStatus = "pago";
       else if (totalPaid > 0) paymentStatus = "parcial";
 
-      // Get the latest paid_date for period filtering
-      const latestPayDate = paidTransactions.length > 0
-        ? paidTransactions.reduce((latest, t) => {
-            const d = t.paid_date ? new Date(t.paid_date) : new Date(0);
-            return d > latest ? d : latest;
-          }, new Date(0))
-        : null;
+      // Use issue_date for accrual-based (competência) filtering
+      const issueDate = q.issue_date ? new Date(q.issue_date + "T12:00:00") : null;
+
+      // Collect paid dates for "received in period" calculation
+      const paidDates = paidTransactions
+        .filter((t) => t.paid_date)
+        .map((t) => ({ date: new Date(t.paid_date + "T12:00:00"), amount: Number(t.amount) }));
 
       return {
         ...q,
@@ -105,19 +105,20 @@ const Billing = () => {
         totalPaid,
         remaining,
         paymentStatus,
+        issueDate,
+        paidDates,
         approvedDate: q.approved_at ? new Date(q.approved_at) : null,
-        latestPayDate,
       };
     });
   }, [approvedQuotes, transactions, workOrders]);
 
   const periodRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
+  // Filter by issue_date (competência)
   const filtered = useMemo(() => {
     return enrichedQuotes.filter((o) => {
-      // Use approved_at for period filtering
-      const refDate = o.approvedDate;
-      const inPeriod = refDate ? refDate >= periodRange.start && refDate <= periodRange.end : true;
+      const ref = o.issueDate;
+      const inPeriod = ref ? ref >= periodRange.start && ref <= periodRange.end : true;
       const matchSearch = (o.description ?? "").toLowerCase().includes(search.toLowerCase()) ||
         o.clientName.toLowerCase().includes(search.toLowerCase()) ||
         o.id.toLowerCase().includes(search.toLowerCase());
@@ -128,16 +129,23 @@ const Billing = () => {
   }, [enrichedQuotes, periodRange, search, clientFilter, statusFilter]);
 
   const totalBilled = filtered.reduce((s, o) => s + Number(o.total), 0);
-  const totalReceived = filtered.reduce((s, o) => s + o.totalPaid, 0);
 
-  // Accumulated open balance: all unpaid/partial quotes approved up to end of selected period
+  // "Recebido no mês": sum of payments whose paid_date falls within the selected period (across ALL quotes)
+  const totalReceivedInPeriod = useMemo(() => {
+    return enrichedQuotes.reduce((sum, o) => {
+      return sum + (o.paidDates ?? [])
+        .filter((p: any) => p.date >= periodRange.start && p.date <= periodRange.end)
+        .reduce((s: number, p: any) => s + p.amount, 0);
+    }, 0);
+  }, [enrichedQuotes, periodRange]);
+
+  // Accumulated open balance: all unpaid/partial quotes issued up to end of selected period
   const totalOpenAcumulado = useMemo(() => {
     return enrichedQuotes
       .filter((o) => {
-        const approved = o.approvedDate;
-        if (!approved) return false;
-        // Include all quotes approved up to the end of the selected period
-        return approved <= periodRange.end && o.paymentStatus !== "pago";
+        const ref = o.issueDate;
+        if (!ref) return false;
+        return ref <= periodRange.end && o.paymentStatus !== "pago";
       })
       .reduce((s, o) => s + o.remaining, 0);
   }, [enrichedQuotes, periodRange]);
@@ -267,7 +275,7 @@ const Billing = () => {
             <CardTitle className="text-xs font-medium whitespace-nowrap">Total Recebido</CardTitle>
             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="p-3 pt-0"><div className="text-lg font-bold text-green-600 whitespace-nowrap">{fmt(totalReceived)}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold text-green-600 whitespace-nowrap">{fmt(totalReceivedInPeriod)}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
@@ -338,7 +346,7 @@ const Billing = () => {
               <TableHead>Orçamento/OS</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead className="hidden md:table-cell">Descrição</TableHead>
-              <TableHead className="hidden md:table-cell">Aprovação</TableHead>
+              <TableHead className="hidden md:table-cell">Emissão</TableHead>
               <TableHead>Valor Total</TableHead>
               <TableHead>Recebido</TableHead>
               <TableHead>Saldo</TableHead>
@@ -353,7 +361,7 @@ const Billing = () => {
                 <TableCell className="font-medium">{o.clientName}</TableCell>
                 <TableCell className="hidden md:table-cell max-w-[200px] truncate">{o.description ?? "—"}</TableCell>
                 <TableCell className="hidden md:table-cell">
-                  {o.approvedDate ? format(o.approvedDate, "dd/MM/yyyy") : "—"}
+                  {o.issueDate ? format(o.issueDate, "dd/MM/yyyy") : "—"}
                 </TableCell>
                 <TableCell>{fmt(Number(o.total))}</TableCell>
                 <TableCell className="text-green-600">{fmt(o.totalPaid)}</TableCell>
