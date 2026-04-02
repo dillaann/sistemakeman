@@ -61,13 +61,15 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const filtered = useMemo(() => {
     const today = localDateString();
     let list = transactions.filter(t => {
-      // Only show confirmed/paid exits (status = 'pago') with date <= today
+      // Only show confirmed/paid exits (status = 'pago')
       if (t.status !== "pago") return false;
-      if (t.due_date > today && !t.paid_date) return false;
-      if (dateRange && !isInRange(t.due_date, dateRange)) return false;
+      // Use paid_date as reference (cash basis / regime de caixa)
+      const refDate = t.paid_date ?? t.due_date;
+      if (refDate > today) return false;
+      if (dateRange && !isInRange(refDate, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
-      if (dateFrom && t.due_date < dateFrom) return false;
-      if (dateTo && t.due_date > dateTo) return false;
+      if (dateFrom && refDate < dateFrom) return false;
+      if (dateTo && refDate > dateTo) return false;
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
