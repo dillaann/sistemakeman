@@ -1015,11 +1015,14 @@ const Quotes = () => {
               <div className="text-right font-bold text-lg border-t pt-2">Total: {fmt(editGrandTotal)}</div>
             </div>
 
-            {/* Payment Section (only for approved quotes) */}
+            {/* Payment Section (for approved quotes - always editable) */}
             {editQuote?.status === "aprovado" && (
-              <Card>
+              <Card className="border-primary/30">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Condições de Pagamento</CardTitle>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Condições de Pagamento
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
@@ -1072,11 +1075,36 @@ const Quotes = () => {
                     </Select>
                   </div>
 
+                  <div>
+                    <Label>Status do Pagamento</Label>
+                    <Select value={editPayment.payment_status} onValueChange={v => setEditPayment({ ...editPayment, payment_status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aguardando">Aguardando Entrada</SelectItem>
+                        <SelectItem value="entrada_pendente">Entrada Pendente</SelectItem>
+                        <SelectItem value="entrada_recebida">Entrada Recebida</SelectItem>
+                        <SelectItem value="pagamento_parcial">Pagamento Parcial</SelectItem>
+                        <SelectItem value="pago_total">Pago Total</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Observações de Pagamento</Label>
+                    <Textarea
+                      placeholder="Anotações sobre o pagamento..."
+                      value={editPayment.payment_notes}
+                      onChange={e => setEditPayment({ ...editPayment, payment_notes: e.target.value })}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
                   {/* Current payment summary */}
                   <div className="bg-muted/50 p-3 rounded space-y-1 text-sm">
                     <div className="flex justify-between"><span>Valor Total:</span><strong>{fmt(editGrandTotal)}</strong></div>
                     <div className="flex justify-between"><span>Entrada:</span><strong>{fmt(parseFloat(editPayment.down_payment) || 0)}</strong></div>
                     <div className="flex justify-between border-t pt-1"><span>Saldo a Pagar:</span><strong className="text-primary">{fmt(Math.max(editGrandTotal - (parseFloat(editPayment.down_payment) || 0), 0))}</strong></div>
+                    <div className="flex justify-between"><span>Status:</span><Badge className={paymentStatusColors[editPayment.payment_status] || paymentStatusColors.aguardando}>{paymentStatusLabels[editPayment.payment_status] || "Aguardando"}</Badge></div>
                   </div>
                 </CardContent>
               </Card>
