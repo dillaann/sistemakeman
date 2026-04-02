@@ -623,7 +623,10 @@ const AdminSalesView = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl md:text-2xl font-bold">Vendas — Painel Administrativo</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-xl md:text-2xl font-bold">Vendas — Painel Administrativo</h1>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+      </div>
 
       {/* Summary cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
