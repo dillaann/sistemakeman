@@ -839,7 +839,7 @@ const Quotes = () => {
               )}
               <div className="flex gap-1 flex-wrap">
                 <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(q)}><FileDown className="h-4 w-4 mr-1" />PDF</Button>
-                {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
+                {(userRole === "admin" || userRole === "financeiro" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                   <Button variant="ghost" size="sm" onClick={() => openEditDialog(q)}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
                 )}
                 {q.status === "pendente" && userRole === "admin" && (
@@ -848,7 +848,7 @@ const Quotes = () => {
                     <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })}><X className="h-4 w-4 mr-1 text-red-600" />Rejeitar</Button>
                   </>
                 )}
-                {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
+                {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
                   <Button variant="ghost" size="sm" onClick={() => {
                     const rem = Number((q as any).remaining_amount || q.total);
                     setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
