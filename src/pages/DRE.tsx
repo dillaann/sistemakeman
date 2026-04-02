@@ -121,8 +121,8 @@ const DRE = () => {
       return d >= start && d <= end;
     };
 
-    // Revenue: approved quotes by approved_at date
-    const monthQuotes = approvedQuotes.filter((q: any) => inMonth(q.approved_at));
+    // Revenue: approved quotes by issue_date (competência)
+    const monthQuotes = approvedQuotes.filter((q: any) => inMonth(q.issue_date));
     const receitaBruta = monthQuotes.reduce((s: number, q: any) => s + Number(q.total), 0);
 
     // Deductions: cancelled transactions in the period

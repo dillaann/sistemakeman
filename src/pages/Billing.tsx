@@ -361,7 +361,7 @@ const Billing = () => {
                 <TableCell className="font-medium">{o.clientName}</TableCell>
                 <TableCell className="hidden md:table-cell max-w-[200px] truncate">{o.description ?? "—"}</TableCell>
                 <TableCell className="hidden md:table-cell">
-                  {o.approvedDate ? format(o.approvedDate, "dd/MM/yyyy") : "—"}
+                  {o.issueDate ? format(o.issueDate, "dd/MM/yyyy") : "—"}
                 </TableCell>
                 <TableCell>{fmt(Number(o.total))}</TableCell>
                 <TableCell className="text-green-600">{fmt(o.totalPaid)}</TableCell>
