@@ -928,7 +928,7 @@ const Purchases = () => {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Custo de Materiais por Cliente / Obra (Mês Atual)
+                Custo de Materiais por Cliente / Obra (Período Selecionado)
               </CardTitle>
             </CardHeader>
             <CardContent>
