@@ -109,7 +109,7 @@ const MaterialsTab = ({ dateRange }: MaterialsTabProps) => {
           .sort((a, b) => a.min_price - b.min_price),
       };
     }).sort((a, b) => a.material.localeCompare(b.material));
-  }, [purchases]);
+  }, [purchases, dateRange]);
 
   const filtered = useMemo(() => {
     return materials.filter(m => {
