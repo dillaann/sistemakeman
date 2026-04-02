@@ -147,6 +147,29 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
 
   return (
     <div className="space-y-4">
+      {/* Accumulated Breakdown */}
+      {dateRange && (acumuladoAnteriorPagar > 0 || doMesPagar > 0) && (
+        <Card className="border-orange-200 dark:border-orange-800">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-orange-600 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Composição do Saldo a Pagar</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xs text-muted-foreground">Do mês</p>
+                <p className="text-lg font-bold text-red-600">{fmt(doMesPagar)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Acumulado anterior</p>
+                <p className="text-lg font-bold text-orange-600">{fmt(acumuladoAnteriorPagar)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total a pagar</p>
+                <p className="text-lg font-bold">{fmt(totalAPagarAcumulado)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
