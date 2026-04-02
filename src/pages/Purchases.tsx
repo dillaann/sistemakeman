@@ -341,7 +341,7 @@ const Purchases = () => {
   // Supplier discount ranking
   const supplierDiscounts = useMemo(() => {
     const map: Record<string, { name: string; totalOriginal: number; totalPaid: number; totalSaved: number; count: number }> = {};
-    purchases.forEach(p => {
+    monthPurchases.forEach(p => {
       const sid = p.supplier_id;
       if (!sid) return;
       const name = (p as any).suppliers?.name ?? "Sem nome";
