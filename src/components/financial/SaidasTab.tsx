@@ -156,7 +156,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         <div className="flex gap-2">
           <FinancialReportDialog
             type="saidas"
-            transactions={filtered.map(t => ({ date: t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status }))}
+            transactions={filtered.map(t => ({ date: t.paid_date ?? t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status }))}
             categories={categorias}
             periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
           />

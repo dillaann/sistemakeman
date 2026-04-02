@@ -61,7 +61,8 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
   const chartData = useMemo(() => {
     const map: Record<string, { month: string; entradas: number; saidas: number }> = {};
     transactions.forEach(t => {
-      const m = t.due_date.substring(0, 7);
+      const refDate = t.status === "pago" ? (t.paid_date ?? t.due_date) : t.due_date;
+      const m = refDate.substring(0, 7);
       if (!map[m]) {
         const parsedDate = parseLocalDate(t.due_date);
         map[m] = { month: parsedDate ? format(parsedDate, "MMM/yy", { locale: ptBR }) : m, entradas: 0, saidas: 0 };
