@@ -36,6 +36,15 @@ const statusBadge: Record<string, { label: string; className: string }> = {
 };
 
 export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
+  const isBeforeRange = (dateStr: string) => {
+    if (!dateRange) return false;
+    const d = new Date(dateStr + "T00:00:00");
+    return d < dateRange.start;
+  };
+  const isInCurrentRange = (dateStr: string) => {
+    if (!dateRange) return true;
+    return isInRange(dateStr, dateRange);
+  };
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
