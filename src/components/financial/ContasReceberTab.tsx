@@ -36,6 +36,16 @@ interface GroupedReceivable {
 }
 
 export default function ContasReceberTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
+  // Helper: check if a date string falls before the start of the selected period
+  const isBeforeRange = (dateStr: string) => {
+    if (!dateRange) return false;
+    const d = new Date(dateStr + "T00:00:00");
+    return d < dateRange.start;
+  };
+  const isInCurrentRange = (dateStr: string) => {
+    if (!dateRange) return true;
+    return isInRange(dateStr, dateRange);
+  };
   const { toast } = useToast();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
