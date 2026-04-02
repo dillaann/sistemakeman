@@ -246,6 +246,29 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
 
   return (
     <div className="space-y-4">
+      {/* Accumulated Breakdown */}
+      {dateRange && (acumuladoAnteriorReceber > 0 || doMesReceber > 0) && (
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-blue-600 flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Composição do Saldo em Aberto</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xs text-muted-foreground">Do mês</p>
+                <p className="text-lg font-bold text-blue-600">{fmt(doMesReceber)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Acumulado anterior</p>
+                <p className="text-lg font-bold text-orange-600">{fmt(acumuladoAnteriorReceber)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total em aberto</p>
+                <p className="text-lg font-bold">{fmt(totalEmAbertoAcumulado)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
