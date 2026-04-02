@@ -564,9 +564,10 @@ const AdminSalesView = () => {
     return sellers.find(s => s.id === id)?.full_name || "Direto / Administrador";
   };
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlySales = sales.filter(s => new Date(s.created_at) >= monthStart);
+  const monthlySales = sales.filter(s => {
+    const dateStr = s.created_at ? s.created_at.substring(0, 10) : null;
+    return isInRange(dateStr, dateRange);
+  });
   const monthlyTotal = monthlySales.reduce((s, sale) => s + Number(sale.amount), 0);
   const totalCommPending = commissions.filter(c => c.status !== "paga").reduce((s, c) => s + Number(c.amount), 0);
   const totalCommPaid = commissions.filter(c => c.status === "paga").reduce((s, c) => s + Number(c.amount), 0);
