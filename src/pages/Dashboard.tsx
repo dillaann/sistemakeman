@@ -90,24 +90,32 @@ const Dashboard = () => {
   }, [transactions, dateRange]);
 
   // ═══════════════════════════════════════════════════════
-  // CONTAS A RECEBER — Source: financial_transactions type=a_receber, status pendente/atrasado
-  // Same logic as ContasReceberTab
+  // CONTAS A RECEBER — accumulated: all open a_receber up to end of period
   // ═══════════════════════════════════════════════════════
-  const totalReceivable = useMemo(() => {
-    return transactions
-      .filter(t => t.type === "a_receber" && (t.status === "pendente" || t.status === "atrasado"))
-      .reduce((s, t) => s + Number(t.amount), 0);
-  }, [transactions]);
+  const { totalReceivable, receivableDoMes, receivableAcumulado } = useMemo(() => {
+    const open = transactions.filter(t => t.type === "a_receber" && (t.status === "pendente" || t.status === "atrasado"));
+    const total = open.reduce((s, t) => s + Number(t.amount), 0);
+    const doMes = open.filter(t => isInRange(t.due_date, dateRange)).reduce((s, t) => s + Number(t.amount), 0);
+    const acumulado = open.filter(t => {
+      const d = new Date(t.due_date + "T00:00:00");
+      return d < dateRange.start;
+    }).reduce((s, t) => s + Number(t.amount), 0);
+    return { totalReceivable: total, receivableDoMes: doMes, receivableAcumulado: acumulado };
+  }, [transactions, dateRange]);
 
   // ═══════════════════════════════════════════════════════
-  // CONTAS A PAGAR — Source: financial_transactions type=a_pagar, status pendente/atrasado
-  // Same logic as ContasPagarTab
+  // CONTAS A PAGAR — accumulated: all open a_pagar up to end of period
   // ═══════════════════════════════════════════════════════
-  const totalPayable = useMemo(() => {
-    return transactions
-      .filter(t => t.type === "a_pagar" && (t.status === "pendente" || t.status === "atrasado"))
-      .reduce((s, t) => s + Number(t.amount), 0);
-  }, [transactions]);
+  const { totalPayable, payableDoMes, payableAcumulado } = useMemo(() => {
+    const open = transactions.filter(t => t.type === "a_pagar" && (t.status === "pendente" || t.status === "atrasado"));
+    const total = open.reduce((s, t) => s + Number(t.amount), 0);
+    const doMes = open.filter(t => isInRange(t.due_date, dateRange)).reduce((s, t) => s + Number(t.amount), 0);
+    const acumulado = open.filter(t => {
+      const d = new Date(t.due_date + "T00:00:00");
+      return d < dateRange.start;
+    }).reduce((s, t) => s + Number(t.amount), 0);
+    return { totalPayable: total, payableDoMes: doMes, payableAcumulado: acumulado };
+  }, [transactions, dateRange]);
 
   // ═══════════════════════════════════════════════════════
   // TOTAL PAGO (saídas) — Source: financial_transactions type=a_pagar, status=pago
