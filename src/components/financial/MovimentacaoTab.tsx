@@ -41,10 +41,15 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-movimentacao", dateFrom, dateTo],
     queryFn: async () => {
+      // Visão Geral uses paid_date for paid transactions (cash basis)
       const { data } = await supabase.from("financial_transactions").select("*")
-        .gte("due_date", dateFrom).lte("due_date", dateTo)
         .neq("status", "cancelado")
         .order("due_date", { ascending: true });
+      // Filter by paid_date or due_date client-side for accurate cash-basis view
+      return (data ?? []).filter(t => {
+        const refDate = t.status === "pago" ? (t.paid_date ?? t.due_date) : t.due_date;
+        return refDate >= dateFrom && refDate <= dateTo;
+      });
       return data ?? [];
     },
   });
@@ -56,7 +61,8 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
   const chartData = useMemo(() => {
     const map: Record<string, { month: string; entradas: number; saidas: number }> = {};
     transactions.forEach(t => {
-      const m = t.due_date.substring(0, 7);
+      const refDate = t.status === "pago" ? (t.paid_date ?? t.due_date) : t.due_date;
+      const m = refDate.substring(0, 7);
       if (!map[m]) {
         const parsedDate = parseLocalDate(t.due_date);
         map[m] = { month: parsedDate ? format(parsedDate, "MMM/yy", { locale: ptBR }) : m, entradas: 0, saidas: 0 };

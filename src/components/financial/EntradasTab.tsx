@@ -90,13 +90,15 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const filtered = useMemo(() => {
     const today = localDateString();
     let list = transactions.filter(t => {
-      // Only show confirmed/received entries (status = 'pago') with date <= today
+      // Only show confirmed/received entries (status = 'pago')
       if (t.status !== "pago") return false;
-      if (t.due_date > today && !t.paid_date) return false;
-      if (dateRange && !isInRange(t.due_date, dateRange)) return false;
+      // Use paid_date as reference (cash basis / regime de caixa)
+      const refDate = t.paid_date ?? t.due_date;
+      if (refDate > today) return false;
+      if (dateRange && !isInRange(refDate, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
-      if (dateFrom && t.due_date < dateFrom) return false;
-      if (dateTo && t.due_date > dateTo) return false;
+      if (dateFrom && refDate < dateFrom) return false;
+      if (dateTo && refDate > dateTo) return false;
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
@@ -106,8 +108,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         const amountDiff = Number(a.amount) - Number(b.amount);
         return sortAsc ? amountDiff : -amountDiff;
       }
-
-      const dateDiff = compareDateStrings(a.due_date, b.due_date);
+      const dateA = a.paid_date ?? a.due_date;
+      const dateB = b.paid_date ?? b.due_date;
+      const dateDiff = compareDateStrings(dateA, dateB);
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
@@ -198,7 +201,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         <div className="flex gap-2">
           <FinancialReportDialog
             type="entradas"
-            transactions={filtered.map(t => ({ date: t.due_date, description: enrichDescription(t.description, t.client_id), category: t.category ?? "", amount: Number(t.amount), status: t.status === "pago" ? "recebido" : t.status }))}
+            transactions={filtered.map(t => ({ date: t.paid_date ?? t.due_date, description: enrichDescription(t.description, t.client_id), category: t.category ?? "", amount: Number(t.amount), status: t.status === "pago" ? "recebido" : t.status }))}
             categories={categorias}
             periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
           />
@@ -271,7 +274,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
           <TableBody>
             {filtered.map(t => (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
-                <TableCell>{formatDateBR(t.due_date)}</TableCell>
+                <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell>{t.client_id ? (clients.find(c => c.id === t.client_id)?.name ?? "—") : "—"}</TableCell>
