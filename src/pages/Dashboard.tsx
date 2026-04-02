@@ -233,7 +233,11 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{fmt(totalReceivable)}</div>
-            <p className="text-xs text-muted-foreground">Recebido no mês: {fmt(totalReceived)}</p>
+            <div className="flex flex-col gap-0.5 mt-1">
+              <p className="text-xs text-muted-foreground">Do mês: <span className="font-medium text-blue-600">{fmt(receivableDoMes)}</span></p>
+              {receivableAcumulado > 0 && <p className="text-xs text-muted-foreground">Acumulado: <span className="font-medium text-orange-600">{fmt(receivableAcumulado)}</span></p>}
+              <p className="text-xs text-muted-foreground">Recebido no mês: {fmt(totalReceived)}</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -244,7 +248,11 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{fmt(totalPayable)}</div>
-            <p className="text-xs text-muted-foreground">Pago no mês: {fmt(totalPaid)}</p>
+            <div className="flex flex-col gap-0.5 mt-1">
+              <p className="text-xs text-muted-foreground">Do mês: <span className="font-medium text-red-600">{fmt(payableDoMes)}</span></p>
+              {payableAcumulado > 0 && <p className="text-xs text-muted-foreground">Acumulado: <span className="font-medium text-orange-600">{fmt(payableAcumulado)}</span></p>}
+              <p className="text-xs text-muted-foreground">Pago no mês: {fmt(totalPaid)}</p>
+            </div>
           </CardContent>
         </Card>
       </div>
