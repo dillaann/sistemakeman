@@ -90,7 +90,7 @@ const DRE = () => {
     },
   });
 
-  // Purchases data
+  // Purchases data (for discount info only)
   const { data: purchasesData = [] } = useQuery({
     queryKey: ["dre-purchases"],
     queryFn: async () => {
