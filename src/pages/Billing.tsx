@@ -90,13 +90,13 @@ const Billing = () => {
       if (totalPaid >= quoteTotal && quoteTotal > 0) paymentStatus = "pago";
       else if (totalPaid > 0) paymentStatus = "parcial";
 
-      // Get the latest paid_date for period filtering
-      const latestPayDate = paidTransactions.length > 0
-        ? paidTransactions.reduce((latest, t) => {
-            const d = t.paid_date ? new Date(t.paid_date) : new Date(0);
-            return d > latest ? d : latest;
-          }, new Date(0))
-        : null;
+      // Use issue_date for accrual-based (competência) filtering
+      const issueDate = q.issue_date ? new Date(q.issue_date + "T12:00:00") : null;
+
+      // Collect paid dates for "received in period" calculation
+      const paidDates = paidTransactions
+        .filter((t) => t.paid_date)
+        .map((t) => ({ date: new Date(t.paid_date + "T12:00:00"), amount: Number(t.amount) }));
 
       return {
         ...q,
@@ -105,8 +105,9 @@ const Billing = () => {
         totalPaid,
         remaining,
         paymentStatus,
+        issueDate,
+        paidDates,
         approvedDate: q.approved_at ? new Date(q.approved_at) : null,
-        latestPayDate,
       };
     });
   }, [approvedQuotes, transactions, workOrders]);
