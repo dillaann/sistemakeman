@@ -390,7 +390,7 @@ const Purchases = () => {
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [monthPurchases, allWorkOrders, clients]);
 
-  const filteredPurchases = purchases.filter(p => {
+  const filteredPurchases = monthPurchases.filter(p => {
     if (filterSupplier !== "all" && p.supplier_id !== filterSupplier) return false;
     if (filterStatus !== "all" && p.payment_status !== filterStatus) return false;
     if (filterClient !== "all") {
