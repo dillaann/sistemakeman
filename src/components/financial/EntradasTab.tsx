@@ -108,8 +108,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         const amountDiff = Number(a.amount) - Number(b.amount);
         return sortAsc ? amountDiff : -amountDiff;
       }
-
-      const dateDiff = compareDateStrings(a.due_date, b.due_date);
+      const dateA = a.paid_date ?? a.due_date;
+      const dateB = b.paid_date ?? b.due_date;
+      const dateDiff = compareDateStrings(dateA, dateB);
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
