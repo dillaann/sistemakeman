@@ -408,15 +408,7 @@ const AdminSalesView = () => {
     },
   });
 
-  const { data: salesRaw = [] } = useQuery({
-    queryKey: ["all-sales"],
-    queryFn: async () => {
-      const { data } = await supabase.from("sales").select("*, clients(name)").order("created_at", { ascending: false });
-      return data ?? [];
-    },
-  });
-
-  // Fetch approved quotes that may not have a sale record (no seller)
+  // ── Single source of truth: approved quotes (same as Billing) ──
   const { data: approvedQuotes = [] } = useQuery({
     queryKey: ["approved-quotes-for-sales"],
     queryFn: async () => {
@@ -425,42 +417,21 @@ const AdminSalesView = () => {
     },
   });
 
-  // Merge: use sales as base, add approved quotes that have no matching sale
+  // Map approved quotes to a unified "sale" shape
   const sales = useMemo(() => {
-    const saleWorkOrderIds = new Set(salesRaw.map(s => s.work_order_id).filter(Boolean));
-    const saleQuoteIds = new Set<string>();
-    // Also check by matching quote->work_order relationship
-    // For quotes without a sale, create a virtual sale entry
-    const quotesWithoutSale = approvedQuotes.filter(q => {
-      // Check if any sale references this quote's work order or matches by client+amount+date
-      const hasSale = salesRaw.some(s => {
-        if (s.work_order_id) {
-          // We can't directly check quote_id from sales, so match by client+amount
-        }
-        return s.client_id === q.client_id && Math.abs(Number(s.amount) - Number(q.total)) < 0.01;
-      });
-      return !hasSale;
-    });
-
-    const virtualSales = quotesWithoutSale.map(q => ({
-      id: `quote-${q.id}`,
+    return approvedQuotes.map(q => ({
+      id: q.id,
       seller_id: q.seller_id || null,
       client_id: q.client_id,
-      work_order_id: null,
       description: q.description || "Orçamento aprovado",
       amount: q.total,
-      delivery_deadline: q.delivery_deadline,
-      notes: null,
-      status: "aguardando",
+      status: "aprovado",
       origem_venda: q.origem_venda || "empresa",
-      created_at: q.approved_at || q.created_at,
-      updated_at: q.updated_at,
+      created_at: q.approved_at || q.issue_date || q.created_at,
       clients: q.clients,
       _isFromQuote: true,
     }));
-
-    return [...salesRaw, ...virtualSales];
-  }, [salesRaw, approvedQuotes]);
+  }, [approvedQuotes]);
 
   const { data: commissions = [] } = useQuery({
     queryKey: ["all-commissions"],
@@ -532,12 +503,13 @@ const AdminSalesView = () => {
 
   const deleteSaleMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("sales").delete().eq("id", id);
+      const { error } = await supabase.from("quotes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["all-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["approved-quotes-for-sales"] });
       queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
       setDeleteTarget(null);
       toast({ title: "Venda removida!" });
     },
@@ -584,7 +556,6 @@ const AdminSalesView = () => {
     if (vendedorTypeFilter === "com_vendedor" && !s.seller_id) return false;
     if (vendedorTypeFilter === "sem_vendedor" && s.seller_id) return false;
     if (sellerFilter !== "all" && s.seller_id !== sellerFilter) return false;
-    if (statusFilter !== "all" && s.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
       return ((s.clients as any)?.name?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q));
@@ -775,13 +746,6 @@ const AdminSalesView = () => {
                   {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos status</SelectItem>
-                  {Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
             </div>
           </div>
 
@@ -821,8 +785,7 @@ const AdminSalesView = () => {
                           <TableHead className="hidden md:table-cell">Descrição</TableHead>
                           <TableHead>Valor</TableHead>
                           <TableHead>Origem</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>Data Aprovação</TableHead>
                           <TableHead className="w-16">Ação</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -835,17 +798,14 @@ const AdminSalesView = () => {
                             <TableCell>{fmt(Number(s.amount))}</TableCell>
                             <TableCell><Badge variant="outline">{origemLabels[(s as any).origem_venda] || "—"}</Badge></TableCell>
                             <TableCell>{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                            <TableCell><Badge className={statusColors[s.status] || ""}>{statusLabels[s.status] || s.status}</Badge></TableCell>
                             <TableCell>
-                              {!(s as any)._isFromQuote && (
-                                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              )}
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "sale", id: s.id })}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
-                        {originFiltered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
+                        {originFiltered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma venda encontrada.</TableCell></TableRow>}
                       </TableBody>
                     </Table>
                   </div>
