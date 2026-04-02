@@ -130,13 +130,14 @@ const Billing = () => {
 
   const totalBilled = filtered.reduce((s, o) => s + Number(o.total), 0);
 
-  // "Recebido no mês": sum of payments whose paid_date falls within the selected period (across ALL quotes)
+  // "Recebido no mês" (competência): sum of ALL payments of quotes whose issue_date falls within the selected period
   const totalReceivedInPeriod = useMemo(() => {
-    return enrichedQuotes.reduce((sum, o) => {
-      return sum + (o.paidDates ?? [])
-        .filter((p: any) => p.date >= periodRange.start && p.date <= periodRange.end)
-        .reduce((s: number, p: any) => s + p.amount, 0);
-    }, 0);
+    return enrichedQuotes
+      .filter((o) => {
+        const ref = o.issueDate;
+        return ref ? ref >= periodRange.start && ref <= periodRange.end : false;
+      })
+      .reduce((sum, o) => sum + o.totalPaid, 0);
   }, [enrichedQuotes, periodRange]);
 
   // Accumulated open balance: all unpaid/partial quotes issued up to end of selected period
