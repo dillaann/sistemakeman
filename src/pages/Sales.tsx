@@ -1173,6 +1173,52 @@ const CommissionsPerSeller = ({
           </Card>
         )}
       </div>
+
+      {/* Payment account dialog */}
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmar Pagamento de Comissão</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {payCommissionId && (() => {
+              const comm = commissions.find(c => c.id === payCommissionId);
+              return comm ? (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm"><strong>Vendedor:</strong> {sellerName(comm.seller_id)}</p>
+                  <p className="text-sm"><strong>Valor:</strong> {fmt(Number(comm.amount))}</p>
+                  <p className="text-sm"><strong>Venda:</strong> {(comm.sales as any)?.description || "—"}</p>
+                </div>
+              ) : null;
+            })()}
+            <div>
+              <Label>Conta de saída {financialAccounts.length > 0 ? "*" : "(opcional)"}</Label>
+              <Select value={payAccountId} onValueChange={setPayAccountId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
+                <SelectContent>
+                  {financialAccounts.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {financialAccounts.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">Nenhuma conta cadastrada. O lançamento será criado sem conta vinculada.</p>
+              )}
+            </div>
+            <Button
+              className="w-full"
+              disabled={updateCommissionStatus.isPending || (financialAccounts.length > 0 && !payAccountId)}
+              onClick={() => {
+                updateCommissionStatus.mutate({
+                  id: payCommissionId,
+                  status: "paga",
+                  accountId: payAccountId || undefined,
+                });
+              }}
+            >
+              {updateCommissionStatus.isPending ? "Processando..." : "Confirmar Pagamento"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
