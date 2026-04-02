@@ -785,8 +785,7 @@ const AdminSalesView = () => {
                           <TableHead className="hidden md:table-cell">Descrição</TableHead>
                           <TableHead>Valor</TableHead>
                           <TableHead>Origem</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>Data Aprovação</TableHead>
                           <TableHead className="w-16">Ação</TableHead>
                         </TableRow>
                       </TableHeader>
