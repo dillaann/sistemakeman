@@ -51,10 +51,13 @@ const MaterialsTab = ({ dateRange }: MaterialsTabProps) => {
   });
 
   const materials: MaterialEntry[] = useMemo(() => {
+    // Filter purchases by dateRange first
+    const filteredByDate = purchases.filter((p: any) => isInRange(p.purchase_date, dateRange));
+    
     // Group by normalized material name
     const map: Record<string, Record<string, { min_price: number; last_price: number; last_date: string; total_qty: number; supplier_name: string; supplier_id: string | null; unit: string }>> = {};
 
-    purchases.forEach((p: any) => {
+    filteredByDate.forEach((p: any) => {
       const matKey = p.material.trim().toLowerCase();
       const suppId = p.supplier_id || "__none__";
       const suppName = p.suppliers?.name ?? "Sem fornecedor";
