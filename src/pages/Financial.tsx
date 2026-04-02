@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, AlertTriangle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
 import MovimentacaoTab from "@/components/financial/MovimentacaoTab";
@@ -9,7 +9,7 @@ import MovimentacoesTab from "@/components/financial/MovimentacoesTab";
 import NotasFiscaisTab from "@/components/financial/NotasFiscaisTab";
 import ContasPagarTab from "@/components/financial/ContasPagarTab";
 import ContasReceberTab from "@/components/financial/ContasReceberTab";
-import PendenciasTab from "@/components/financial/PendenciasTab";
+
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Financial = () => {
@@ -28,15 +28,12 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
             <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
           <TabsTrigger value="saidas" className="flex items-center gap-1 text-xs">
             <TrendingDown className="h-4 w-4" /> Saídas
-          </TabsTrigger>
-          <TabsTrigger value="pendencias" className="flex items-center gap-1 text-xs">
-            <AlertTriangle className="h-4 w-4" /> Pendências
           </TabsTrigger>
           <TabsTrigger value="contas_pagar" className="flex items-center gap-1 text-xs">
             <CreditCard className="h-4 w-4" /> A Pagar
@@ -59,7 +56,7 @@ const Financial = () => {
         </TabsList>
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
-        <TabsContent value="pendencias"><PendenciasTab dateRange={dateRange} /></TabsContent>
+        
         <TabsContent value="contas_pagar"><ContasPagarTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="contas_receber"><ContasReceberTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="contas"><ContasTab /></TabsContent>
