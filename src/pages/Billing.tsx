@@ -271,10 +271,17 @@ const Billing = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
-            <CardTitle className="text-xs font-medium whitespace-nowrap">Em Aberto</CardTitle>
+            <CardTitle className="text-xs font-medium whitespace-nowrap">Em Aberto Acumulado</CardTitle>
             <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="p-3 pt-0"><div className="text-lg font-bold text-yellow-600 whitespace-nowrap">{fmt(totalOpen)}</div></CardContent>
+          <CardContent className="p-3 pt-0">
+            <div className="text-lg font-bold text-yellow-600 whitespace-nowrap">{fmt(totalOpenAcumulado)}</div>
+            {totalOpenAnterior > 0 && (
+              <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                Mês: {fmt(totalOpenDoMes)} | Anterior: {fmt(totalOpenAnterior)}
+              </div>
+            )}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
