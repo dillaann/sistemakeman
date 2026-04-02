@@ -275,7 +275,7 @@ const Billing = () => {
             <CardTitle className="text-xs font-medium whitespace-nowrap">Total Recebido</CardTitle>
             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="p-3 pt-0"><div className="text-lg font-bold text-green-600 whitespace-nowrap">{fmt(totalReceived)}</div></CardContent>
+          <CardContent className="p-3 pt-0"><div className="text-lg font-bold text-green-600 whitespace-nowrap">{fmt(totalReceivedInPeriod)}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
