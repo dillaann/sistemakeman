@@ -93,10 +93,10 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       // Only show confirmed/received entries (status = 'pago') with date <= today
       if (t.status !== "pago") return false;
       if (t.due_date > today && !t.paid_date) return false;
-      if (dateRange && !isInRange(t.paid_date || t.due_date, dateRange)) return false;
+      if (dateRange && !isInRange(t.due_date, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
-      if (dateFrom && (t.paid_date || t.due_date) < dateFrom) return false;
-      if (dateTo && (t.paid_date || t.due_date) > dateTo) return false;
+      if (dateFrom && t.due_date < dateFrom) return false;
+      if (dateTo && t.due_date > dateTo) return false;
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
