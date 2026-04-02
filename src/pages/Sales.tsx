@@ -397,6 +397,11 @@ const AdminSalesView = () => {
   const [goalValue, setGoalValue] = useState("");
   const [rankingOrigin, setRankingOrigin] = useState("all");
 
+  // Payment dialog state
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payCommissionId, setPayCommissionId] = useState("");
+  const [payAccountId, setPayAccountId] = useState("");
+
   const { data: sellers = [] } = useQuery({
     queryKey: ["sellers"],
     queryFn: async () => {
@@ -457,6 +462,14 @@ const AdminSalesView = () => {
     },
   });
 
+  const { data: financialAccounts = [] } = useQuery({
+    queryKey: ["financial-accounts-for-commissions"],
+    queryFn: async () => {
+      const { data } = await supabase.from("financial_accounts").select("id, name, type").eq("active", true).order("name");
+      return data ?? [];
+    },
+  });
+
   const saveRateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("seller_commission_rates").upsert({
@@ -489,16 +502,78 @@ const AdminSalesView = () => {
   });
 
   const updateCommissionStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, accountId }: { id: string; status: string; accountId?: string }) => {
+      const commission = commissions.find(c => c.id === id);
+      if (!commission) throw new Error("Comissão não encontrada");
+
+      const sellerProfile = sellers.find(s => s.id === commission.seller_id);
+      const sellerDisplayName = sellerProfile?.full_name || "Vendedor";
+      const today = localDateString();
+      const monthRef = today.substring(0, 7); // YYYY-MM
+
       const updates: any = { status };
-      if (status === "paga") updates.paid_date = localDateString();
+      if (status === "paga") updates.paid_date = today;
       const { error } = await supabase.from("sales_commissions").update(updates).eq("id", id);
       if (error) throw error;
+
+      if (status === "aprovada") {
+        // Create pending "a_pagar" financial transaction
+        const { error: ftError } = await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          status: "pendente" as any,
+          description: `Comissão — ${sellerDisplayName} — ${monthRef}`,
+          amount: Number(commission.amount),
+          due_date: today,
+          category: "Comissões de Vendedores",
+        });
+        if (ftError) throw ftError;
+      }
+
+      if (status === "paga") {
+        // Check if there's already a pending financial transaction for this commission
+        const descPattern = `Comissão — ${sellerDisplayName}`;
+        const { data: existingFt } = await supabase.from("financial_transactions")
+          .select("id")
+          .eq("type", "a_pagar")
+          .eq("status", "pendente")
+          .eq("amount", Number(commission.amount))
+          .ilike("description", `${descPattern}%`)
+          .limit(1);
+
+        if (existingFt && existingFt.length > 0) {
+          // Update existing transaction to paid
+          const { error: updateError } = await supabase.from("financial_transactions").update({
+            status: "pago" as any,
+            paid_date: today,
+            account_id: accountId || null,
+          }).eq("id", existingFt[0].id);
+          if (updateError) throw updateError;
+        } else {
+          // Create paid financial transaction directly
+          const { error: ftError } = await supabase.from("financial_transactions").insert({
+            type: "a_pagar" as any,
+            status: "pago" as any,
+            description: `Comissão — ${sellerDisplayName} — ${monthRef}`,
+            amount: Number(commission.amount),
+            due_date: today,
+            paid_date: today,
+            category: "Comissões de Vendedores",
+            account_id: accountId || null,
+          });
+          if (ftError) throw ftError;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements"] });
+      setPayDialogOpen(false);
+      setPayCommissionId("");
+      setPayAccountId("");
       toast({ title: "Status atualizado!" });
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const deleteSaleMutation = useMutation({
