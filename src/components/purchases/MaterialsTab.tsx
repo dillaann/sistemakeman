@@ -7,8 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Package, ArrowDown, ArrowUp } from "lucide-react";
-
-const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { isInRange } from "@/components/MonthFilter";
 
 type MaterialEntry = {
   material: string;
