@@ -872,7 +872,7 @@ const Purchases = () => {
 
         {/* MATERIAIS */}
         <TabsContent value="materiais">
-          <MaterialsTab />
+          <MaterialsTab dateRange={dateRange} />
         </TabsContent>
 
         {/* DESCONTOS */}
