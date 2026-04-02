@@ -580,7 +580,7 @@ const AdminSalesView = () => {
     count: monthlySales.filter(s => (s as any).origem_venda === o).length,
   }));
 
-  const filtered = sales.filter(s => {
+  const filtered = monthlySales.filter(s => {
     if (vendedorTypeFilter === "com_vendedor" && !s.seller_id) return false;
     if (vendedorTypeFilter === "sem_vendedor" && s.seller_id) return false;
     if (sellerFilter !== "all" && s.seller_id !== sellerFilter) return false;
@@ -593,7 +593,7 @@ const AdminSalesView = () => {
   });
 
   // Ranking per origin
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthKey = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, "0")}`;
   const ranking = sellers.map(seller => {
     const sellerMonthly = monthlySales.filter(s => s.seller_id === seller.id);
     const filteredSales = rankingOrigin === "all" ? sellerMonthly : sellerMonthly.filter(s => (s as any).origem_venda === rankingOrigin);
