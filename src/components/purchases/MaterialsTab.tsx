@@ -7,8 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Package, ArrowDown, ArrowUp } from "lucide-react";
-
-const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { isInRange } from "@/components/MonthFilter";
 
 type MaterialEntry = {
   material: string;
@@ -25,7 +24,13 @@ type MaterialEntry = {
   }[];
 };
 
-const MaterialsTab = () => {
+const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+interface MaterialsTabProps {
+  dateRange: { start: Date; end: Date };
+}
+
+const MaterialsTab = ({ dateRange }: MaterialsTabProps) => {
   const [search, setSearch] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("all");
 
@@ -46,10 +51,13 @@ const MaterialsTab = () => {
   });
 
   const materials: MaterialEntry[] = useMemo(() => {
+    // Filter purchases by dateRange first
+    const filteredByDate = purchases.filter((p: any) => isInRange(p.purchase_date, dateRange));
+    
     // Group by normalized material name
     const map: Record<string, Record<string, { min_price: number; last_price: number; last_date: string; total_qty: number; supplier_name: string; supplier_id: string | null; unit: string }>> = {};
 
-    purchases.forEach((p: any) => {
+    filteredByDate.forEach((p: any) => {
       const matKey = p.material.trim().toLowerCase();
       const suppId = p.supplier_id || "__none__";
       const suppName = p.suppliers?.name ?? "Sem fornecedor";
@@ -82,8 +90,7 @@ const MaterialsTab = () => {
     return Object.entries(map).map(([matKey, suppMap]) => {
       const suppEntries = Object.values(suppMap);
       const globalMin = Math.min(...suppEntries.map(s => s.min_price));
-      // Use original casing from first occurrence
-      const originalName = purchases.find((p: any) => p.material.trim().toLowerCase() === matKey)?.material ?? matKey;
+      const originalName = filteredByDate.find((p: any) => p.material.trim().toLowerCase() === matKey)?.material ?? matKey;
 
       return {
         material: originalName,
@@ -102,7 +109,7 @@ const MaterialsTab = () => {
           .sort((a, b) => a.min_price - b.min_price),
       };
     }).sort((a, b) => a.material.localeCompare(b.material));
-  }, [purchases]);
+  }, [purchases, dateRange]);
 
   const filtered = useMemo(() => {
     return materials.filter(m => {

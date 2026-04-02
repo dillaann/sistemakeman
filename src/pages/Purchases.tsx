@@ -341,7 +341,7 @@ const Purchases = () => {
   // Supplier discount ranking
   const supplierDiscounts = useMemo(() => {
     const map: Record<string, { name: string; totalOriginal: number; totalPaid: number; totalSaved: number; count: number }> = {};
-    purchases.forEach(p => {
+    monthPurchases.forEach(p => {
       const sid = p.supplier_id;
       if (!sid) return;
       const name = (p as any).suppliers?.name ?? "Sem nome";
@@ -364,7 +364,7 @@ const Purchases = () => {
       if (Number(p.discount_amount ?? 0) > 0) map[sid].count++;
     });
     return Object.values(map).sort((a, b) => b.totalSaved - a.totalSaved);
-  }, [purchases]);
+  }, [monthPurchases]);
 
   // Client cost summary
   const clientCosts = useMemo(() => {
@@ -390,7 +390,7 @@ const Purchases = () => {
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [monthPurchases, allWorkOrders, clients]);
 
-  const filteredPurchases = purchases.filter(p => {
+  const filteredPurchases = monthPurchases.filter(p => {
     if (filterSupplier !== "all" && p.supplier_id !== filterSupplier) return false;
     if (filterStatus !== "all" && p.payment_status !== filterStatus) return false;
     if (filterClient !== "all") {
@@ -505,7 +505,7 @@ const Purchases = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {purchases.slice(0, 5).map(p => (
+                    {monthPurchases.slice(0, 10).map(p => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.material}</TableCell>
                         <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
@@ -531,7 +531,11 @@ const Purchases = () => {
                 <p className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</p>
               ) : (
                 <div className="space-y-4">
-                  {allWorkOrders.map((wo: any) => {
+                  {allWorkOrders.filter((wo: any) => {
+                    const matStatus = wo.material_status || "nao_solicitado";
+                    const isOpen = matStatus !== "comprado";
+                    return isInRangeOrOpen(wo.created_at?.slice(0, 10), dateRange, isOpen, wo.completed_at?.slice(0, 10));
+                  }).map((wo: any) => {
                     const mats = (requestMaterials as any)[wo.id] ?? [];
                     const req = purchaseRequests.find((r: any) => r.work_order_id === wo.id);
                     const materialStatusLabel: Record<string, string> = {
@@ -868,7 +872,7 @@ const Purchases = () => {
 
         {/* MATERIAIS */}
         <TabsContent value="materiais">
-          <MaterialsTab />
+          <MaterialsTab dateRange={dateRange} />
         </TabsContent>
 
         {/* DESCONTOS */}
@@ -924,7 +928,7 @@ const Purchases = () => {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Custo de Materiais por Cliente / Obra (Mês Atual)
+                Custo de Materiais por Cliente / Obra (Período Selecionado)
               </CardTitle>
             </CardHeader>
             <CardContent>
