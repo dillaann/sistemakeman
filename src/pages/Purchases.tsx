@@ -505,7 +505,7 @@ const Purchases = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {purchases.slice(0, 5).map(p => (
+                    {monthPurchases.slice(0, 10).map(p => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.material}</TableCell>
                         <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
