@@ -531,7 +531,11 @@ const Purchases = () => {
                 <p className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</p>
               ) : (
                 <div className="space-y-4">
-                  {allWorkOrders.map((wo: any) => {
+                  {allWorkOrders.filter((wo: any) => {
+                    const matStatus = wo.material_status || "nao_solicitado";
+                    const isOpen = matStatus !== "comprado";
+                    return isInRangeOrOpen(wo.created_at?.slice(0, 10), dateRange, isOpen, wo.completed_at?.slice(0, 10));
+                  }).map((wo: any) => {
                     const mats = (requestMaterials as any)[wo.id] ?? [];
                     const req = purchaseRequests.find((r: any) => r.work_order_id === wo.id);
                     const materialStatusLabel: Record<string, string> = {
