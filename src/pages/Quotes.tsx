@@ -907,7 +907,7 @@ const Quotes = () => {
                       <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
+                      {(userRole === "admin" || userRole === "financeiro" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(q)} title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -918,7 +918,7 @@ const Quotes = () => {
                           <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
                         </>
                       )}
-                      {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
+                      {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
                         <Button variant="ghost" size="icon" onClick={() => {
                           const rem = Number((q as any).remaining_amount || q.total);
                           setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
