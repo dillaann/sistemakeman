@@ -251,20 +251,8 @@ const Quotes = () => {
       // Validate
       if (dpAmount > newTotal) throw new Error("Valor da entrada não pode ser maior que o total");
 
-      let paymentStatus = (editQuote as any).payment_status || "aguardando";
-      if (isApproved) {
-        if (dpAmount <= 0) {
-          paymentStatus = "aguardando";
-        } else if (isFuturePayment) {
-          paymentStatus = "entrada_pendente";
-        } else if (effectivePaidAmount >= newTotal) {
-          paymentStatus = "pago_total";
-        } else if (effectivePaidAmount > 0 && effectivePaidAmount < newTotal) {
-          paymentStatus = "pagamento_parcial";
-        } else {
-          paymentStatus = "entrada_recebida";
-        }
-      }
+      // Use the manually selected payment status from the form
+      let paymentStatus = editPayment.payment_status || (editQuote as any).payment_status || "aguardando";
 
       // Update quote
       const { error: quoteError } = await supabase.from("quotes").update({
