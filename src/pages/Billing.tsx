@@ -114,11 +114,11 @@ const Billing = () => {
 
   const periodRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
+  // Filter by issue_date (competência)
   const filtered = useMemo(() => {
     return enrichedQuotes.filter((o) => {
-      // Use approved_at for period filtering
-      const refDate = o.approvedDate;
-      const inPeriod = refDate ? refDate >= periodRange.start && refDate <= periodRange.end : true;
+      const ref = o.issueDate;
+      const inPeriod = ref ? ref >= periodRange.start && ref <= periodRange.end : true;
       const matchSearch = (o.description ?? "").toLowerCase().includes(search.toLowerCase()) ||
         o.clientName.toLowerCase().includes(search.toLowerCase()) ||
         o.id.toLowerCase().includes(search.toLowerCase());
@@ -129,16 +129,23 @@ const Billing = () => {
   }, [enrichedQuotes, periodRange, search, clientFilter, statusFilter]);
 
   const totalBilled = filtered.reduce((s, o) => s + Number(o.total), 0);
-  const totalReceived = filtered.reduce((s, o) => s + o.totalPaid, 0);
 
-  // Accumulated open balance: all unpaid/partial quotes approved up to end of selected period
+  // "Recebido no mês": sum of payments whose paid_date falls within the selected period (across ALL quotes)
+  const totalReceivedInPeriod = useMemo(() => {
+    return enrichedQuotes.reduce((sum, o) => {
+      return sum + (o.paidDates ?? [])
+        .filter((p: any) => p.date >= periodRange.start && p.date <= periodRange.end)
+        .reduce((s: number, p: any) => s + p.amount, 0);
+    }, 0);
+  }, [enrichedQuotes, periodRange]);
+
+  // Accumulated open balance: all unpaid/partial quotes issued up to end of selected period
   const totalOpenAcumulado = useMemo(() => {
     return enrichedQuotes
       .filter((o) => {
-        const approved = o.approvedDate;
-        if (!approved) return false;
-        // Include all quotes approved up to the end of the selected period
-        return approved <= periodRange.end && o.paymentStatus !== "pago";
+        const ref = o.issueDate;
+        if (!ref) return false;
+        return ref <= periodRange.end && o.paymentStatus !== "pago";
       })
       .reduce((s, o) => s + o.remaining, 0);
   }, [enrichedQuotes, periodRange]);
