@@ -892,14 +892,21 @@ const AdminSalesView = () => {
       )}
 
       {tab === "commissions" && (
-        <CommissionsPerSeller
-          sellers={sellers}
-          commissions={commissions}
-          rates={rates}
-          sellerName={sellerName}
-          updateCommissionStatus={updateCommissionStatus}
-          setDeleteTarget={setDeleteTarget}
-        />
+          <CommissionsPerSeller
+            sellers={sellers}
+            commissions={commissions}
+            rates={rates}
+            sellerName={sellerName}
+            updateCommissionStatus={updateCommissionStatus}
+            setDeleteTarget={setDeleteTarget}
+            financialAccounts={financialAccounts}
+            payDialogOpen={payDialogOpen}
+            setPayDialogOpen={setPayDialogOpen}
+            payCommissionId={payCommissionId}
+            setPayCommissionId={setPayCommissionId}
+            payAccountId={payAccountId}
+            setPayAccountId={setPayAccountId}
+          />
       )}
 
       {tab === "goals" && (
