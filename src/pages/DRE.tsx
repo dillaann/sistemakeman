@@ -31,7 +31,7 @@ const DRE = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("id, total, approved_at, payment_status, down_payment, remaining_amount")
+        .select("id, total, approved_at, issue_date, payment_status, down_payment, remaining_amount")
         .eq("status", "aprovado");
       return data ?? [];
     },
