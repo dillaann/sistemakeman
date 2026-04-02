@@ -1145,7 +1145,12 @@ const CommissionsPerSeller = ({
                                   <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateCommissionStatus.mutate({ id: c.id, status: "aprovada" }); }}>Aprovar</Button>
                                 )}
                                 {c.status === "aprovada" && (
-                                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateCommissionStatus.mutate({ id: c.id, status: "paga" }); }}>Pagar</Button>
+                                  <Button size="sm" variant="outline" onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPayCommissionId(c.id);
+                                    setPayAccountId("");
+                                    setPayDialogOpen(true);
+                                  }}>Pagar</Button>
                                 )}
                                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: "commission", id: c.id }); }}>
                                   <Trash2 className="h-4 w-4 text-destructive" />
