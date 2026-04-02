@@ -229,7 +229,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
           <TableBody>
             {filtered.map(t => (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
-                <TableCell>{formatDateBR(t.due_date)}</TableCell>
+                <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{t.description}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
