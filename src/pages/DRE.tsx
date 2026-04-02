@@ -90,7 +90,7 @@ const DRE = () => {
     },
   });
 
-  // Purchases data
+  // Purchases data (for discount info only)
   const { data: purchasesData = [] } = useQuery({
     queryKey: ["dre-purchases"],
     queryFn: async () => {
@@ -132,13 +132,14 @@ const DRE = () => {
 
     const receitaLiquida = receitaBruta - deducoes;
 
-    // Operational costs: "a_pagar" transactions with material/service categories
+    // Operational costs: "a_pagar" transactions with material/service/compras categories
+    // Source: financial_transactions (single source of truth — purchases create transactions automatically)
     const custosOp = transactions
       .filter((t) => {
         if (t.type !== "a_pagar") return false;
         if (!inMonth(t.due_date)) return false;
         const cat = (t.category ?? "").toLowerCase();
-        return cat.includes("material") || cat.includes("serviço") || cat.includes("servico") || cat.includes("terceiriz");
+        return cat.includes("material") || cat.includes("serviço") || cat.includes("servico") || cat.includes("terceiriz") || cat.includes("compras");
       })
       .reduce((s, t) => s + Number(t.amount), 0);
 
@@ -160,9 +161,9 @@ const DRE = () => {
 
     const despPessoal = folha + otValue + satValue + thirteenthProv + vacValue;
 
-    // Purchases in the month (operational costs)
+    // Purchases discount info (from purchases table for discount tracking only)
     const monthPurchases = purchasesData.filter((p: any) => inMonth(p.purchase_date));
-    const custosCompras = monthPurchases.reduce((s: number, p: any) => s + Number(p.total), 0);
+    const custosCompras = custosOp; // Already included in custosOp from financial_transactions
     const descontosCompras = monthPurchases.reduce((s: number, p: any) => s + Number(p.discount_amount ?? 0), 0);
 
     // Admin expenses: other "a_pagar" not in operational costs
@@ -175,7 +176,7 @@ const DRE = () => {
       })
       .reduce((s, t) => s + Number(t.amount), 0);
 
-    const totalCustosOp = custosOp + custosCompras;
+    const totalCustosOp = custosOp;
     const resultadoOp = receitaLiquida - totalCustosOp - despPessoal - despAdmin + descontosCompras;
     const resultadoFinal = resultadoOp;
 
