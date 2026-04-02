@@ -199,6 +199,15 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
     return g.status !== "vencido" && d >= 0 && d <= 30;
   }).reduce((s, g) => s + g.remaining, 0);
 
+  // ── Accumulated breakdown ──
+  const doMesReceber = openItems
+    .filter(g => isInCurrentRange(g.dueDate))
+    .reduce((s, g) => s + g.remaining, 0);
+  const acumuladoAnteriorReceber = openItems
+    .filter(g => isBeforeRange(g.dueDate))
+    .reduce((s, g) => s + g.remaining, 0);
+  const totalEmAbertoAcumulado = doMesReceber + acumuladoAnteriorReceber;
+
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
