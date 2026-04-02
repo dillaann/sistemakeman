@@ -24,7 +24,13 @@ type MaterialEntry = {
   }[];
 };
 
-const MaterialsTab = () => {
+const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+interface MaterialsTabProps {
+  dateRange: { start: Date; end: Date };
+}
+
+const MaterialsTab = ({ dateRange }: MaterialsTabProps) => {
   const [search, setSearch] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("all");
 
