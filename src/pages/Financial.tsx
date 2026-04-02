@@ -9,7 +9,7 @@ import MovimentacoesTab from "@/components/financial/MovimentacoesTab";
 import NotasFiscaisTab from "@/components/financial/NotasFiscaisTab";
 import ContasPagarTab from "@/components/financial/ContasPagarTab";
 import ContasReceberTab from "@/components/financial/ContasReceberTab";
-import PendenciasTab from "@/components/financial/PendenciasTab";
+
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
 const Financial = () => {
