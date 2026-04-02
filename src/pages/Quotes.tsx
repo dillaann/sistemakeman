@@ -62,7 +62,7 @@ const Quotes = () => {
   const [editQuote, setEditQuote] = useState<any>(null);
   const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
   const [editItems, setEditItems] = useState<ItemRow[]>([]);
-  const [editPayment, setEditPayment] = useState({ payment_type: "a_vista", down_payment: "", down_payment_date: "", payment_method: "pix" });
+  const [editPayment, setEditPayment] = useState({ payment_type: "a_vista", down_payment: "", down_payment_date: "", payment_method: "pix", payment_status: "aguardando", payment_notes: "" });
 
   // Approval modal state (commission + payment)
   const [approvalModal, setApprovalModal] = useState<{
@@ -208,6 +208,8 @@ const Quotes = () => {
       down_payment: String((quote as any).down_payment || ""),
       down_payment_date: (quote as any).down_payment_date || "",
       payment_method: (quote as any).payment_method || "pix",
+      payment_status: (quote as any).payment_status || "aguardando",
+      payment_notes: "",
     });
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
@@ -249,20 +251,8 @@ const Quotes = () => {
       // Validate
       if (dpAmount > newTotal) throw new Error("Valor da entrada não pode ser maior que o total");
 
-      let paymentStatus = (editQuote as any).payment_status || "aguardando";
-      if (isApproved) {
-        if (dpAmount <= 0) {
-          paymentStatus = "aguardando";
-        } else if (isFuturePayment) {
-          paymentStatus = "entrada_pendente";
-        } else if (effectivePaidAmount >= newTotal) {
-          paymentStatus = "pago_total";
-        } else if (effectivePaidAmount > 0 && effectivePaidAmount < newTotal) {
-          paymentStatus = "pagamento_parcial";
-        } else {
-          paymentStatus = "entrada_recebida";
-        }
-      }
+      // Use the manually selected payment status from the form
+      let paymentStatus = editPayment.payment_status || (editQuote as any).payment_status || "aguardando";
 
       // Update quote
       const { error: quoteError } = await supabase.from("quotes").update({
@@ -837,7 +827,7 @@ const Quotes = () => {
               )}
               <div className="flex gap-1 flex-wrap">
                 <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(q)}><FileDown className="h-4 w-4 mr-1" />PDF</Button>
-                {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
+                {(userRole === "admin" || userRole === "financeiro" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                   <Button variant="ghost" size="sm" onClick={() => openEditDialog(q)}><Pencil className="h-4 w-4 mr-1" />Editar</Button>
                 )}
                 {q.status === "pendente" && userRole === "admin" && (
@@ -846,7 +836,7 @@ const Quotes = () => {
                     <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })}><X className="h-4 w-4 mr-1 text-red-600" />Rejeitar</Button>
                   </>
                 )}
-                {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
+                {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
                   <Button variant="ghost" size="sm" onClick={() => {
                     const rem = Number((q as any).remaining_amount || q.total);
                     setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
@@ -905,7 +895,7 @@ const Quotes = () => {
                       <Button variant="ghost" size="icon" onClick={() => handleGeneratePDF(q)} title="Gerar PDF">
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {(userRole === "admin" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
+                      {(userRole === "admin" || userRole === "financeiro" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(q)} title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -916,7 +906,7 @@ const Quotes = () => {
                           <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
                         </>
                       )}
-                      {q.status === "aprovado" && pStatus !== "pago_total" && userRole === "admin" && (
+                      {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
                         <Button variant="ghost" size="icon" onClick={() => {
                           const rem = Number((q as any).remaining_amount || q.total);
                           setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
@@ -1013,11 +1003,14 @@ const Quotes = () => {
               <div className="text-right font-bold text-lg border-t pt-2">Total: {fmt(editGrandTotal)}</div>
             </div>
 
-            {/* Payment Section (only for approved quotes) */}
+            {/* Payment Section (for approved quotes - always editable) */}
             {editQuote?.status === "aprovado" && (
-              <Card>
+              <Card className="border-primary/30">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Condições de Pagamento</CardTitle>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Condições de Pagamento
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
@@ -1070,11 +1063,36 @@ const Quotes = () => {
                     </Select>
                   </div>
 
+                  <div>
+                    <Label>Status do Pagamento</Label>
+                    <Select value={editPayment.payment_status} onValueChange={v => setEditPayment({ ...editPayment, payment_status: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aguardando">Aguardando Entrada</SelectItem>
+                        <SelectItem value="entrada_pendente">Entrada Pendente</SelectItem>
+                        <SelectItem value="entrada_recebida">Entrada Recebida</SelectItem>
+                        <SelectItem value="pagamento_parcial">Pagamento Parcial</SelectItem>
+                        <SelectItem value="pago_total">Pago Total</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Observações de Pagamento</Label>
+                    <Textarea
+                      placeholder="Anotações sobre o pagamento..."
+                      value={editPayment.payment_notes}
+                      onChange={e => setEditPayment({ ...editPayment, payment_notes: e.target.value })}
+                      className="min-h-[60px]"
+                    />
+                  </div>
+
                   {/* Current payment summary */}
                   <div className="bg-muted/50 p-3 rounded space-y-1 text-sm">
                     <div className="flex justify-between"><span>Valor Total:</span><strong>{fmt(editGrandTotal)}</strong></div>
                     <div className="flex justify-between"><span>Entrada:</span><strong>{fmt(parseFloat(editPayment.down_payment) || 0)}</strong></div>
                     <div className="flex justify-between border-t pt-1"><span>Saldo a Pagar:</span><strong className="text-primary">{fmt(Math.max(editGrandTotal - (parseFloat(editPayment.down_payment) || 0), 0))}</strong></div>
+                    <div className="flex justify-between"><span>Status:</span><Badge className={paymentStatusColors[editPayment.payment_status] || paymentStatusColors.aguardando}>{paymentStatusLabels[editPayment.payment_status] || "Aguardando"}</Badge></div>
                   </div>
                 </CardContent>
               </Card>
