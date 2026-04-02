@@ -1,5 +1,6 @@
-import { localDateString } from "@/lib/utils";
+import { localDateString, parseLocalDate } from "@/lib/utils";
 import { useState, useMemo, Fragment } from "react";
+import MonthFilter, { type PeriodMode, getDateRange, isInRange } from "@/components/MonthFilter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -379,6 +380,10 @@ const AdminSalesView = () => {
   const [tab, setTab] = useState<"vendas" | "commissions" | "goals">("vendas");
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
 
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = getDateRange(refDate, periodMode);
+
   const [rateOpen, setRateOpen] = useState(false);
   const [rateSellerId, setRateSellerId] = useState("");
   const [rateValue, setRateValue] = useState("");
@@ -559,9 +564,10 @@ const AdminSalesView = () => {
     return sellers.find(s => s.id === id)?.full_name || "Direto / Administrador";
   };
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlySales = sales.filter(s => new Date(s.created_at) >= monthStart);
+  const monthlySales = sales.filter(s => {
+    const dateStr = s.created_at ? s.created_at.substring(0, 10) : null;
+    return isInRange(dateStr, dateRange);
+  });
   const monthlyTotal = monthlySales.reduce((s, sale) => s + Number(sale.amount), 0);
   const totalCommPending = commissions.filter(c => c.status !== "paga").reduce((s, c) => s + Number(c.amount), 0);
   const totalCommPaid = commissions.filter(c => c.status === "paga").reduce((s, c) => s + Number(c.amount), 0);
@@ -574,7 +580,7 @@ const AdminSalesView = () => {
     count: monthlySales.filter(s => (s as any).origem_venda === o).length,
   }));
 
-  const filtered = sales.filter(s => {
+  const filtered = monthlySales.filter(s => {
     if (vendedorTypeFilter === "com_vendedor" && !s.seller_id) return false;
     if (vendedorTypeFilter === "sem_vendedor" && s.seller_id) return false;
     if (sellerFilter !== "all" && s.seller_id !== sellerFilter) return false;
@@ -587,7 +593,7 @@ const AdminSalesView = () => {
   });
 
   // Ranking per origin
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthKey = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, "0")}`;
   const ranking = sellers.map(seller => {
     const sellerMonthly = monthlySales.filter(s => s.seller_id === seller.id);
     const filteredSales = rankingOrigin === "all" ? sellerMonthly : sellerMonthly.filter(s => (s as any).origem_venda === rankingOrigin);
@@ -617,7 +623,10 @@ const AdminSalesView = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl md:text-2xl font-bold">Vendas — Painel Administrativo</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-xl md:text-2xl font-bold">Vendas — Painel Administrativo</h1>
+        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+      </div>
 
       {/* Summary cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
