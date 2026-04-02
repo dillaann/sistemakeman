@@ -995,6 +995,13 @@ const CommissionsPerSeller = ({
   sellerName,
   updateCommissionStatus,
   setDeleteTarget,
+  financialAccounts,
+  payDialogOpen,
+  setPayDialogOpen,
+  payCommissionId,
+  setPayCommissionId,
+  payAccountId,
+  setPayAccountId,
 }: {
   sellers: any[];
   commissions: any[];
@@ -1002,6 +1009,13 @@ const CommissionsPerSeller = ({
   sellerName: (id: string | null) => string;
   updateCommissionStatus: any;
   setDeleteTarget: (t: { type: string; id: string } | null) => void;
+  financialAccounts: any[];
+  payDialogOpen: boolean;
+  setPayDialogOpen: (v: boolean) => void;
+  payCommissionId: string;
+  setPayCommissionId: (v: string) => void;
+  payAccountId: string;
+  setPayAccountId: (v: string) => void;
 }) => {
   const [expandedSeller, setExpandedSeller] = useState<string | null>(null);
 
