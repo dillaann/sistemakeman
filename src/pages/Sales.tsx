@@ -380,6 +380,10 @@ const AdminSalesView = () => {
   const [tab, setTab] = useState<"vendas" | "commissions" | "goals">("vendas");
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
 
+  const [refDate, setRefDate] = useState(new Date());
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const dateRange = getDateRange(refDate, periodMode);
+
   const [rateOpen, setRateOpen] = useState(false);
   const [rateSellerId, setRateSellerId] = useState("");
   const [rateValue, setRateValue] = useState("");
