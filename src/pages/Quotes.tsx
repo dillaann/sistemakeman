@@ -208,6 +208,8 @@ const Quotes = () => {
       down_payment: String((quote as any).down_payment || ""),
       down_payment_date: (quote as any).down_payment_date || "",
       payment_method: (quote as any).payment_method || "pix",
+      payment_status: (quote as any).payment_status || "aguardando",
+      payment_notes: "",
     });
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
