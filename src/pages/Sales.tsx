@@ -397,6 +397,11 @@ const AdminSalesView = () => {
   const [goalValue, setGoalValue] = useState("");
   const [rankingOrigin, setRankingOrigin] = useState("all");
 
+  // Payment dialog state
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payCommissionId, setPayCommissionId] = useState("");
+  const [payAccountId, setPayAccountId] = useState("");
+
   const { data: sellers = [] } = useQuery({
     queryKey: ["sellers"],
     queryFn: async () => {
@@ -457,6 +462,14 @@ const AdminSalesView = () => {
     },
   });
 
+  const { data: financialAccounts = [] } = useQuery({
+    queryKey: ["financial-accounts-for-commissions"],
+    queryFn: async () => {
+      const { data } = await supabase.from("financial_accounts").select("id, name, type").eq("active", true).order("name");
+      return data ?? [];
+    },
+  });
+
   const saveRateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("seller_commission_rates").upsert({
@@ -489,16 +502,78 @@ const AdminSalesView = () => {
   });
 
   const updateCommissionStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, accountId }: { id: string; status: string; accountId?: string }) => {
+      const commission = commissions.find(c => c.id === id);
+      if (!commission) throw new Error("Comissão não encontrada");
+
+      const sellerProfile = sellers.find(s => s.id === commission.seller_id);
+      const sellerDisplayName = sellerProfile?.full_name || "Vendedor";
+      const today = localDateString();
+      const monthRef = today.substring(0, 7); // YYYY-MM
+
       const updates: any = { status };
-      if (status === "paga") updates.paid_date = localDateString();
+      if (status === "paga") updates.paid_date = today;
       const { error } = await supabase.from("sales_commissions").update(updates).eq("id", id);
       if (error) throw error;
+
+      if (status === "aprovada") {
+        // Create pending "a_pagar" financial transaction
+        const { error: ftError } = await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          status: "pendente" as any,
+          description: `Comissão — ${sellerDisplayName} — ${monthRef}`,
+          amount: Number(commission.amount),
+          due_date: today,
+          category: "Comissões de Vendedores",
+        });
+        if (ftError) throw ftError;
+      }
+
+      if (status === "paga") {
+        // Check if there's already a pending financial transaction for this commission
+        const descPattern = `Comissão — ${sellerDisplayName}`;
+        const { data: existingFt } = await supabase.from("financial_transactions")
+          .select("id")
+          .eq("type", "a_pagar")
+          .eq("status", "pendente")
+          .eq("amount", Number(commission.amount))
+          .ilike("description", `${descPattern}%`)
+          .limit(1);
+
+        if (existingFt && existingFt.length > 0) {
+          // Update existing transaction to paid
+          const { error: updateError } = await supabase.from("financial_transactions").update({
+            status: "pago" as any,
+            paid_date: today,
+            account_id: accountId || null,
+          }).eq("id", existingFt[0].id);
+          if (updateError) throw updateError;
+        } else {
+          // Create paid financial transaction directly
+          const { error: ftError } = await supabase.from("financial_transactions").insert({
+            type: "a_pagar" as any,
+            status: "pago" as any,
+            description: `Comissão — ${sellerDisplayName} — ${monthRef}`,
+            amount: Number(commission.amount),
+            due_date: today,
+            paid_date: today,
+            category: "Comissões de Vendedores",
+            account_id: accountId || null,
+          });
+          if (ftError) throw ftError;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements"] });
+      setPayDialogOpen(false);
+      setPayCommissionId("");
+      setPayAccountId("");
       toast({ title: "Status atualizado!" });
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const deleteSaleMutation = useMutation({
@@ -817,14 +892,21 @@ const AdminSalesView = () => {
       )}
 
       {tab === "commissions" && (
-        <CommissionsPerSeller
-          sellers={sellers}
-          commissions={commissions}
-          rates={rates}
-          sellerName={sellerName}
-          updateCommissionStatus={updateCommissionStatus}
-          setDeleteTarget={setDeleteTarget}
-        />
+          <CommissionsPerSeller
+            sellers={sellers}
+            commissions={commissions}
+            rates={rates}
+            sellerName={sellerName}
+            updateCommissionStatus={updateCommissionStatus}
+            setDeleteTarget={setDeleteTarget}
+            financialAccounts={financialAccounts}
+            payDialogOpen={payDialogOpen}
+            setPayDialogOpen={setPayDialogOpen}
+            payCommissionId={payCommissionId}
+            setPayCommissionId={setPayCommissionId}
+            payAccountId={payAccountId}
+            setPayAccountId={setPayAccountId}
+          />
       )}
 
       {tab === "goals" && (
@@ -913,6 +995,13 @@ const CommissionsPerSeller = ({
   sellerName,
   updateCommissionStatus,
   setDeleteTarget,
+  financialAccounts,
+  payDialogOpen,
+  setPayDialogOpen,
+  payCommissionId,
+  setPayCommissionId,
+  payAccountId,
+  setPayAccountId,
 }: {
   sellers: any[];
   commissions: any[];
@@ -920,6 +1009,13 @@ const CommissionsPerSeller = ({
   sellerName: (id: string | null) => string;
   updateCommissionStatus: any;
   setDeleteTarget: (t: { type: string; id: string } | null) => void;
+  financialAccounts: any[];
+  payDialogOpen: boolean;
+  setPayDialogOpen: (v: boolean) => void;
+  payCommissionId: string;
+  setPayCommissionId: (v: string) => void;
+  payAccountId: string;
+  setPayAccountId: (v: string) => void;
 }) => {
   const [expandedSeller, setExpandedSeller] = useState<string | null>(null);
 
@@ -1049,7 +1145,12 @@ const CommissionsPerSeller = ({
                                   <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateCommissionStatus.mutate({ id: c.id, status: "aprovada" }); }}>Aprovar</Button>
                                 )}
                                 {c.status === "aprovada" && (
-                                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateCommissionStatus.mutate({ id: c.id, status: "paga" }); }}>Pagar</Button>
+                                  <Button size="sm" variant="outline" onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPayCommissionId(c.id);
+                                    setPayAccountId("");
+                                    setPayDialogOpen(true);
+                                  }}>Pagar</Button>
                                 )}
                                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: "commission", id: c.id }); }}>
                                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -1072,6 +1173,52 @@ const CommissionsPerSeller = ({
           </Card>
         )}
       </div>
+
+      {/* Payment account dialog */}
+      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmar Pagamento de Comissão</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {payCommissionId && (() => {
+              const comm = commissions.find(c => c.id === payCommissionId);
+              return comm ? (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm"><strong>Vendedor:</strong> {sellerName(comm.seller_id)}</p>
+                  <p className="text-sm"><strong>Valor:</strong> {fmt(Number(comm.amount))}</p>
+                  <p className="text-sm"><strong>Venda:</strong> {(comm.sales as any)?.description || "—"}</p>
+                </div>
+              ) : null;
+            })()}
+            <div>
+              <Label>Conta de saída {financialAccounts.length > 0 ? "*" : "(opcional)"}</Label>
+              <Select value={payAccountId} onValueChange={setPayAccountId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
+                <SelectContent>
+                  {financialAccounts.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {financialAccounts.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">Nenhuma conta cadastrada. O lançamento será criado sem conta vinculada.</p>
+              )}
+            </div>
+            <Button
+              className="w-full"
+              disabled={updateCommissionStatus.isPending || (financialAccounts.length > 0 && !payAccountId)}
+              onClick={() => {
+                updateCommissionStatus.mutate({
+                  id: payCommissionId,
+                  status: "paga",
+                  accountId: payAccountId || undefined,
+                });
+              }}
+            >
+              {updateCommissionStatus.isPending ? "Processando..." : "Confirmar Pagamento"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
