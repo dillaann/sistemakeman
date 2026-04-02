@@ -346,7 +346,7 @@ const Billing = () => {
               <TableHead>Orçamento/OS</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead className="hidden md:table-cell">Descrição</TableHead>
-              <TableHead className="hidden md:table-cell">Aprovação</TableHead>
+              <TableHead className="hidden md:table-cell">Emissão</TableHead>
               <TableHead>Valor Total</TableHead>
               <TableHead>Recebido</TableHead>
               <TableHead>Saldo</TableHead>
