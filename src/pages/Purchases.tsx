@@ -364,7 +364,7 @@ const Purchases = () => {
       if (Number(p.discount_amount ?? 0) > 0) map[sid].count++;
     });
     return Object.values(map).sort((a, b) => b.totalSaved - a.totalSaved);
-  }, [purchases]);
+  }, [monthPurchases]);
 
   // Client cost summary
   const clientCosts = useMemo(() => {
