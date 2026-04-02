@@ -90,8 +90,7 @@ const MaterialsTab = ({ dateRange }: MaterialsTabProps) => {
     return Object.entries(map).map(([matKey, suppMap]) => {
       const suppEntries = Object.values(suppMap);
       const globalMin = Math.min(...suppEntries.map(s => s.min_price));
-      // Use original casing from first occurrence
-      const originalName = purchases.find((p: any) => p.material.trim().toLowerCase() === matKey)?.material ?? matKey;
+      const originalName = filteredByDate.find((p: any) => p.material.trim().toLowerCase() === matKey)?.material ?? matKey;
 
       return {
         material: originalName,
