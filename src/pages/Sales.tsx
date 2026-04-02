@@ -556,7 +556,6 @@ const AdminSalesView = () => {
     if (vendedorTypeFilter === "com_vendedor" && !s.seller_id) return false;
     if (vendedorTypeFilter === "sem_vendedor" && s.seller_id) return false;
     if (sellerFilter !== "all" && s.seller_id !== sellerFilter) return false;
-    if (statusFilter !== "all" && s.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
       return ((s.clients as any)?.name?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q));
