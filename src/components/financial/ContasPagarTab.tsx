@@ -110,6 +110,15 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
   const total7d = openItems.filter(t => { const d = daysUntil(t.due_date); return d >= 0 && d <= 7; }).reduce((s, t) => s + Number(t.amount), 0);
   const total30d = openItems.filter(t => { const d = daysUntil(t.due_date); return d >= 0 && d <= 30; }).reduce((s, t) => s + Number(t.amount), 0);
 
+  // ── Accumulated breakdown ──
+  const doMesPagar = openItems
+    .filter(t => isInCurrentRange(t.due_date))
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const acumuladoAnteriorPagar = openItems
+    .filter(t => isBeforeRange(t.due_date))
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const totalAPagarAcumulado = doMesPagar + acumuladoAnteriorPagar;
+
   const markPaid = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: localDateString() }).eq("id", id);
