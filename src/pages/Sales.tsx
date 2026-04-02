@@ -503,12 +503,13 @@ const AdminSalesView = () => {
 
   const deleteSaleMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("sales").delete().eq("id", id);
+      const { error } = await supabase.from("quotes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["all-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["approved-quotes-for-sales"] });
       queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
       setDeleteTarget(null);
       toast({ title: "Venda removida!" });
     },
