@@ -706,9 +706,7 @@ const Quotes = () => {
   };
 
   const filtered = quotes.filter(q => {
-    const isOpen = q.status === "pendente";
-    const completionDate = q.approved_at || q.created_at;
-    if (!isInRangeOrOpen(q.created_at, dateRange, isOpen, completionDate)) return false;
+    if (!isInRange(q.issue_date, dateRange)) return false;
     return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       (q.description ?? "").toLowerCase().includes(search.toLowerCase());
   });
