@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import { isInRange } from "@/components/MonthFilter";
 import FinancialReportDialog from "./FinancialReportDialog";
+import { useFinancialCategories } from "@/hooks/useFinancialCategories";
 
 interface SaidasTabProps {
   dateRange?: { start: Date; end: Date };
@@ -29,7 +30,7 @@ const statusColors: Record<string, string> = {
 };
 const statusLabels: Record<string, string> = { pendente: "Pendente", pago: "Pago", atrasado: "Atrasado", cancelado: "Cancelado" };
 
-const categorias = ["Salário", "Adiantamento", "Material", "Aluguel", "Serviço", "Fornecedor", "Compras", "Outros"];
+
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -37,6 +38,8 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const { toast } = useToast();
   const { userRole } = useAuth();
   const qc = useQueryClient();
+  const { categories: catList } = useFinancialCategories("saida");
+  const categorias = catList.map(c => c.name);
   const [search, setSearch] = useState("");
   
   const [catFilter, setCatFilter] = useState("all");

@@ -17,6 +17,7 @@ import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { isInRange } from "@/components/MonthFilter";
 import FinancialReportDialog from "./FinancialReportDialog";
 import type { ReportTransaction } from "@/lib/generateFinancialReport";
+import { useFinancialCategories } from "@/hooks/useFinancialCategories";
 
 interface EntradasTabProps {
   dateRange?: { start: Date; end: Date };
@@ -31,7 +32,7 @@ const statusColors: Record<string, string> = {
 };
 const statusLabels: Record<string, string> = { pendente: "Pendente", pago: "Recebido", recebido: "Recebido", atrasado: "Atrasado", cancelado: "Cancelado" };
 
-const categorias = ["Venda de Produto", "Serviço", "Faturamento", "Sinal/Entrada", "Outros"];
+
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -39,6 +40,8 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { toast } = useToast();
   const { userRole } = useAuth();
   const qc = useQueryClient();
+  const { categories: catList } = useFinancialCategories("entrada");
+  const categorias = catList.map(c => c.name);
   const [search, setSearch] = useState("");
   
   const [catFilter, setCatFilter] = useState("all");
