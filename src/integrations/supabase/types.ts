@@ -1453,6 +1453,7 @@ export type Database = {
           id: string
           material: string
           notes: string | null
+          purchase_status: string
           quantity: number
           unit: string
           work_order_id: string
@@ -1462,6 +1463,7 @@ export type Database = {
           id?: string
           material: string
           notes?: string | null
+          purchase_status?: string
           quantity?: number
           unit?: string
           work_order_id: string
@@ -1471,6 +1473,7 @@ export type Database = {
           id?: string
           material?: string
           notes?: string | null
+          purchase_status?: string
           quantity?: number
           unit?: string
           work_order_id?: string

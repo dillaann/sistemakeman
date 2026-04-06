@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera, Users, Package, Pencil } from "lucide-react";
+import { Plus, Search, Trash2, TrendingDown, DollarSign, ShoppingCart, Award, CheckCircle, Camera, Users, Package, Pencil, AlertCircle } from "lucide-react";
 import MaterialsTab from "@/components/purchases/MaterialsTab";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
@@ -127,6 +127,62 @@ const Purchases = () => {
       return map;
     },
     enabled: allWorkOrders.length > 0,
+  });
+
+  // Best price per material from purchases history
+  const bestPriceMap = useMemo(() => {
+    const map: Record<string, { supplier_name: string; min_price: number }> = {};
+    purchases.forEach((p: any) => {
+      const key = p.material.trim().toLowerCase();
+      const unitPrice = Number(p.unit_price) || 0;
+      const supplierName = p.suppliers?.name ?? "Sem fornecedor";
+      if (!map[key] || unitPrice < map[key].min_price) {
+        map[key] = { supplier_name: supplierName, min_price: unitPrice };
+      }
+    });
+    return map;
+  }, [purchases]);
+
+  const updateMaterialStatus = useMutation({
+    mutationFn: async ({ materialId, status }: { materialId: string; status: string }) => {
+      const { error } = await supabase.from("work_order_materials")
+        .update({ purchase_status: status } as any)
+        .eq("id", materialId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-request-materials"] });
+    },
+  });
+
+  const confirmAllMaterials = useMutation({
+    mutationFn: async (workOrderId: string) => {
+      const request = purchaseRequests.find((r: any) => r.work_order_id === workOrderId) as any;
+      // Mark all materials as comprado
+      const mats = (requestMaterials as any)[workOrderId] ?? [];
+      for (const m of mats) {
+        await supabase.from("work_order_materials")
+          .update({ purchase_status: "comprado" } as any)
+          .eq("id", m.id);
+      }
+      // Confirm purchase request
+      if (request) {
+        await supabase.from("purchase_requests")
+          .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
+          .eq("id", request.id);
+      }
+      // Update work order
+      await supabase.from("work_orders")
+        .update({ material_status: "comprado" } as any)
+        .eq("id", workOrderId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-requests"] });
+      qc.invalidateQueries({ queryKey: ["purchase-request-materials"] });
+      qc.invalidateQueries({ queryKey: ["production-orders"] });
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      toast({ title: "Todos os materiais confirmados!" });
+    },
   });
 
   const confirmPurchaseRequest = useMutation({
@@ -525,7 +581,7 @@ const Purchases = () => {
         {/* SOLICITAÇÕES - All OS appear automatically */}
         <TabsContent value="solicitacoes" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Ordens de Serviço</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Ordens de Serviço — Materiais</CardTitle></CardHeader>
             <CardContent>
               {allWorkOrders.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">Nenhuma OS encontrada.</p>
@@ -540,7 +596,7 @@ const Purchases = () => {
                     const req = purchaseRequests.find((r: any) => r.work_order_id === wo.id);
                     const materialStatusLabel: Record<string, string> = {
                       nao_solicitado: "Pendente",
-                      aguardando_compra: "Em Cotação",
+                      aguardando_compra: "Aguardando Compra",
                       comprado: "Comprado",
                     };
                     const materialStatusColor: Record<string, string> = {
@@ -549,6 +605,17 @@ const Purchases = () => {
                       comprado: "bg-green-500/10 text-green-700 border-green-500/20",
                     };
                     const matStatus = wo.material_status || "nao_solicitado";
+                    const allComprado = mats.length > 0 && mats.every((m: any) => (m.purchase_status || "pendente") === "comprado");
+                    const matPurchaseStatusLabel: Record<string, string> = {
+                      pendente: "Pendente",
+                      em_cotacao: "Em Cotação",
+                      comprado: "Comprado",
+                    };
+                    const matPurchaseStatusColor: Record<string, string> = {
+                      pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+                      em_cotacao: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+                      comprado: "bg-green-500/10 text-green-700 border-green-500/20",
+                    };
                     return (
                       <Card key={wo.id} className="border">
                         <CardContent className="p-4 space-y-3">
@@ -565,21 +632,78 @@ const Purchases = () => {
                             <span>💰 Valor: <strong className="text-foreground">{fmt(Number(wo.total))}</strong></span>
                             <span>📅 Criada: {new Date(wo.created_at).toLocaleDateString("pt-BR")}</span>
                           </div>
-                          {mats.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs font-semibold">Materiais solicitados:</p>
-                              {mats.map((m: any) => (
-                                <div key={m.id} className="text-xs bg-muted/50 rounded p-1.5 flex gap-2">
-                                  <span className="font-medium">{m.material}</span>
-                                  <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
-                                  {m.notes && <span className="text-muted-foreground italic">({m.notes})</span>}
-                                </div>
-                              ))}
+
+                          {/* Materials list */}
+                          {mats.length > 0 ? (
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-semibold flex items-center gap-1">
+                                <Package className="h-3 w-3" /> Materiais ({mats.length})
+                              </p>
+                              {mats.map((m: any) => {
+                                const mKey = m.material.trim().toLowerCase();
+                                const best = bestPriceMap[mKey];
+                                const currentStatus = m.purchase_status || "pendente";
+                                return (
+                                  <div key={m.id} className="text-xs bg-muted/50 rounded p-2 space-y-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 flex-1">
+                                        <span className="font-medium">{m.material}</span>
+                                        <span className="text-muted-foreground">{m.quantity} {m.unit}</span>
+                                        {m.notes && <span className="text-muted-foreground italic">({m.notes})</span>}
+                                      </div>
+                                      {matStatus !== "comprado" && (
+                                        <Select
+                                          value={currentStatus}
+                                          onValueChange={(v) => updateMaterialStatus.mutate({ materialId: m.id, status: v })}
+                                        >
+                                          <SelectTrigger className="h-6 text-[10px] w-28 border-0 bg-transparent">
+                                            <Badge className={`${matPurchaseStatusColor[currentStatus]} text-[10px]`}>
+                                              {matPurchaseStatusLabel[currentStatus]}
+                                            </Badge>
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="pendente">Pendente</SelectItem>
+                                            <SelectItem value="em_cotacao">Em Cotação</SelectItem>
+                                            <SelectItem value="comprado">Comprado</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      )}
+                                      {matStatus === "comprado" && (
+                                        <Badge className="bg-green-500/10 text-green-700 border-green-500/20 text-[10px]">
+                                          Comprado
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {best && (
+                                      <p className="text-[10px] text-muted-foreground">
+                                        💡 Melhor preço: <strong>{best.supplier_name}</strong> — {fmt(best.min_price)}/{m.unit}
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded p-2">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              <span>Aguardando lista de materiais da Produção</span>
                             </div>
                           )}
-                          {req && req.status === "pendente" && (
+
+                          {/* Confirm all button - when all individual mats are comprado */}
+                          {matStatus === "aguardando_compra" && allComprado && (
                             <Button
                               size="sm" className="w-full"
+                              onClick={() => confirmAllMaterials.mutate(wo.id)}
+                              disabled={confirmAllMaterials.isPending}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" /> Confirmar Aquisição (todos comprados)
+                            </Button>
+                          )}
+                          {/* Legacy confirm button for requests without individual tracking */}
+                          {req && req.status === "pendente" && !allComprado && matStatus === "aguardando_compra" && (
+                            <Button
+                              size="sm" variant="outline" className="w-full"
                               onClick={() => confirmPurchaseRequest.mutate(req.id)}
                               disabled={confirmPurchaseRequest.isPending}
                             >
