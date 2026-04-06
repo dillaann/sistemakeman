@@ -101,7 +101,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         due_date: form.due_date,
         category: form.category || null,
         status: form.status as any,
-        paid_date: form.status === "pago" ? localDateString() : null,
+        paid_date: form.status === "pago" ? form.due_date : null,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
