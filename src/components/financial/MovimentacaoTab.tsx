@@ -11,6 +11,8 @@ import { TrendingUp, TrendingDown, DollarSign, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import FinancialReportDialog from "./FinancialReportDialog";
+import CategoriasManager from "./CategoriasManager";
+import { useAuth } from "@/contexts/AuthContext";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -21,6 +23,7 @@ interface MovimentacaoTabProps {
 }
 
 export default function MovimentacaoTab({ dateRange: parentDateRange }: MovimentacaoTabProps) {
+  const { userRole } = useAuth();
   const now = new Date();
   const [preset, setPreset] = useState<PeriodPreset>("month");
   const [dateFrom, setDateFrom] = useState(localDateString(startOfMonth(now)));
@@ -177,6 +180,13 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
           </TableBody>
         </Table>
       </div>
+
+      {(userRole === "admin" || userRole === "financeiro") && (
+        <Card className="mt-6">
+          <CardHeader><CardTitle className="text-base">Configurações</CardTitle></CardHeader>
+          <CardContent><CategoriasManager /></CardContent>
+        </Card>
+      )}
     </div>
   );
 }
