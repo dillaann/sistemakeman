@@ -129,6 +129,62 @@ const Purchases = () => {
     enabled: allWorkOrders.length > 0,
   });
 
+  // Best price per material from purchases history
+  const bestPriceMap = useMemo(() => {
+    const map: Record<string, { supplier_name: string; min_price: number }> = {};
+    purchases.forEach((p: any) => {
+      const key = p.material.trim().toLowerCase();
+      const unitPrice = Number(p.unit_price) || 0;
+      const supplierName = p.suppliers?.name ?? "Sem fornecedor";
+      if (!map[key] || unitPrice < map[key].min_price) {
+        map[key] = { supplier_name: supplierName, min_price: unitPrice };
+      }
+    });
+    return map;
+  }, [purchases]);
+
+  const updateMaterialStatus = useMutation({
+    mutationFn: async ({ materialId, status }: { materialId: string; status: string }) => {
+      const { error } = await supabase.from("work_order_materials")
+        .update({ purchase_status: status } as any)
+        .eq("id", materialId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-request-materials"] });
+    },
+  });
+
+  const confirmAllMaterials = useMutation({
+    mutationFn: async (workOrderId: string) => {
+      const request = purchaseRequests.find((r: any) => r.work_order_id === workOrderId) as any;
+      // Mark all materials as comprado
+      const mats = (requestMaterials as any)[workOrderId] ?? [];
+      for (const m of mats) {
+        await supabase.from("work_order_materials")
+          .update({ purchase_status: "comprado" } as any)
+          .eq("id", m.id);
+      }
+      // Confirm purchase request
+      if (request) {
+        await supabase.from("purchase_requests")
+          .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
+          .eq("id", request.id);
+      }
+      // Update work order
+      await supabase.from("work_orders")
+        .update({ material_status: "comprado" } as any)
+        .eq("id", workOrderId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-requests"] });
+      qc.invalidateQueries({ queryKey: ["purchase-request-materials"] });
+      qc.invalidateQueries({ queryKey: ["production-orders"] });
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      toast({ title: "Todos os materiais confirmados!" });
+    },
+  });
+
   const confirmPurchaseRequest = useMutation({
     mutationFn: async (requestId: string) => {
       const request = purchaseRequests.find((r: any) => r.id === requestId) as any;
