@@ -129,7 +129,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       let finalStatus = form.status === "recebido" ? "pago" : form.status;
-      let paidDate = form.status === "recebido" ? localDateString() : null;
+      let paidDate = form.status === "recebido" ? form.due_date : null;
 
       // Block "recebido" for future dates
       if (isFutureDate(form.due_date) && finalStatus === "pago") {
