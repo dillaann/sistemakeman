@@ -30,7 +30,16 @@ const statusColors: Record<string, string> = {
 };
 const statusLabels: Record<string, string> = { pendente: "Pendente", pago: "Pago", atrasado: "Atrasado", cancelado: "Cancelado" };
 
-
+const paymentMethods = [
+  { value: "pix", label: "Pix" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "boleto", label: "Boleto" },
+  { value: "cheque", label: "Cheque" },
+  { value: "cartao_credito", label: "Cartão Crédito" },
+  { value: "cartao_debito", label: "Cartão Débito" },
+  { value: "transferencia", label: "Transferência Bancária" },
+];
+const paymentMethodLabel = (v: string | null) => paymentMethods.find(p => p.value === v)?.label ?? "—";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -43,6 +52,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const [search, setSearch] = useState("");
   
   const [catFilter, setCatFilter] = useState("all");
+  const [pmFilter, setPmFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
@@ -51,7 +61,9 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
-  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "" });
+  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "", payment_method: "pix" });
+
+  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "", payment_method: "pix" });
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-saidas"],
@@ -64,13 +76,12 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const filtered = useMemo(() => {
     const today = localDateString();
     let list = transactions.filter(t => {
-      // Only show confirmed/paid exits (status = 'pago')
       if (t.status !== "pago") return false;
-      // Use paid_date as reference (cash basis / regime de caixa)
       const refDate = t.paid_date ?? t.due_date;
       if (refDate > today) return false;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
+      if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
       if (dateTo && refDate > dateTo) return false;
       const text = search.toLowerCase();
@@ -88,7 +99,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
@@ -102,6 +113,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         category: form.category || null,
         status: form.status as any,
         paid_date: form.status === "pago" ? form.due_date : null,
+        payment_method: form.payment_method || null,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
@@ -115,18 +127,10 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
       qc.invalidateQueries({ queryKey: ["financial-saidas"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
       setOpen(false); setEditId(null);
-      setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "" });
+      resetForm();
       toast({ title: editId ? "Saída atualizada!" : "Saída criada!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  const markPaid = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: localDateString() }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial-saidas"] }); qc.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Marcado como pago!" }); },
   });
 
   const deleteMutation = useMutation({
@@ -140,7 +144,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status, notes: "" });
+    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status, notes: "", payment_method: t.payment_method ?? "pix" });
     setOpen(true);
   };
 
@@ -163,7 +167,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             categories={categorias}
             periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
           />
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "" }); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); resetForm(); } }}>
           <DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-2" />Nova Saída</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{editId ? "Editar Saída" : "Nova Saída"}</DialogTitle></DialogHeader>
@@ -180,6 +184,14 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                     <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+                <div><Label>Forma de Pagamento</Label>
+                  <Select value={form.payment_method} onValueChange={v => setForm({ ...form, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div><Label>Status</Label>
                   <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -212,6 +224,13 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={pmFilter} onValueChange={setPmFilter}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Forma Pgto" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[150px]" />
         <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" />
       </div>
@@ -223,9 +242,9 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
               <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
-              <TableHead>Origem</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
-              
+              <TableHead>Forma Pgto</TableHead>
+              <TableHead>Origem</TableHead>
               <TableHead className="w-28">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -235,8 +254,9 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{t.description}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
-                <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
+                <TableCell>{paymentMethodLabel((t as any).payment_method)}</TableCell>
+                <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
