@@ -376,9 +376,11 @@ const HR = () => {
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
       const netPay = baseSalary + empOvertime + empSaturdays - empAdvances - empExpenses;
-      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, netPay, closing };
+      const totalPaid = salaryPayments.filter((p: any) => p.employee_id === emp.id).reduce((s: number, p: any) => s + Number(p.amount), 0);
+      const remaining = netPay - totalPaid;
+      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, netPay, closing, totalPaid, remaining };
     });
-  }, [employees, advances, expenses, overtime, saturdays, closings]);
+  }, [employees, advances, expenses, overtime, saturdays, closings, salaryPayments]);
 
   const categories = ["EPI", "Uniforme", "Ferramentas", "Combustível", "Outro"];
 
