@@ -32,7 +32,16 @@ const statusColors: Record<string, string> = {
 };
 const statusLabels: Record<string, string> = { pendente: "Pendente", pago: "Recebido", recebido: "Recebido", atrasado: "Atrasado", cancelado: "Cancelado" };
 
-
+const paymentMethods = [
+  { value: "pix", label: "Pix" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "boleto", label: "Boleto" },
+  { value: "cheque", label: "Cheque" },
+  { value: "cartao_credito", label: "Cartão Crédito" },
+  { value: "cartao_debito", label: "Cartão Débito" },
+  { value: "transferencia", label: "Transferência Bancária" },
+];
+const paymentMethodLabel = (v: string | null) => paymentMethods.find(p => p.value === v)?.label ?? "—";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -45,6 +54,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const [search, setSearch] = useState("");
   
   const [catFilter, setCatFilter] = useState("all");
+  const [pmFilter, setPmFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
@@ -53,7 +63,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
-  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "" });
+  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix" });
+
+  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix" });
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-lookup"],
@@ -85,21 +97,15 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     return desc;
   };
 
-  const getEffectiveStatus = (t: { status: string; due_date: string }) => {
-    if (t.status === "pendente" && t.due_date < localDateString()) return "atrasado";
-    return t.status;
-  };
-
   const filtered = useMemo(() => {
     const today = localDateString();
     let list = transactions.filter(t => {
-      // Only show confirmed/received entries (status = 'pago')
       if (t.status !== "pago") return false;
-      // Use paid_date as reference (cash basis / regime de caixa)
       const refDate = t.paid_date ?? t.due_date;
       if (refDate > today) return false;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
+      if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
       if (dateTo && refDate > dateTo) return false;
       const text = search.toLowerCase();
@@ -117,7 +123,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, catFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
@@ -131,7 +137,6 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       let finalStatus = form.status === "recebido" ? "pago" : form.status;
       let paidDate = form.status === "recebido" ? form.due_date : null;
 
-      // Block "recebido" for future dates
       if (isFutureDate(form.due_date) && finalStatus === "pago") {
         finalStatus = "pendente";
         paidDate = null;
@@ -146,6 +151,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         category: form.category || null,
         status: finalStatus as any,
         paid_date: paidDate,
+        payment_method: form.payment_method || null,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
@@ -160,18 +166,10 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       qc.invalidateQueries({ queryKey: ["financial"] });
       setOpen(false);
       setEditId(null);
-      setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "" });
+      resetForm();
       toast({ title: editId ? "Entrada atualizada!" : "Entrada criada!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  const markReceived = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: localDateString() }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial-entradas"] }); qc.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Marcado como recebido!" }); },
   });
 
   const deleteMutation = useMutation({
@@ -185,7 +183,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "" });
+    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "", payment_method: t.payment_method ?? "pix" });
     setOpen(true);
   };
 
@@ -208,7 +206,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             categories={categorias}
             periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
           />
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "" }); } }}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); resetForm(); } }}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Entrada</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{editId ? "Editar Entrada" : "Nova Entrada"}</DialogTitle></DialogHeader>
@@ -225,6 +223,14 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                     <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+                <div><Label>Forma de Pagamento</Label>
+                  <Select value={form.payment_method} onValueChange={v => setForm({ ...form, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div><Label>Status</Label>
                   <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -257,6 +263,13 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={pmFilter} onValueChange={setPmFilter}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Forma Pgto" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[150px]" placeholder="De" />
         <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" placeholder="Até" />
       </div>
@@ -268,9 +281,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
               <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
-              <TableHead>Cliente/Origem</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
-              
+              <TableHead>Forma Pgto</TableHead>
+              <TableHead>Cliente/Origem</TableHead>
               <TableHead className="w-28">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -280,8 +293,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
-                <TableCell>{t.client_id ? (clients.find(c => c.id === t.client_id)?.name ?? "—") : "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
+                <TableCell>{paymentMethodLabel((t as any).payment_method)}</TableCell>
+                <TableCell>{t.client_id ? (clients.find(c => c.id === t.client_id)?.name ?? "—") : "—"}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>

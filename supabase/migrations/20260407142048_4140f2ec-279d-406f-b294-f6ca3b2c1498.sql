@@ -1,0 +1,1 @@
+ALTER TABLE public.financial_transactions ADD COLUMN IF NOT EXISTS payment_method text DEFAULT NULL;

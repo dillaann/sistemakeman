@@ -519,6 +519,7 @@ export type Database = {
           due_date: string
           id: string
           paid_date: string | null
+          payment_method: string | null
           purchase_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           sync_origin: string
@@ -536,6 +537,7 @@ export type Database = {
           due_date: string
           id?: string
           paid_date?: string | null
+          payment_method?: string | null
           purchase_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           sync_origin?: string
@@ -553,6 +555,7 @@ export type Database = {
           due_date?: string
           id?: string
           paid_date?: string | null
+          payment_method?: string | null
           purchase_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           sync_origin?: string
