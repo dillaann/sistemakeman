@@ -238,44 +238,49 @@ const HR = () => {
 
   // ── Salary Payment ──
   const [payOpen, setPayOpen] = useState(false);
-  const [payForm, setPayForm] = useState({ employee_id: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+  const [payForm, setPayForm] = useState({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
 
   const salaryPayMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === payForm.employee_id);
       if (!emp) throw new Error("Selecione um funcionário");
-      const summary = employeeSummary.find(e => e.id === payForm.employee_id);
-      if (!summary) throw new Error("Funcionário não encontrado");
+      const payAmount = parseFloat(payForm.amount);
+      if (!payAmount || payAmount <= 0) throw new Error("Informe um valor válido");
 
-      const baseSalary = summary.baseSalary;
-      const netPay = summary.netPay;
-      const { error: closingError } = await supabase.from("monthly_closings").upsert({
-        employee_id: payForm.employee_id, month_ref: selectedMonth,
-        base_salary: baseSalary, total_advances: summary.empAdvances, total_expenses: summary.empExpenses,
-        total_overtime: summary.empOvertime, total_saturdays: summary.empSaturdays, net_pay: netPay,
-        paid: true, paid_date: payForm.payment_date,
-      }, { onConflict: "employee_id,month_ref" });
-      if (closingError) throw closingError;
-
-      const { error: ftError } = await supabase.from("financial_transactions").insert({
+      // Create financial transaction
+      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: `Salário — ${emp.name} — ${monthLabel(selectedMonth)}`,
-        amount: netPay,
+        amount: payAmount,
         due_date: payForm.payment_date,
         paid_date: payForm.payment_date,
         status: "pago" as any,
         category: "Folha de Pagamento",
         account_id: payForm.account_id || null,
         sync_origin: "payroll",
-      });
+      }).select("id").single();
       if (ftError) throw ftError;
+
+      // Record in salary_payments
+      const { error: spError } = await supabase.from("salary_payments" as any).insert({
+        employee_id: payForm.employee_id,
+        month_ref: selectedMonth,
+        amount: payAmount,
+        payment_date: payForm.payment_date,
+        payment_method: payForm.payment_method,
+        account_id: payForm.account_id || null,
+        notes: payForm.notes || null,
+        financial_transaction_id: ftData?.id || null,
+      });
+      if (spError) throw spError;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
       setPayOpen(false);
-      setPayForm({ employee_id: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+      setPayForm({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
       toast({ title: "Pagamento registrado e lançado no Financeiro!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
