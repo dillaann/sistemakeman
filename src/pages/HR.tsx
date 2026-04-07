@@ -2,6 +2,7 @@ import { formatDateBR, localDateString, parseLocalDate } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, DollarSign, Receipt, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote } from "lucide-react";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { Plus, DollarSign, Receipt, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote, Trash2, Pencil } from "lucide-react";
 
 const currentMonth = () => {
   const d = new Date();
@@ -31,8 +33,13 @@ const selectClass = "flex h-10 w-full rounded-md border border-input bg-backgrou
 const HR = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { userRole } = useAuth();
+  const canEdit = userRole === "admin" || userRole === "financeiro";
   const [selectedMonth, setSelectedMonth] = useState(currentMonth());
   const [selectedYear, setSelectedYear] = useState(currentYear());
+
+  // ── Delete state ──
+  const [deleteTarget, setDeleteTarget] = useState<{ table: string; id: string; label: string } | null>(null);
 
   // ── Queries ──
   const { data: employees = [] } = useQuery({
@@ -72,6 +79,26 @@ const HR = () => {
     queryFn: async () => { const { data } = await supabase.from("financial_accounts").select("*").eq("active", true).order("name"); return data ?? []; },
   });
 
+  // ── Generic delete mutation ──
+  const deleteMutation = useMutation({
+    mutationFn: async ({ table, id }: { table: string; id: string }) => {
+      const { error } = await supabase.from(table as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-advances"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-overtime"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-vacations"] });
+      queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      setDeleteTarget(null);
+      toast({ title: "Registro excluído!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
+  });
+
   // ── Advance ──
   const [advOpen, setAdvOpen] = useState(false);
   const [advForm, setAdvForm] = useState({ employee_id: "", amount: "", type: "adiantamento", description: "", date: localDateString() });
@@ -102,7 +129,7 @@ const HR = () => {
   const otMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === otForm.employee_id);
-      const fixedRate = Number((emp as any)?.overtime_hourly_rate) || 0;
+      const fixedRate = Number(emp?.overtime_hourly_rate) || 0;
       const hrs = parseFloat(otForm.hours);
       const value = fixedRate > 0 ? fixedRate * hrs : (() => { const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; return rate * (1 + pct) * hrs; })();
       const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
@@ -118,7 +145,7 @@ const HR = () => {
   const satMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === satForm.employee_id);
-      const fixedSatValue = Number((emp as any)?.saturday_value) || 0;
+      const fixedSatValue = Number(emp?.saturday_value) || 0;
       const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: parseFloat(satForm.hours), calculated_value: fixedSatValue > 0 ? fixedSatValue : Math.round(hourlyRate(Number(emp?.salary) || 0) * 1.5 * parseFloat(satForm.hours) * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
@@ -216,7 +243,6 @@ const HR = () => {
       const summary = employeeSummary.find(e => e.id === payForm.employee_id);
       if (!summary) throw new Error("Funcionário não encontrado");
 
-      // First upsert closing
       const baseSalary = summary.baseSalary;
       const netPay = summary.netPay;
       const { error: closingError } = await supabase.from("monthly_closings").upsert({
@@ -227,7 +253,6 @@ const HR = () => {
       }, { onConflict: "employee_id,month_ref" });
       if (closingError) throw closingError;
 
-      // Create financial transaction
       const { error: ftError } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: `Salário — ${emp.name} — ${monthLabel(selectedMonth)}`,
@@ -276,6 +301,38 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // ── Edit Employee Salary ──
+  const [editEmpOpen, setEditEmpOpen] = useState(false);
+  const [editEmpForm, setEditEmpForm] = useState({ id: "", name: "", salary: "", saturday_value: "", overtime_hourly_rate: "" });
+
+  const editEmpMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("employees").update({
+        salary: parseFloat(editEmpForm.salary) || 0,
+        saturday_value: parseFloat(editEmpForm.saturday_value) || 0,
+        overtime_hourly_rate: parseFloat(editEmpForm.overtime_hourly_rate) || 0,
+      }).eq("id", editEmpForm.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      setEditEmpOpen(false);
+      toast({ title: "Salário atualizado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const openEditEmp = (emp: any) => {
+    setEditEmpForm({
+      id: emp.id,
+      name: emp.name,
+      salary: String(Number(emp.salary) || 0),
+      saturday_value: String(Number(emp.saturday_value) || 0),
+      overtime_hourly_rate: String(Number(emp.overtime_hourly_rate) || 0),
+    });
+    setEditEmpOpen(true);
+  };
+
   // ── Dashboard calcs ──
   const totalPayroll = useMemo(() => employees.reduce((s, e) => s + (Number(e.salary) || 0), 0), [employees]);
   const totalAdvances = useMemo(() => advances.reduce((s, a) => s + Number(a.amount), 0), [advances]);
@@ -284,7 +341,6 @@ const HR = () => {
   const totalSaturdays = useMemo(() => saturdays.reduce((s, sat) => s + Number(sat.calculated_value), 0), [saturdays]);
   const total13thProvision = useMemo(() => thirteenths.reduce((s, t) => s + Number(t.monthly_provision) * (new Date().getMonth() + 1), 0), [thirteenths]);
 
-  // Vacation alerts
   const vacationAlerts = useMemo(() => {
     const today = new Date();
     return employees.map(emp => {
@@ -292,9 +348,7 @@ const HR = () => {
       const hire = parseLocalDate(emp.hire_date);
       if (!hire) return null;
       const empVacs = vacations.filter(v => v.employee_id === emp.id);
-      const vacationEndDates = empVacs
-        .map(v => parseLocalDate(v.end_date))
-        .filter((date): date is Date => date !== null);
+      const vacationEndDates = empVacs.map(v => parseLocalDate(v.end_date)).filter((date): date is Date => date !== null);
       const lastVacEnd = vacationEndDates.length > 0 ? new Date(Math.max(...vacationEndDates.map(date => date.getTime()))) : hire;
       const daysSinceLast = daysBetween(lastVacEnd, today);
       const daysUntilDue = 365 - daysSinceLast;
@@ -321,6 +375,16 @@ const HR = () => {
 
   const selectedPayEmployee = employeeSummary.find(e => e.id === payForm.employee_id);
 
+  // Delete button helper
+  const DeleteBtn = ({ table, id, label }: { table: string; id: string; label: string }) => {
+    if (!canEdit) return null;
+    return (
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ table, id, label })}>
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -330,6 +394,29 @@ const HR = () => {
           <Input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="w-44" />
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Confirmar Exclusão"
+        description={`Tem certeza que deseja excluir "${deleteTarget?.label}"? Esta ação não pode ser desfeita.`}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate({ table: deleteTarget.table, id: deleteTarget.id }); }}
+        isPending={deleteMutation.isPending}
+      />
+
+      {/* Edit Employee Salary Dialog */}
+      <Dialog open={editEmpOpen} onOpenChange={setEditEmpOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Salário — {editEmpForm.name}</DialogTitle></DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); editEmpMutation.mutate(); }} className="space-y-3">
+            <div><Label>Salário Base (R$)</Label><Input type="number" step="0.01" min="0" value={editEmpForm.salary} onChange={e => setEditEmpForm({ ...editEmpForm, salary: e.target.value })} required /></div>
+            <div><Label>Valor Sábado (R$)</Label><Input type="number" step="0.01" min="0" value={editEmpForm.saturday_value} onChange={e => setEditEmpForm({ ...editEmpForm, saturday_value: e.target.value })} /></div>
+            <div><Label>Valor Hora Extra (R$)</Label><Input type="number" step="0.01" min="0" value={editEmpForm.overtime_hourly_rate} onChange={e => setEditEmpForm({ ...editEmpForm, overtime_hourly_rate: e.target.value })} /></div>
+            <Button type="submit" className="w-full" disabled={editEmpMutation.isPending}>Salvar</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="dashboard">
         <TabsList className="flex flex-wrap h-auto gap-1">
@@ -385,67 +472,67 @@ const HR = () => {
         {/* ── Salários ── */}
         <TabsContent value="salarios" className="space-y-4">
           <div className="flex justify-between flex-wrap gap-2">
-            <Dialog open={advOpen} onOpenChange={setAdvOpen}><DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-2" />Novo Adiantamento/Vale</Button></DialogTrigger>
-              <DialogContent><DialogHeader><DialogTitle>Registrar Adiantamento/Vale</DialogTitle></DialogHeader>
-                <form onSubmit={e => { e.preventDefault(); advMutation.mutate(); }} className="space-y-3">
-                  <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                  <div className="grid grid-cols-2 gap-3"><div><Label>Tipo *</Label><select className={selectClass} value={advForm.type} onChange={e => setAdvForm({ ...advForm, type: e.target.value })}><option value="adiantamento">Adiantamento</option><option value="vale">Vale</option></select></div><div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={advForm.amount} onChange={e => setAdvForm({ ...advForm, amount: e.target.value })} required /></div></div>
-                  <div><Label>Descrição</Label><Input value={advForm.description} onChange={e => setAdvForm({ ...advForm, description: e.target.value })} /></div>
-                  <div><Label>Data</Label><Input type="date" value={advForm.date} onChange={e => setAdvForm({ ...advForm, date: e.target.value })} /></div>
-                  <Button type="submit" className="w-full" disabled={advMutation.isPending}>Salvar</Button>
-                </form></DialogContent></Dialog>
-            <Dialog open={payOpen} onOpenChange={setPayOpen}>
-              <DialogTrigger asChild><Button><Banknote className="h-4 w-4 mr-2" />Registrar Pagamento</Button></DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader><DialogTitle>Registrar Pagamento de Salário</DialogTitle></DialogHeader>
-                <form onSubmit={e => { e.preventDefault(); salaryPayMutation.mutate(); }} className="space-y-3">
-                  <div><Label>Funcionário *</Label>
-                    <select className={selectClass} value={payForm.employee_id} onChange={e => setPayForm({ ...payForm, employee_id: e.target.value })} required>
-                      <option value="">Selecione</option>
-                      {employeeSummary.filter(e => !e.closing?.paid).map(e => (
-                        <option key={e.id} value={e.id}>{e.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {selectedPayEmployee && (
-                    <div className="p-3 rounded-md bg-muted text-sm space-y-1">
-                      <p>Salário Base: {fmt(selectedPayEmployee.baseSalary)}</p>
-                      {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
-                      {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
-                      {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
-                      {selectedPayEmployee.empExpenses > 0 && <p className="text-destructive">- Gastos: {fmt(selectedPayEmployee.empExpenses)}</p>}
-                      <hr className="my-1 border-border" />
-                      <p className="font-bold text-base">Líquido a Pagar: {fmt(selectedPayEmployee.netPay)}</p>
-                    </div>
-                  )}
-                  <div><Label>Mês de Referência</Label><Input value={monthLabel(selectedMonth)} disabled /></div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label>Data do Pagamento *</Label><Input type="date" value={payForm.payment_date} onChange={e => setPayForm({ ...payForm, payment_date: e.target.value })} required /></div>
-                    <div><Label>Forma de Pagamento *</Label>
-                      <select className={selectClass} value={payForm.payment_method} onChange={e => setPayForm({ ...payForm, payment_method: e.target.value })}>
-                        <option value="pix">PIX</option>
-                        <option value="transferencia">Transferência</option>
-                        <option value="dinheiro">Dinheiro</option>
-                        <option value="outro">Outro</option>
+            {canEdit && (
+              <Dialog open={advOpen} onOpenChange={setAdvOpen}><DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-2" />Novo Adiantamento/Vale</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Registrar Adiantamento/Vale</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); advMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div className="grid grid-cols-2 gap-3"><div><Label>Tipo *</Label><select className={selectClass} value={advForm.type} onChange={e => setAdvForm({ ...advForm, type: e.target.value })}><option value="adiantamento">Adiantamento</option><option value="vale">Vale</option></select></div><div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={advForm.amount} onChange={e => setAdvForm({ ...advForm, amount: e.target.value })} required /></div></div>
+                    <div><Label>Descrição</Label><Input value={advForm.description} onChange={e => setAdvForm({ ...advForm, description: e.target.value })} /></div>
+                    <div><Label>Data</Label><Input type="date" value={advForm.date} onChange={e => setAdvForm({ ...advForm, date: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={advMutation.isPending}>Salvar</Button>
+                  </form></DialogContent></Dialog>
+            )}
+            {canEdit && (
+              <Dialog open={payOpen} onOpenChange={setPayOpen}>
+                <DialogTrigger asChild><Button><Banknote className="h-4 w-4 mr-2" />Registrar Pagamento</Button></DialogTrigger>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader><DialogTitle>Registrar Pagamento de Salário</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); salaryPayMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label>
+                      <select className={selectClass} value={payForm.employee_id} onChange={e => setPayForm({ ...payForm, employee_id: e.target.value })} required>
+                        <option value="">Selecione</option>
+                        {employeeSummary.filter(e => !e.closing?.paid).map(e => (
+                          <option key={e.id} value={e.id}>{e.name}</option>
+                        ))}
                       </select>
                     </div>
-                  </div>
-                  <div><Label>Conta de Origem</Label>
-                    <select className={selectClass} value={payForm.account_id} onChange={e => setPayForm({ ...payForm, account_id: e.target.value })}>
-                      <option value="">Selecione (opcional)</option>
-                      {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                  </div>
-                  <div><Label>Observações</Label><Input value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })} placeholder="Ex: Pagamento parcial, 2ª quinzena..." /></div>
-                  <Button type="submit" className="w-full" disabled={salaryPayMutation.isPending || !payForm.employee_id}>
-                    Confirmar Pagamento
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    {selectedPayEmployee && (
+                      <div className="p-3 rounded-md bg-muted text-sm space-y-1">
+                        <p>Salário Base: {fmt(selectedPayEmployee.baseSalary)}</p>
+                        {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
+                        {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
+                        {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
+                        {selectedPayEmployee.empExpenses > 0 && <p className="text-destructive">- Gastos: {fmt(selectedPayEmployee.empExpenses)}</p>}
+                        <hr className="my-1 border-border" />
+                        <p className="font-bold text-base">Líquido a Pagar: {fmt(selectedPayEmployee.netPay)}</p>
+                      </div>
+                    )}
+                    <div><Label>Mês de Referência</Label><Input value={monthLabel(selectedMonth)} disabled /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Data do Pagamento *</Label><Input type="date" value={payForm.payment_date} onChange={e => setPayForm({ ...payForm, payment_date: e.target.value })} required /></div>
+                      <div><Label>Forma de Pagamento *</Label>
+                        <select className={selectClass} value={payForm.payment_method} onChange={e => setPayForm({ ...payForm, payment_method: e.target.value })}>
+                          <option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div><Label>Conta de Origem</Label>
+                      <select className={selectClass} value={payForm.account_id} onChange={e => setPayForm({ ...payForm, account_id: e.target.value })}>
+                        <option value="">Selecione (opcional)</option>
+                        {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </div>
+                    <div><Label>Observações</Label><Input value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })} placeholder="Ex: Pagamento parcial, 2ª quinzena..." /></div>
+                    <Button type="submit" className="w-full" disabled={salaryPayMutation.isPending || !payForm.employee_id}>
+                      Confirmar Pagamento
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
-          {/* Painel de Salários do Mês */}
           <Card>
             <CardHeader><CardTitle className="text-base">Painel de Salários — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
             <CardContent className="overflow-auto">
@@ -479,14 +566,21 @@ const HR = () => {
                           : <Badge variant="secondary">Pendente</Badge>}
                       </TableCell>
                       <TableCell>
-                        {!e.closing?.paid && (
-                          <Button size="sm" variant="outline" onClick={() => { setPayForm({ ...payForm, employee_id: e.id }); setPayOpen(true); }}>
-                            <Banknote className="h-3 w-3 mr-1" />Pagar
-                          </Button>
-                        )}
-                        {e.closing?.paid && e.closing?.paid_date && (
-                          <span className="text-xs text-muted-foreground">{formatDateBR(e.closing.paid_date)}</span>
-                        )}
+                        <div className="flex gap-1">
+                          {canEdit && (
+                            <Button size="sm" variant="ghost" onClick={() => openEditEmp(e)} title="Editar salário">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {canEdit && !e.closing?.paid && (
+                            <Button size="sm" variant="outline" onClick={() => { setPayForm({ ...payForm, employee_id: e.id }); setPayOpen(true); }}>
+                              <Banknote className="h-3 w-3 mr-1" />Pagar
+                            </Button>
+                          )}
+                          {e.closing?.paid && e.closing?.paid_date && (
+                            <span className="text-xs text-muted-foreground">{formatDateBR(e.closing.paid_date)}</span>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -496,75 +590,82 @@ const HR = () => {
             </CardContent>
           </Card>
 
-          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead></TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell></TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </TabsContent>
 
         {/* ── Horas Extras ── */}
         <TabsContent value="horas" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={otOpen} onOpenChange={setOtOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Hora Extra</Button></DialogTrigger>
-              <DialogContent><DialogHeader><DialogTitle>Registrar Hora Extra</DialogTitle></DialogHeader>
-                <form onSubmit={e => { e.preventDefault(); otMutation.mutate(); }} className="space-y-3">
-                  <div><Label>Funcionário *</Label><select className={selectClass} value={otForm.employee_id} onChange={e => setOtForm({ ...otForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                  <div className="grid grid-cols-2 gap-3"><div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={otForm.hours} onChange={e => setOtForm({ ...otForm, hours: e.target.value })} required /></div><div><Label>Percentual *</Label><select className={selectClass} value={otForm.percentage} onChange={e => setOtForm({ ...otForm, percentage: e.target.value })}><option value="50">50% (Dia útil)</option><option value="100">100% (Feriado)</option></select></div></div>
-                  {otForm.employee_id && otForm.hours && (() => { const emp = employees.find(e => e.id === otForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; const hrs = parseFloat(otForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Com {otForm.percentage}%: {fmt(rate * (1 + pct))}</p><p className="font-bold mt-1">Total: {fmt(rate * (1 + pct) * hrs)}</p></div>); })()}
-                  <div><Label>Descrição</Label><Input value={otForm.description} onChange={e => setOtForm({ ...otForm, description: e.target.value })} /></div>
-                  <div><Label>Data</Label><Input type="date" value={otForm.date} onChange={e => setOtForm({ ...otForm, date: e.target.value })} /></div>
-                  <Button type="submit" className="w-full" disabled={otMutation.isPending}>Salvar</Button>
-                </form></DialogContent></Dialog>
-          </div>
-          <Card><CardHeader><CardTitle className="text-base">Horas Extras - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>%</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead></TableRow></TableHeader><TableBody>{overtime.map(o => (<TableRow key={o.id}><TableCell className="font-medium">{(o.employees as any)?.name}</TableCell><TableCell>{o.hours}h</TableCell><TableCell><Badge variant="secondary">{o.percentage}%</Badge></TableCell><TableCell>{fmt(Number(o.calculated_value))}</TableCell><TableCell>{formatDateBR(o.date)}</TableCell></TableRow>))}{overtime.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma hora extra.</TableCell></TableRow>}</TableBody></Table>{overtime.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalOvertime)} ({overtime.reduce((s, o) => s + Number(o.hours), 0)}h)</div>}</CardContent></Card>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={otOpen} onOpenChange={setOtOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Hora Extra</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Registrar Hora Extra</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); otMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={otForm.employee_id} onChange={e => setOtForm({ ...otForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div className="grid grid-cols-2 gap-3"><div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={otForm.hours} onChange={e => setOtForm({ ...otForm, hours: e.target.value })} required /></div><div><Label>Percentual *</Label><select className={selectClass} value={otForm.percentage} onChange={e => setOtForm({ ...otForm, percentage: e.target.value })}><option value="50">50% (Dia útil)</option><option value="100">100% (Feriado)</option></select></div></div>
+                    {otForm.employee_id && otForm.hours && (() => { const emp = employees.find(e => e.id === otForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; const hrs = parseFloat(otForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Com {otForm.percentage}%: {fmt(rate * (1 + pct))}</p><p className="font-bold mt-1">Total: {fmt(rate * (1 + pct) * hrs)}</p></div>); })()}
+                    <div><Label>Descrição</Label><Input value={otForm.description} onChange={e => setOtForm({ ...otForm, description: e.target.value })} /></div>
+                    <div><Label>Data</Label><Input type="date" value={otForm.date} onChange={e => setOtForm({ ...otForm, date: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={otMutation.isPending}>Salvar</Button>
+                  </form></DialogContent></Dialog>
+            </div>
+          )}
+          <Card><CardHeader><CardTitle className="text-base">Horas Extras - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>%</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{overtime.map(o => (<TableRow key={o.id}><TableCell className="font-medium">{(o.employees as any)?.name}</TableCell><TableCell>{o.hours}h</TableCell><TableCell><Badge variant="secondary">{o.percentage}%</Badge></TableCell><TableCell>{fmt(Number(o.calculated_value))}</TableCell><TableCell>{formatDateBR(o.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_overtime" id={o.id} label={`H.Extra de ${(o.employees as any)?.name}`} /></TableCell>}</TableRow>))}{overtime.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhuma hora extra.</TableCell></TableRow>}</TableBody></Table>{overtime.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalOvertime)} ({overtime.reduce((s, o) => s + Number(o.hours), 0)}h)</div>}</CardContent></Card>
         </TabsContent>
 
         {/* ── Sábados ── */}
         <TabsContent value="sabados" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={satOpen} onOpenChange={setSatOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Sábado</Button></DialogTrigger>
-              <DialogContent><DialogHeader><DialogTitle>Sábado Trabalhado</DialogTitle></DialogHeader>
-                <form onSubmit={e => { e.preventDefault(); satMutation.mutate(); }} className="space-y-3">
-                  <div><Label>Funcionário *</Label><select className={selectClass} value={satForm.employee_id} onChange={e => setSatForm({ ...satForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                  <div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={satForm.hours} onChange={e => setSatForm({ ...satForm, hours: e.target.value })} required /></div>
-                  {satForm.employee_id && satForm.hours && (() => { const emp = employees.find(e => e.id === satForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const hrs = parseFloat(satForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Sábado (50%): {fmt(rate * 1.5)}</p><p className="font-bold mt-1">Total: {fmt(rate * 1.5 * hrs)}</p></div>); })()}
-                  <div><Label>Descrição</Label><Input value={satForm.description} onChange={e => setSatForm({ ...satForm, description: e.target.value })} /></div>
-                  <div><Label>Data</Label><Input type="date" value={satForm.date} onChange={e => setSatForm({ ...satForm, date: e.target.value })} /></div>
-                  <Button type="submit" className="w-full" disabled={satMutation.isPending}>Salvar</Button>
-                </form></DialogContent></Dialog>
-          </div>
-          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead></TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}h</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell></TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)}h)</div>}</CardContent></Card>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={satOpen} onOpenChange={setSatOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Sábado</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Sábado Trabalhado</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); satMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={satForm.employee_id} onChange={e => setSatForm({ ...satForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={satForm.hours} onChange={e => setSatForm({ ...satForm, hours: e.target.value })} required /></div>
+                    {satForm.employee_id && satForm.hours && (() => { const emp = employees.find(e => e.id === satForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const hrs = parseFloat(satForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Sábado (50%): {fmt(rate * 1.5)}</p><p className="font-bold mt-1">Total: {fmt(rate * 1.5 * hrs)}</p></div>); })()}
+                    <div><Label>Descrição</Label><Input value={satForm.description} onChange={e => setSatForm({ ...satForm, description: e.target.value })} /></div>
+                    <div><Label>Data</Label><Input type="date" value={satForm.date} onChange={e => setSatForm({ ...satForm, date: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={satMutation.isPending}>Salvar</Button>
+                  </form></DialogContent></Dialog>
+            </div>
+          )}
+          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}h</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)}h)</div>}</CardContent></Card>
         </TabsContent>
 
         {/* ── Gastos ── */}
         <TabsContent value="gastos" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={expOpen} onOpenChange={setExpOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Novo Gasto</Button></DialogTrigger>
-              <DialogContent><DialogHeader><DialogTitle>Registrar Gasto</DialogTitle></DialogHeader>
-                <form onSubmit={e => { e.preventDefault(); expMutation.mutate(); }} className="space-y-3">
-                  <div><Label>Funcionário *</Label><select className={selectClass} value={expForm.employee_id} onChange={e => setExpForm({ ...expForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                  <div className="grid grid-cols-2 gap-3"><div><Label>Categoria *</Label><select className={selectClass} value={expForm.category} onChange={e => setExpForm({ ...expForm, category: e.target.value })}>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={expForm.amount} onChange={e => setExpForm({ ...expForm, amount: e.target.value })} required /></div></div>
-                  <div><Label>Descrição</Label><Input value={expForm.description} onChange={e => setExpForm({ ...expForm, description: e.target.value })} /></div>
-                  <div><Label>Data</Label><Input type="date" value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} /></div>
-                  <Button type="submit" className="w-full" disabled={expMutation.isPending}>Salvar</Button>
-                </form></DialogContent></Dialog>
-          </div>
-          <Card><CardHeader><CardTitle className="text-base">Gastos - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Categoria</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead></TableRow></TableHeader><TableBody>{expenses.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{(e.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{e.category}</Badge></TableCell><TableCell>{fmt(Number(e.amount))}</TableCell><TableCell>{formatDateBR(e.date)}</TableCell><TableCell className="hidden md:table-cell">{e.description || "-"}</TableCell></TableRow>))}{expenses.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum gasto.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={expOpen} onOpenChange={setExpOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Novo Gasto</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Registrar Gasto</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); expMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={expForm.employee_id} onChange={e => setExpForm({ ...expForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div className="grid grid-cols-2 gap-3"><div><Label>Categoria *</Label><select className={selectClass} value={expForm.category} onChange={e => setExpForm({ ...expForm, category: e.target.value })}>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={expForm.amount} onChange={e => setExpForm({ ...expForm, amount: e.target.value })} required /></div></div>
+                    <div><Label>Descrição</Label><Input value={expForm.description} onChange={e => setExpForm({ ...expForm, description: e.target.value })} /></div>
+                    <div><Label>Data</Label><Input type="date" value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={expMutation.isPending}>Salvar</Button>
+                  </form></DialogContent></Dialog>
+            </div>
+          )}
+          <Card><CardHeader><CardTitle className="text-base">Gastos - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Categoria</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{expenses.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{(e.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{e.category}</Badge></TableCell><TableCell>{fmt(Number(e.amount))}</TableCell><TableCell>{formatDateBR(e.date)}</TableCell><TableCell className="hidden md:table-cell">{e.description || "-"}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_expenses" id={e.id} label={`Gasto de ${(e.employees as any)?.name}`} /></TableCell>}</TableRow>))}{expenses.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum gasto.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </TabsContent>
 
         {/* ── Férias ── */}
         <TabsContent value="ferias" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={vacOpen} onOpenChange={setVacOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Férias</Button></DialogTrigger>
-              <DialogContent><DialogHeader><DialogTitle>Registrar Férias</DialogTitle></DialogHeader>
-                <form onSubmit={e => { e.preventDefault(); vacMutation.mutate(); }} className="space-y-3">
-                  <div><Label>Funcionário *</Label><select className={selectClass} value={vacForm.employee_id} onChange={e => setVacForm({ ...vacForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                  <div className="grid grid-cols-2 gap-3"><div><Label>Data Início *</Label><Input type="date" value={vacForm.start_date} onChange={e => setVacForm({ ...vacForm, start_date: e.target.value })} required /></div><div><Label>Data Fim *</Label><Input type="date" value={vacForm.end_date} onChange={e => setVacForm({ ...vacForm, end_date: e.target.value })} required /></div></div>
-                  <div><Label>Dias de Férias *</Label><Input type="number" min="1" max="30" value={vacForm.days} onChange={e => setVacForm({ ...vacForm, days: e.target.value })} required /></div>
-                  {vacForm.employee_id && vacForm.days && (() => { const emp = employees.find(e => e.id === vacForm.employee_id); const salary = Number(emp?.salary) || 0; const days = parseInt(vacForm.days) || 0; const vacValue = (salary / 30) * days; const third = vacValue / 3; return (<div className="p-3 rounded-md bg-muted text-sm space-y-1"><p>Salário/dia: {fmt(salary / 30)}</p><p>Valor férias ({days}d): {fmt(vacValue)}</p><p>1/3 constitucional: {fmt(third)}</p><p className="font-bold">Total: {fmt(vacValue + third)}</p></div>); })()}
-                  <div><Label>Observações</Label><Input value={vacForm.notes} onChange={e => setVacForm({ ...vacForm, notes: e.target.value })} /></div>
-                  <Button type="submit" className="w-full" disabled={vacMutation.isPending}>Salvar</Button>
-                </form></DialogContent></Dialog>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={vacOpen} onOpenChange={setVacOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Férias</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Registrar Férias</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); vacMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={vacForm.employee_id} onChange={e => setVacForm({ ...vacForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div className="grid grid-cols-2 gap-3"><div><Label>Data Início *</Label><Input type="date" value={vacForm.start_date} onChange={e => setVacForm({ ...vacForm, start_date: e.target.value })} required /></div><div><Label>Data Fim *</Label><Input type="date" value={vacForm.end_date} onChange={e => setVacForm({ ...vacForm, end_date: e.target.value })} required /></div></div>
+                    <div><Label>Dias de Férias *</Label><Input type="number" min="1" max="30" value={vacForm.days} onChange={e => setVacForm({ ...vacForm, days: e.target.value })} required /></div>
+                    {vacForm.employee_id && vacForm.days && (() => { const emp = employees.find(e => e.id === vacForm.employee_id); const salary = Number(emp?.salary) || 0; const days = parseInt(vacForm.days) || 0; const vacValue = (salary / 30) * days; const third = vacValue / 3; return (<div className="p-3 rounded-md bg-muted text-sm space-y-1"><p>Salário/dia: {fmt(salary / 30)}</p><p>Valor férias ({days}d): {fmt(vacValue)}</p><p>1/3 constitucional: {fmt(third)}</p><p className="font-bold">Total: {fmt(vacValue + third)}</p></div>); })()}
+                    <div><Label>Observações</Label><Input value={vacForm.notes} onChange={e => setVacForm({ ...vacForm, notes: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={vacMutation.isPending}>Salvar</Button>
+                  </form></DialogContent></Dialog>
+            </div>
+          )}
 
-          {/* Situação de férias */}
           <Card>
             <CardHeader><CardTitle className="text-base">Situação de Férias</CardTitle></CardHeader>
             <CardContent>
@@ -596,11 +697,10 @@ const HR = () => {
             </CardContent>
           </Card>
 
-          {/* Histórico */}
           <Card>
             <CardHeader><CardTitle className="text-base">Histórico de Férias</CardTitle></CardHeader>
             <CardContent>
-              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Período</TableHead><TableHead>Dias</TableHead><TableHead>Valor Férias</TableHead><TableHead>1/3</TableHead><TableHead>Total</TableHead></TableRow></TableHeader>
+              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Período</TableHead><TableHead>Dias</TableHead><TableHead>Valor Férias</TableHead><TableHead>1/3</TableHead><TableHead>Total</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader>
                 <TableBody>
                   {vacations.map(v => (
                     <TableRow key={v.id}>
@@ -610,9 +710,10 @@ const HR = () => {
                       <TableCell>{fmt(Number(v.vacation_value))}</TableCell>
                       <TableCell>{fmt(Number(v.constitutional_third))}</TableCell>
                       <TableCell className="font-bold">{fmt(Number(v.total_value))}</TableCell>
+                      {canEdit && <TableCell><DeleteBtn table="employee_vacations" id={v.id} label={`Férias de ${(v.employees as any)?.name}`} /></TableCell>}
                     </TableRow>
                   ))}
-                  {vacations.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma férias registrada.</TableCell></TableRow>}
+                  {vacations.length === 0 && <TableRow><TableCell colSpan={canEdit ? 7 : 6} className="text-center text-muted-foreground py-8">Nenhuma férias registrada.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -645,9 +746,10 @@ const HR = () => {
                         <TableCell>{t ? (t.second_installment_paid ? <Badge variant="default">Pago</Badge> : <Badge variant="secondary">Pendente</Badge>) : <Badge variant="outline">Não calculado</Badge>}</TableCell>
                         <TableCell>
                           <div className="flex gap-1 flex-wrap">
-                            {!t && <Button size="sm" variant="outline" onClick={() => thirteenthMutation.mutate(emp.id)} disabled={thirteenthMutation.isPending}>Calcular</Button>}
-                            {t && !t.first_installment_paid && <Button size="sm" variant="outline" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 1 })} disabled={payInstallmentMutation.isPending}>Pagar 1ª</Button>}
-                            {t && t.first_installment_paid && !t.second_installment_paid && <Button size="sm" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 2 })} disabled={payInstallmentMutation.isPending}>Pagar 2ª</Button>}
+                            {canEdit && !t && <Button size="sm" variant="outline" onClick={() => thirteenthMutation.mutate(emp.id)} disabled={thirteenthMutation.isPending}>Calcular</Button>}
+                            {canEdit && t && !t.first_installment_paid && <Button size="sm" variant="outline" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 1 })} disabled={payInstallmentMutation.isPending}>Pagar 1ª</Button>}
+                            {canEdit && t && t.first_installment_paid && !t.second_installment_paid && <Button size="sm" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 2 })} disabled={payInstallmentMutation.isPending}>Pagar 2ª</Button>}
+                            {canEdit && t && <DeleteBtn table="thirteenth_salary" id={t.id} label={`13º de ${emp.name}`} />}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -680,7 +782,15 @@ const HR = () => {
                       <TableCell className="text-destructive">{fmt(e.empExpenses)}</TableCell>
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
                       <TableCell>{e.closing?.paid ? <Badge variant="default">Pago</Badge> : e.closing ? <Badge variant="secondary">Calculado</Badge> : <Badge variant="outline">Pendente</Badge>}</TableCell>
-                      <TableCell><div className="flex gap-1">{!e.closing && <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>Calcular</Button>}{e.closing && !e.closing.paid && <Button size="sm" onClick={() => markPaidMutation.mutate(e.closing!.id)} disabled={markPaidMutation.isPending}>Pagar</Button>}</div></TableCell>
+                      <TableCell>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            {!e.closing && <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>Calcular</Button>}
+                            {e.closing && !e.closing.paid && <Button size="sm" onClick={() => markPaidMutation.mutate(e.closing!.id)} disabled={markPaidMutation.isPending}>Pagar</Button>}
+                            {e.closing && <DeleteBtn table="monthly_closings" id={e.closing.id} label={`Fechamento de ${e.name}`} />}
+                          </div>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {employeeSummary.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum funcionário.</TableCell></TableRow>}
