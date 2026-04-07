@@ -97,6 +97,7 @@ const HR = () => {
       queryClient.invalidateQueries({ queryKey: ["employee-vacations"] });
       queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
       setDeleteTarget(null);
       toast({ title: "Registro excluído!" });
     },
