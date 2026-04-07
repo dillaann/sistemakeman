@@ -1159,6 +1159,67 @@ export type Database = {
           },
         ]
       }
+      salary_payments: {
+        Row: {
+          account_id: string | null
+          amount: number
+          created_at: string
+          employee_id: string
+          financial_transaction_id: string | null
+          id: string
+          month_ref: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          created_at?: string
+          employee_id: string
+          financial_transaction_id?: string | null
+          id?: string
+          month_ref: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          employee_id?: string
+          financial_transaction_id?: string | null
+          id?: string
+          month_ref?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_payments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_payments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_payments_financial_transaction_id_fkey"
+            columns: ["financial_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           amount: number
