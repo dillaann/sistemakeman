@@ -262,10 +262,11 @@ const HR = () => {
       }).select("id").single();
       if (ftError) throw ftError;
 
-      // Record in salary_payments
+      // Record in salary_payments — month_ref derived from the payment date entered
+      const payMonthRef = payForm.payment_date.substring(0, 7); // "YYYY-MM"
       const { error: spError } = await supabase.from("salary_payments" as any).insert({
         employee_id: payForm.employee_id,
-        month_ref: selectedMonth,
+        month_ref: payMonthRef,
         amount: payAmount,
         payment_date: payForm.payment_date,
         payment_method: payForm.payment_method,
