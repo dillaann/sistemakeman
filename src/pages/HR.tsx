@@ -78,6 +78,10 @@ const HR = () => {
     queryKey: ["financial-accounts"],
     queryFn: async () => { const { data } = await supabase.from("financial_accounts").select("*").eq("active", true).order("name"); return data ?? []; },
   });
+  const { data: salaryPayments = [] } = useQuery({
+    queryKey: ["salary-payments", selectedMonth],
+    queryFn: async () => { const { data } = await supabase.from("salary_payments").select("*, employees(name)").eq("month_ref", selectedMonth).order("payment_date", { ascending: false }); return data ?? []; },
+  });
 
   // ── Generic delete mutation ──
   const deleteMutation = useMutation({
@@ -93,6 +97,7 @@ const HR = () => {
       queryClient.invalidateQueries({ queryKey: ["employee-vacations"] });
       queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
       setDeleteTarget(null);
       toast({ title: "Registro excluído!" });
     },
@@ -234,44 +239,49 @@ const HR = () => {
 
   // ── Salary Payment ──
   const [payOpen, setPayOpen] = useState(false);
-  const [payForm, setPayForm] = useState({ employee_id: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+  const [payForm, setPayForm] = useState({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
 
   const salaryPayMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === payForm.employee_id);
       if (!emp) throw new Error("Selecione um funcionário");
-      const summary = employeeSummary.find(e => e.id === payForm.employee_id);
-      if (!summary) throw new Error("Funcionário não encontrado");
+      const payAmount = parseFloat(payForm.amount);
+      if (!payAmount || payAmount <= 0) throw new Error("Informe um valor válido");
 
-      const baseSalary = summary.baseSalary;
-      const netPay = summary.netPay;
-      const { error: closingError } = await supabase.from("monthly_closings").upsert({
-        employee_id: payForm.employee_id, month_ref: selectedMonth,
-        base_salary: baseSalary, total_advances: summary.empAdvances, total_expenses: summary.empExpenses,
-        total_overtime: summary.empOvertime, total_saturdays: summary.empSaturdays, net_pay: netPay,
-        paid: true, paid_date: payForm.payment_date,
-      }, { onConflict: "employee_id,month_ref" });
-      if (closingError) throw closingError;
-
-      const { error: ftError } = await supabase.from("financial_transactions").insert({
+      // Create financial transaction
+      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: `Salário — ${emp.name} — ${monthLabel(selectedMonth)}`,
-        amount: netPay,
+        amount: payAmount,
         due_date: payForm.payment_date,
         paid_date: payForm.payment_date,
         status: "pago" as any,
         category: "Folha de Pagamento",
         account_id: payForm.account_id || null,
         sync_origin: "payroll",
-      });
+      }).select("id").single();
       if (ftError) throw ftError;
+
+      // Record in salary_payments
+      const { error: spError } = await supabase.from("salary_payments" as any).insert({
+        employee_id: payForm.employee_id,
+        month_ref: selectedMonth,
+        amount: payAmount,
+        payment_date: payForm.payment_date,
+        payment_method: payForm.payment_method,
+        account_id: payForm.account_id || null,
+        notes: payForm.notes || null,
+        financial_transaction_id: ftData?.id || null,
+      });
+      if (spError) throw spError;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
       setPayOpen(false);
-      setPayForm({ employee_id: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+      setPayForm({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
       toast({ title: "Pagamento registrado e lançado no Financeiro!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -367,9 +377,11 @@ const HR = () => {
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
       const netPay = baseSalary + empOvertime + empSaturdays - empAdvances - empExpenses;
-      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, netPay, closing };
+      const totalPaid = salaryPayments.filter((p: any) => p.employee_id === emp.id).reduce((s: number, p: any) => s + Number(p.amount), 0);
+      const remaining = netPay - totalPaid;
+      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, netPay, closing, totalPaid, remaining };
     });
-  }, [employees, advances, expenses, overtime, saturdays, closings]);
+  }, [employees, advances, expenses, overtime, saturdays, closings, salaryPayments]);
 
   const categories = ["EPI", "Uniforme", "Ferramentas", "Combustível", "Outro"];
 
@@ -492,8 +504,8 @@ const HR = () => {
                     <div><Label>Funcionário *</Label>
                       <select className={selectClass} value={payForm.employee_id} onChange={e => setPayForm({ ...payForm, employee_id: e.target.value })} required>
                         <option value="">Selecione</option>
-                        {employeeSummary.filter(e => !e.closing?.paid).map(e => (
-                          <option key={e.id} value={e.id}>{e.name}</option>
+                        {employeeSummary.map(e => (
+                          <option key={e.id} value={e.id}>{e.name} {e.totalPaid > 0 ? `(já pago: ${fmt(e.totalPaid)})` : ""}</option>
                         ))}
                       </select>
                     </div>
@@ -505,9 +517,14 @@ const HR = () => {
                         {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
                         {selectedPayEmployee.empExpenses > 0 && <p className="text-destructive">- Gastos: {fmt(selectedPayEmployee.empExpenses)}</p>}
                         <hr className="my-1 border-border" />
-                        <p className="font-bold text-base">Líquido a Pagar: {fmt(selectedPayEmployee.netPay)}</p>
+                        <p className="font-bold">Líquido Total: {fmt(selectedPayEmployee.netPay)}</p>
+                        {selectedPayEmployee.totalPaid > 0 && <p className="text-green-600">Já Pago: {fmt(selectedPayEmployee.totalPaid)}</p>}
+                        <p className="font-bold text-base">Restante: {fmt(selectedPayEmployee.remaining)}</p>
                       </div>
                     )}
+                    <div><Label>Valor do Pagamento (R$) *</Label>
+                      <Input type="number" step="0.01" min="0.01" value={payForm.amount} onChange={e => setPayForm({ ...payForm, amount: e.target.value })} required placeholder={selectedPayEmployee ? String(selectedPayEmployee.remaining) : ""} />
+                    </div>
                     <div><Label>Mês de Referência</Label><Input value={monthLabel(selectedMonth)} disabled /></div>
                     <div className="grid grid-cols-2 gap-3">
                       <div><Label>Data do Pagamento *</Label><Input type="date" value={payForm.payment_date} onChange={e => setPayForm({ ...payForm, payment_date: e.target.value })} required /></div>
@@ -524,7 +541,7 @@ const HR = () => {
                       </select>
                     </div>
                     <div><Label>Observações</Label><Input value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })} placeholder="Ex: Pagamento parcial, 2ª quinzena..." /></div>
-                    <Button type="submit" className="w-full" disabled={salaryPayMutation.isPending || !payForm.employee_id}>
+                    <Button type="submit" className="w-full" disabled={salaryPayMutation.isPending || !payForm.employee_id || !payForm.amount}>
                       Confirmar Pagamento
                     </Button>
                   </form>
@@ -546,7 +563,8 @@ const HR = () => {
                     <TableHead>Vales/Adiant.</TableHead>
                     <TableHead>Gastos</TableHead>
                     <TableHead>Líquido</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Pago</TableHead>
+                    <TableHead>Restante</TableHead>
                     <TableHead className="w-40">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -560,10 +578,11 @@ const HR = () => {
                       <TableCell className="text-amber-600">{e.empAdvances > 0 ? fmt(e.empAdvances) : "-"}</TableCell>
                       <TableCell className="text-destructive">{e.empExpenses > 0 ? fmt(e.empExpenses) : "-"}</TableCell>
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
-                      <TableCell>
-                        {e.closing?.paid
-                          ? <Badge variant="default">Pago</Badge>
-                          : <Badge variant="secondary">Pendente</Badge>}
+                      <TableCell className="text-green-600">{e.totalPaid > 0 ? fmt(e.totalPaid) : "-"}</TableCell>
+                      <TableCell className="font-bold">
+                        {e.remaining <= 0
+                          ? <Badge variant="default">Quitado</Badge>
+                          : <span className="text-amber-600">{fmt(e.remaining)}</span>}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -572,25 +591,59 @@ const HR = () => {
                               <Pencil className="h-3 w-3" />
                             </Button>
                           )}
-                          {canEdit && !e.closing?.paid && (
-                            <Button size="sm" variant="outline" onClick={() => { setPayForm({ ...payForm, employee_id: e.id }); setPayOpen(true); }}>
+                          {canEdit && (
+                            <Button size="sm" variant="outline" onClick={() => { setPayForm({ ...payForm, employee_id: e.id, amount: String(e.remaining > 0 ? e.remaining : e.netPay) }); setPayOpen(true); }}>
                               <Banknote className="h-3 w-3 mr-1" />Pagar
                             </Button>
-                          )}
-                          {e.closing?.paid && e.closing?.paid_date && (
-                            <span className="text-xs text-muted-foreground">{formatDateBR(e.closing.paid_date)}</span>
                           )}
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}
+                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
 
           <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Pagamentos de Salário — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Forma</TableHead>
+                    <TableHead className="hidden md:table-cell">Observações</TableHead>
+                    {canEdit && <TableHead className="w-12"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {salaryPayments.map((p: any) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">{p.employees?.name}</TableCell>
+                      <TableCell className="text-green-600 font-semibold">{fmt(Number(p.amount))}</TableCell>
+                      <TableCell>{formatDateBR(p.payment_date)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {p.payment_method === "pix" ? "PIX" : p.payment_method === "transferencia" ? "Transferência" : p.payment_method === "dinheiro" ? "Dinheiro" : "Outro"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">{p.notes || "-"}</TableCell>
+                      {canEdit && <TableCell><DeleteBtn table="salary_payments" id={p.id} label={`Pagamento de ${p.employees?.name}`} /></TableCell>}
+                    </TableRow>
+                  ))}
+                  {salaryPayments.length === 0 && (
+                    <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum pagamento registrado neste mês.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── Horas Extras ── */}
