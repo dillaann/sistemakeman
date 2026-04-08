@@ -50,10 +50,7 @@ const HR = () => {
     queryKey: ["employee-advances", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("employee_advances").select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return data ?? []; },
   });
-  const { data: expenses = [] } = useQuery({
-    queryKey: ["employee-expenses", selectedMonth],
-    queryFn: async () => { const { data } = await supabase.from("employee_expenses").select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return data ?? []; },
-  });
+  // expenses query removed — replaced by vales (employee_advances)
   const { data: overtime = [] } = useQuery({
     queryKey: ["employee-overtime", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("employee_overtime").select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return data ?? []; },
@@ -116,17 +113,7 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Expense ──
-  const [expOpen, setExpOpen] = useState(false);
-  const [expForm, setExpForm] = useState({ employee_id: "", amount: "", category: "EPI", description: "", date: localDateString() });
-  const expMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("employee_expenses").insert({ employee_id: expForm.employee_id, amount: parseFloat(expForm.amount), category: expForm.category, description: expForm.description || null, date: expForm.date, month_ref: selectedMonth });
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-expenses"] }); setExpOpen(false); setExpForm({ employee_id: "", amount: "", category: "EPI", description: "", date: localDateString() }); toast({ title: "Gasto registrado!" }); },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
+  // Expense section removed — replaced by Vales tab using employee_advances
 
   // ── Overtime ──
   const [otOpen, setOtOpen] = useState(false);
@@ -347,7 +334,7 @@ const HR = () => {
   // ── Dashboard calcs ──
   const totalPayroll = useMemo(() => employees.reduce((s, e) => s + (Number(e.salary) || 0), 0), [employees]);
   const totalAdvances = useMemo(() => advances.reduce((s, a) => s + Number(a.amount), 0), [advances]);
-  const totalExpenses = useMemo(() => expenses.reduce((s, e) => s + Number(e.amount), 0), [expenses]);
+  const totalExpenses = 0;
   const totalOvertime = useMemo(() => overtime.reduce((s, o) => s + Number(o.calculated_value), 0), [overtime]);
   const totalSaturdays = useMemo(() => saturdays.reduce((s, sat) => s + Number(sat.calculated_value), 0), [saturdays]);
   const total13thProvision = useMemo(() => thirteenths.reduce((s, t) => s + Number(t.monthly_provision) * (new Date().getMonth() + 1), 0), [thirteenths]);
@@ -372,7 +359,7 @@ const HR = () => {
   const employeeSummary = useMemo(() => {
     return employees.map(emp => {
       const empAdvances = advances.filter(a => a.employee_id === emp.id).reduce((s, a) => s + Number(a.amount), 0);
-      const empExpenses = expenses.filter(e => e.employee_id === emp.id).reduce((s, e) => s + Number(e.amount), 0);
+      const empExpenses = 0;
       const empOvertime = overtime.filter(o => o.employee_id === emp.id).reduce((s, o) => s + Number(o.calculated_value), 0);
       const empSaturdays = saturdays.filter(s => s.employee_id === emp.id).reduce((s, sat) => s + Number(sat.calculated_value), 0);
       const baseSalary = Number(emp.salary) || 0;
@@ -382,9 +369,9 @@ const HR = () => {
       const remaining = netPay - totalPaid;
       return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, netPay, closing, totalPaid, remaining };
     });
-  }, [employees, advances, expenses, overtime, saturdays, closings, salaryPayments]);
+  }, [employees, advances, overtime, saturdays, closings, salaryPayments]);
 
-  const categories = ["EPI", "Uniforme", "Ferramentas", "Combustível", "Outro"];
+  // categories removed — no longer used
 
   const selectedPayEmployee = employeeSummary.find(e => e.id === payForm.employee_id);
 
@@ -437,7 +424,7 @@ const HR = () => {
           <TabsTrigger value="salarios"><DollarSign className="h-4 w-4 mr-1 hidden sm:inline" />Salários</TabsTrigger>
           <TabsTrigger value="horas"><Clock className="h-4 w-4 mr-1 hidden sm:inline" />Horas Extras</TabsTrigger>
           <TabsTrigger value="sabados"><Calendar className="h-4 w-4 mr-1 hidden sm:inline" />Sábados</TabsTrigger>
-          <TabsTrigger value="gastos"><Receipt className="h-4 w-4 mr-1 hidden sm:inline" />Gastos</TabsTrigger>
+          <TabsTrigger value="vales"><Banknote className="h-4 w-4 mr-1 hidden sm:inline" />Vales</TabsTrigger>
           <TabsTrigger value="ferias"><Palmtree className="h-4 w-4 mr-1 hidden sm:inline" />Férias</TabsTrigger>
           <TabsTrigger value="decimo"><Gift className="h-4 w-4 mr-1 hidden sm:inline" />13º</TabsTrigger>
           <TabsTrigger value="fechamento"><CheckCircle className="h-4 w-4 mr-1 hidden sm:inline" />Fechamento</TabsTrigger>
@@ -450,7 +437,7 @@ const HR = () => {
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Horas Extras</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalOvertime)}</div><p className="text-xs text-muted-foreground">{overtime.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Sábados</CardTitle><Calendar className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalSaturdays)}</div><p className="text-xs text-muted-foreground">{saturdays.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Vales/Adiant.</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{fmt(totalAdvances)}</div></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Gastos Func.</CardTitle><Receipt className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalExpenses)}</div></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Vales</CardTitle><Banknote className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalAdvances)}</div><p className="text-xs text-muted-foreground">{advances.length} registros</p></CardContent></Card>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
@@ -516,7 +503,7 @@ const HR = () => {
                         {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
                         {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
                         {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
-                        {selectedPayEmployee.empExpenses > 0 && <p className="text-destructive">- Gastos: {fmt(selectedPayEmployee.empExpenses)}</p>}
+                        
                         <hr className="my-1 border-border" />
                         <p className="font-bold">Líquido Total: {fmt(selectedPayEmployee.netPay)}</p>
                         {selectedPayEmployee.totalPaid > 0 && <p className="text-green-600">Já Pago: {fmt(selectedPayEmployee.totalPaid)}</p>}
@@ -562,7 +549,6 @@ const HR = () => {
                     <TableHead>H. Extras</TableHead>
                     <TableHead>Sábados</TableHead>
                     <TableHead>Vales/Adiant.</TableHead>
-                    <TableHead>Gastos</TableHead>
                     <TableHead>Líquido</TableHead>
                     <TableHead>Pago</TableHead>
                     <TableHead>Restante</TableHead>
@@ -577,7 +563,7 @@ const HR = () => {
                       <TableCell className="text-primary">{e.empOvertime > 0 ? fmt(e.empOvertime) : "-"}</TableCell>
                       <TableCell className="text-primary">{e.empSaturdays > 0 ? fmt(e.empSaturdays) : "-"}</TableCell>
                       <TableCell className="text-amber-600">{e.empAdvances > 0 ? fmt(e.empAdvances) : "-"}</TableCell>
-                      <TableCell className="text-destructive">{e.empExpenses > 0 ? fmt(e.empExpenses) : "-"}</TableCell>
+                      
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
                       <TableCell className="text-green-600">{e.totalPaid > 0 ? fmt(e.totalPaid) : "-"}</TableCell>
                       <TableCell className="font-bold">
