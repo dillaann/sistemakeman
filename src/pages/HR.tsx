@@ -213,7 +213,7 @@ const HR = () => {
       if (!emp) throw new Error("Funcionário não encontrado");
       const baseSalary = Number(emp.salary) || 0;
       const totalAdv = advances.filter(a => a.employee_id === employeeId).reduce((s, a) => s + Number(a.amount), 0);
-      const totalExp = expenses.filter(e => e.employee_id === employeeId).reduce((s, e) => s + Number(e.amount), 0);
+      const totalExp = 0;
       const totalOt = overtime.filter(o => o.employee_id === employeeId).reduce((s, o) => s + Number(o.calculated_value), 0);
       const totalSat = saturdays.filter(s => s.employee_id === employeeId).reduce((s, sat) => s + Number(sat.calculated_value), 0);
       const netPay = baseSalary + totalOt + totalSat - totalAdv - totalExp;
@@ -671,22 +671,25 @@ const HR = () => {
           <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}h</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)}h)</div>}</CardContent></Card>
         </TabsContent>
 
-        {/* ── Gastos ── */}
-        <TabsContent value="gastos" className="space-y-4">
+        {/* ── Vales ── */}
+        <TabsContent value="vales" className="space-y-4">
           {canEdit && (
             <div className="flex justify-end">
-              <Dialog open={expOpen} onOpenChange={setExpOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Novo Gasto</Button></DialogTrigger>
-                <DialogContent><DialogHeader><DialogTitle>Registrar Gasto</DialogTitle></DialogHeader>
-                  <form onSubmit={e => { e.preventDefault(); expMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label><select className={selectClass} value={expForm.employee_id} onChange={e => setExpForm({ ...expForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                    <div className="grid grid-cols-2 gap-3"><div><Label>Categoria *</Label><select className={selectClass} value={expForm.category} onChange={e => setExpForm({ ...expForm, category: e.target.value })}>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={expForm.amount} onChange={e => setExpForm({ ...expForm, amount: e.target.value })} required /></div></div>
-                    <div><Label>Descrição</Label><Input value={expForm.description} onChange={e => setExpForm({ ...expForm, description: e.target.value })} /></div>
-                    <div><Label>Data</Label><Input type="date" value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} /></div>
-                    <Button type="submit" className="w-full" disabled={expMutation.isPending}>Salvar</Button>
+              <Dialog open={advOpen} onOpenChange={setAdvOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Novo Vale</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Registrar Vale</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); advMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Tipo</Label><select className={selectClass} value={advForm.type} onChange={e => setAdvForm({ ...advForm, type: e.target.value })}><option value="adiantamento">Adiantamento</option><option value="vale">Vale</option></select></div>
+                      <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={advForm.amount} onChange={e => setAdvForm({ ...advForm, amount: e.target.value })} required /></div>
+                    </div>
+                    <div><Label>Descrição</Label><Input value={advForm.description} onChange={e => setAdvForm({ ...advForm, description: e.target.value })} /></div>
+                    <div><Label>Data</Label><Input type="date" value={advForm.date} onChange={e => setAdvForm({ ...advForm, date: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={advMutation.isPending}>Salvar</Button>
                   </form></DialogContent></Dialog>
             </div>
           )}
-          <Card><CardHeader><CardTitle className="text-base">Gastos - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Categoria</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{expenses.map(e => (<TableRow key={e.id}><TableCell className="font-medium">{(e.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{e.category}</Badge></TableCell><TableCell>{fmt(Number(e.amount))}</TableCell><TableCell>{formatDateBR(e.date)}</TableCell><TableCell className="hidden md:table-cell">{e.description || "-"}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_expenses" id={e.id} label={`Gasto de ${(e.employees as any)?.name}`} /></TableCell>}</TableRow>))}{expenses.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum gasto.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Vales - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_advances" id={a.id} label={`Vale de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum vale registrado.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </TabsContent>
 
         {/* ── Férias ── */}
@@ -807,10 +810,10 @@ const HR = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)}</CardTitle>
-              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados - Vales - Gastos = Líquido</p>
+              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados - Vales = Líquido</p>
             </CardHeader>
             <CardContent className="overflow-auto">
-              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Vales</TableHead><TableHead>Gastos</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
+              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Vales</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {employeeSummary.map(e => (
                     <TableRow key={e.id}>
@@ -819,7 +822,7 @@ const HR = () => {
                       <TableCell className="text-primary">{fmt(e.empOvertime)}</TableCell>
                       <TableCell className="text-primary">{fmt(e.empSaturdays)}</TableCell>
                       <TableCell className="text-amber-600">{fmt(e.empAdvances)}</TableCell>
-                      <TableCell className="text-destructive">{fmt(e.empExpenses)}</TableCell>
+                      
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
                       <TableCell>{e.closing?.paid ? <Badge variant="default">Pago</Badge> : e.closing ? <Badge variant="secondary">Calculado</Badge> : <Badge variant="outline">Pendente</Badge>}</TableCell>
                       <TableCell>
