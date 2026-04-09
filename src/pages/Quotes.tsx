@@ -1,5 +1,5 @@
 import { addDaysToLocalDateString, localDateString, formatDateBR } from "@/lib/utils";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,18 +26,20 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = { pendente: "Pendente", aprovado: "Aprovado", rejeitado: "Rejeitado" };
 
 const paymentStatusColors: Record<string, string> = {
-  aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
-  entrada_pendente: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+  aguardando: "bg-red-500/10 text-red-700 border-red-500/20",
+  entrada_pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
   entrada_recebida: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-  pagamento_parcial: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  pagamento_parcial: "bg-orange-500/10 text-orange-700 border-orange-500/20",
   pago_total: "bg-green-500/10 text-green-700 border-green-500/20",
+  concluido_pago: "bg-emerald-700/10 text-emerald-800 border-emerald-700/20",
 };
 const paymentStatusLabels: Record<string, string> = {
-  aguardando: "Aguardando Entrada",
+  aguardando: "Aguardando Pagamento",
   entrada_pendente: "Entrada Pendente",
   entrada_recebida: "Entrada Recebida",
-  pagamento_parcial: "Pagamento Parcial",
+  pagamento_parcial: "Parcialmente Pago",
   pago_total: "Pago Total",
+  concluido_pago: "Concluído e Pago",
 };
 
 interface ItemRow { description: string; quantity: string; unit_price: string; }
@@ -149,6 +151,81 @@ const Quotes = () => {
       return map;
     },
   });
+
+  // Fetch financial transactions for dynamic payment status
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ["quotes-financial-transactions"],
+    queryFn: async () => {
+      const { data } = await supabase.from("financial_transactions").select("id, work_order_id, amount, status, type, paid_date, due_date").eq("type", "a_receber");
+      return data ?? [];
+    },
+  });
+
+  // Fetch work orders for OS status check
+  const { data: allWorkOrders = [] } = useQuery({
+    queryKey: ["quotes-work-orders"],
+    queryFn: async () => {
+      const { data } = await supabase.from("work_orders").select("id, quote_id, status");
+      return data ?? [];
+    },
+  });
+
+  // Realtime subscriptions for auto-refresh
+  useEffect(() => {
+    const ftChannel = supabase
+      .channel('quotes-ft-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_transactions' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["quotes-financial-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      })
+      .subscribe();
+
+    const woChannel = supabase
+      .channel('quotes-wo-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["quotes-work-orders"] });
+        queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ftChannel);
+      supabase.removeChannel(woChannel);
+    };
+  }, [queryClient]);
+
+  // Compute dynamic payment status for each approved quote
+  const computedPaymentStatus = useMemo(() => {
+    const statusMap: Record<string, string> = {};
+    quotes.forEach((q: any) => {
+      if (q.status !== "aprovado") return;
+      const wo = allWorkOrders.find((w: any) => w.quote_id === q.id);
+      const woId = wo?.id;
+      const total = Number(q.total);
+      if (!woId || total <= 0) {
+        statusMap[q.id] = q.payment_status || "aguardando";
+        return;
+      }
+
+      const txns = allTransactions.filter((t: any) => t.work_order_id === woId);
+      const paidTotal = txns.filter((t: any) => t.status === "pago").reduce((s: number, t: any) => s + Number(t.amount), 0);
+      const hasFuturePending = txns.some((t: any) => t.status === "pendente" && t.due_date > localDateString());
+      const osFinished = wo.status === "concluido" || wo.status === "entregue";
+
+      if (paidTotal >= total && osFinished) {
+        statusMap[q.id] = "concluido_pago";
+      } else if (paidTotal >= total) {
+        statusMap[q.id] = "pago_total";
+      } else if (paidTotal > 0 && paidTotal < total) {
+        statusMap[q.id] = "pagamento_parcial";
+      } else if (hasFuturePending) {
+        statusMap[q.id] = "entrada_pendente";
+      } else {
+        statusMap[q.id] = "aguardando";
+      }
+    });
+    return statusMap;
+  }, [quotes, allTransactions, allWorkOrders]);
 
   const effectiveSellerId = userRole === "vendedor" ? user?.id ?? "" : form.seller_id;
 
@@ -663,6 +740,8 @@ const Quotes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["quotes-financial-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["quotes-work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
@@ -803,7 +882,7 @@ const Quotes = () => {
       {/* Mobile card view */}
       <div className="md:hidden space-y-3">
         {filtered.map(q => {
-          const pStatus = (q as any).payment_status || "aguardando";
+          const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
           return (
             <Card key={q.id} className="p-3">
               <div className="flex items-start justify-between mb-2">
@@ -836,7 +915,7 @@ const Quotes = () => {
                     <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })}><X className="h-4 w-4 mr-1 text-red-600" />Rejeitar</Button>
                   </>
                 )}
-                {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
+                {q.status === "aprovado" && pStatus !== "pago_total" && pStatus !== "concluido_pago" && (userRole === "admin" || userRole === "financeiro") && (
                   <Button variant="ghost" size="sm" onClick={() => {
                     const rem = Number((q as any).remaining_amount || q.total);
                     setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
@@ -871,7 +950,7 @@ const Quotes = () => {
           </TableHeader>
           <TableBody>
             {filtered.map(q => {
-              const pStatus = (q as any).payment_status || "aguardando";
+              const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
               return (
                 <TableRow key={q.id}>
                   <TableCell className="font-medium">{(q.clients as any)?.name}</TableCell>
@@ -906,7 +985,7 @@ const Quotes = () => {
                           <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
                         </>
                       )}
-                      {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
+                      {q.status === "aprovado" && pStatus !== "pago_total" && pStatus !== "concluido_pago" && (userRole === "admin" || userRole === "financeiro") && (
                         <Button variant="ghost" size="icon" onClick={() => {
                           const rem = Number((q as any).remaining_amount || q.total);
                           setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
@@ -1068,11 +1147,12 @@ const Quotes = () => {
                     <Select value={editPayment.payment_status} onValueChange={v => setEditPayment({ ...editPayment, payment_status: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="aguardando">Aguardando Entrada</SelectItem>
+                        <SelectItem value="aguardando">Aguardando Pagamento</SelectItem>
                         <SelectItem value="entrada_pendente">Entrada Pendente</SelectItem>
                         <SelectItem value="entrada_recebida">Entrada Recebida</SelectItem>
-                        <SelectItem value="pagamento_parcial">Pagamento Parcial</SelectItem>
+                        <SelectItem value="pagamento_parcial">Parcialmente Pago</SelectItem>
                         <SelectItem value="pago_total">Pago Total</SelectItem>
+                        <SelectItem value="concluido_pago">Concluído e Pago</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
