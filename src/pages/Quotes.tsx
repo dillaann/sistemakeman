@@ -913,7 +913,7 @@ const Quotes = () => {
                     <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })}><X className="h-4 w-4 mr-1 text-red-600" />Rejeitar</Button>
                   </>
                 )}
-                {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
+                {q.status === "aprovado" && pStatus !== "pago_total" && pStatus !== "concluido_pago" && (userRole === "admin" || userRole === "financeiro") && (
                   <Button variant="ghost" size="sm" onClick={() => {
                     const rem = Number((q as any).remaining_amount || q.total);
                     setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
@@ -983,7 +983,7 @@ const Quotes = () => {
                           <Button variant="ghost" size="icon" onClick={() => updateStatus.mutate({ id: q.id, status: "rejeitado" })} title="Rejeitar"><X className="h-4 w-4 text-red-600" /></Button>
                         </>
                       )}
-                      {q.status === "aprovado" && pStatus !== "pago_total" && (userRole === "admin" || userRole === "financeiro") && (
+                      {q.status === "aprovado" && pStatus !== "pago_total" && pStatus !== "concluido_pago" && (userRole === "admin" || userRole === "financeiro") && (
                         <Button variant="ghost" size="icon" onClick={() => {
                           const rem = Number((q as any).remaining_amount || q.total);
                           setPayRegForm({ amount: String(rem), method: "pix", date: localDateString() });
