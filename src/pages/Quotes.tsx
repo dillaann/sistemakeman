@@ -26,18 +26,20 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = { pendente: "Pendente", aprovado: "Aprovado", rejeitado: "Rejeitado" };
 
 const paymentStatusColors: Record<string, string> = {
-  aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
-  entrada_pendente: "bg-orange-500/10 text-orange-700 border-orange-500/20",
+  aguardando: "bg-red-500/10 text-red-700 border-red-500/20",
+  entrada_pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
   entrada_recebida: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-  pagamento_parcial: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  pagamento_parcial: "bg-orange-500/10 text-orange-700 border-orange-500/20",
   pago_total: "bg-green-500/10 text-green-700 border-green-500/20",
+  concluido_pago: "bg-emerald-700/10 text-emerald-800 border-emerald-700/20",
 };
 const paymentStatusLabels: Record<string, string> = {
-  aguardando: "Aguardando Entrada",
+  aguardando: "Aguardando Pagamento",
   entrada_pendente: "Entrada Pendente",
   entrada_recebida: "Entrada Recebida",
-  pagamento_parcial: "Pagamento Parcial",
+  pagamento_parcial: "Parcialmente Pago",
   pago_total: "Pago Total",
+  concluido_pago: "Concluído e Pago",
 };
 
 interface ItemRow { description: string; quantity: string; unit_price: string; }
