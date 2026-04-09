@@ -1145,11 +1145,12 @@ const Quotes = () => {
                     <Select value={editPayment.payment_status} onValueChange={v => setEditPayment({ ...editPayment, payment_status: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="aguardando">Aguardando Entrada</SelectItem>
+                        <SelectItem value="aguardando">Aguardando Pagamento</SelectItem>
                         <SelectItem value="entrada_pendente">Entrada Pendente</SelectItem>
                         <SelectItem value="entrada_recebida">Entrada Recebida</SelectItem>
-                        <SelectItem value="pagamento_parcial">Pagamento Parcial</SelectItem>
+                        <SelectItem value="pagamento_parcial">Parcialmente Pago</SelectItem>
                         <SelectItem value="pago_total">Pago Total</SelectItem>
+                        <SelectItem value="concluido_pago">Concluído e Pago</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
