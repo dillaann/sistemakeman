@@ -880,7 +880,7 @@ const Quotes = () => {
       {/* Mobile card view */}
       <div className="md:hidden space-y-3">
         {filtered.map(q => {
-          const pStatus = (q as any).payment_status || "aguardando";
+          const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
           return (
             <Card key={q.id} className="p-3">
               <div className="flex items-start justify-between mb-2">
@@ -948,7 +948,7 @@ const Quotes = () => {
           </TableHeader>
           <TableBody>
             {filtered.map(q => {
-              const pStatus = (q as any).payment_status || "aguardando";
+              const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
               return (
                 <TableRow key={q.id}>
                   <TableCell className="font-medium">{(q.clients as any)?.name}</TableCell>
