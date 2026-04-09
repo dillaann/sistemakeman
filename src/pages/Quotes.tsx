@@ -740,6 +740,8 @@ const Quotes = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["quotes-financial-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["quotes-work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
