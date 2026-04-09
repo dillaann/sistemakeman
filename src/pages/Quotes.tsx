@@ -152,6 +152,81 @@ const Quotes = () => {
     },
   });
 
+  // Fetch financial transactions for dynamic payment status
+  const { data: allTransactions = [] } = useQuery({
+    queryKey: ["quotes-financial-transactions"],
+    queryFn: async () => {
+      const { data } = await supabase.from("financial_transactions").select("id, work_order_id, amount, status, type, paid_date, due_date").eq("type", "a_receber");
+      return data ?? [];
+    },
+  });
+
+  // Fetch work orders for OS status check
+  const { data: allWorkOrders = [] } = useQuery({
+    queryKey: ["quotes-work-orders"],
+    queryFn: async () => {
+      const { data } = await supabase.from("work_orders").select("id, quote_id, status");
+      return data ?? [];
+    },
+  });
+
+  // Realtime subscriptions for auto-refresh
+  useEffect(() => {
+    const ftChannel = supabase
+      .channel('quotes-ft-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'financial_transactions' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["quotes-financial-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      })
+      .subscribe();
+
+    const woChannel = supabase
+      .channel('quotes-wo-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["quotes-work-orders"] });
+        queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ftChannel);
+      supabase.removeChannel(woChannel);
+    };
+  }, [queryClient]);
+
+  // Compute dynamic payment status for each approved quote
+  const computedPaymentStatus = useMemo(() => {
+    const statusMap: Record<string, string> = {};
+    quotes.forEach((q: any) => {
+      if (q.status !== "aprovado") return;
+      const wo = allWorkOrders.find((w: any) => w.quote_id === q.id);
+      const woId = wo?.id;
+      const total = Number(q.total);
+      if (!woId || total <= 0) {
+        statusMap[q.id] = q.payment_status || "aguardando";
+        return;
+      }
+
+      const txns = allTransactions.filter((t: any) => t.work_order_id === woId);
+      const paidTotal = txns.filter((t: any) => t.status === "pago").reduce((s: number, t: any) => s + Number(t.amount), 0);
+      const hasFuturePending = txns.some((t: any) => t.status === "pendente" && t.due_date > localDateString());
+      const osFinished = wo.status === "concluido" || wo.status === "entregue";
+
+      if (paidTotal >= total && osFinished) {
+        statusMap[q.id] = "concluido_pago";
+      } else if (paidTotal >= total) {
+        statusMap[q.id] = "pago_total";
+      } else if (paidTotal > 0 && paidTotal < total) {
+        statusMap[q.id] = "pagamento_parcial";
+      } else if (hasFuturePending) {
+        statusMap[q.id] = "entrada_pendente";
+      } else {
+        statusMap[q.id] = "aguardando";
+      }
+    });
+    return statusMap;
+  }, [quotes, allTransactions, allWorkOrders]);
+
   const effectiveSellerId = userRole === "vendedor" ? user?.id ?? "" : form.seller_id;
 
   const saveMutation = useMutation({
