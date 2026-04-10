@@ -2,7 +2,6 @@ import { localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
+import { Plus, ArrowRightLeft, TrendingUp, TrendingDown, Trash2, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isInRange } from "@/components/MonthFilter";
 import FinancialReportDialog from "./FinancialReportDialog";
@@ -51,18 +50,22 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
   const [deleteReason, setDeleteReason] = useState("");
   const [formType, setFormType] = useState<FormType>("entrada");
   const [form, setForm] = useState({
-    account_id: "",
-    dest_account_id: "",
-    amount: "",
-    date: localDateString(),
-    category: "Outros",
-    description: "",
-    notes: "",
+    account_id: "", dest_account_id: "", amount: "", date: localDateString(), category: "Outros", description: "", notes: "",
   });
   const [filterAccount, setFilterAccount] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // Edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    account_id: "", amount: "", date: "", category: "", description: "", notes: "",
+  });
+
+  const canEdit = userRole === "admin" || userRole === "financeiro";
+  const canDelete = userRole === "admin";
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["financial-accounts"],
@@ -102,26 +105,18 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
         if (form.account_id === form.dest_account_id) throw new Error("As contas devem ser diferentes");
 
         const { error: e1 } = await supabase.from("account_movements").insert({
-          account_id: form.account_id,
-          type: "transferencia_saida",
-          amount,
-          date: form.date,
+          account_id: form.account_id, type: "transferencia_saida", amount, date: form.date,
           category: "Transferência entre contas",
           description: `Transferência para ${accounts.find(a => a.id === form.dest_account_id)?.name ?? "conta"}`,
-          related_account_id: form.dest_account_id,
-          notes: form.notes || null,
+          related_account_id: form.dest_account_id, notes: form.notes || null,
         });
         if (e1) throw e1;
 
         const { error: e2 } = await supabase.from("account_movements").insert({
-          account_id: form.dest_account_id,
-          type: "transferencia_entrada",
-          amount,
-          date: form.date,
+          account_id: form.dest_account_id, type: "transferencia_entrada", amount, date: form.date,
           category: "Transferência entre contas",
           description: `Transferência de ${accounts.find(a => a.id === form.account_id)?.name ?? "conta"}`,
-          related_account_id: form.account_id,
-          notes: form.notes || null,
+          related_account_id: form.account_id, notes: form.notes || null,
         });
         if (e2) throw e2;
         return;
@@ -130,15 +125,9 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
       if (!form.account_id) throw new Error("Selecione a conta");
       const txType = formType === "entrada" ? "a_receber" : "a_pagar";
       const { error } = await supabase.from("financial_transactions").insert({
-        type: txType as any,
-        status: "pago" as any,
-        description: form.description,
-        amount,
-        due_date: form.date,
-        paid_date: form.date,
-        category: form.category || null,
-        account_id: form.account_id,
-        sync_origin: "manual_financial",
+        type: txType as any, status: "pago" as any, description: form.description,
+        amount, due_date: form.date, paid_date: form.date,
+        category: form.category || null, account_id: form.account_id, sync_origin: "manual_financial",
       });
       if (error) throw error;
     },
@@ -157,10 +146,34 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        account_id: editForm.account_id,
+        amount: parseFloat(editForm.amount),
+        date: editForm.date,
+        category: editForm.category || null,
+        description: editForm.description,
+        notes: editForm.notes || null,
+      };
+      const { error } = await supabase.from("account_movements").update(payload).eq("id", editId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["financial-accounts"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setEditOpen(false);
+      setEditId(null);
+      toast({ title: "Movimentação atualizada!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const movement = movements.find(m => m.id === id);
-      // Delete linked financial_transaction if exists
       if (movement?.financial_transaction_id) {
         await supabase.from("financial_transactions").delete().eq("id", movement.financial_transaction_id);
       }
@@ -187,9 +200,21 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
     return accounts.find(a => a.id === id)?.name ?? "—";
   };
 
+  const openEditMovement = (m: any) => {
+    setEditId(m.id);
+    setEditForm({
+      account_id: m.account_id,
+      amount: String(m.amount),
+      date: m.date,
+      category: m.category ?? "Outros",
+      description: m.description,
+      notes: m.notes ?? "",
+    });
+    setEditOpen(true);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-semibold text-lg">Movimentações</h3>
         <div className="flex gap-2">
@@ -199,80 +224,74 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
             categories={categorias}
             periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
           />
-        <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setForm({ account_id: "", dest_account_id: "", amount: "", date: localDateString(), category: "Outros", description: "", notes: "" }); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Nova Movimentação</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Nova Movimentação</DialogTitle></DialogHeader>
-            <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-3">
-              {/* Type selector */}
-              <div className="flex gap-2">
-                <Button type="button" size="sm" variant={formType === "entrada" ? "default" : "outline"} onClick={() => setFormType("entrada")} className="flex-1">
-                  <TrendingUp className="h-4 w-4 mr-1" />Entrada
-                </Button>
-                <Button type="button" size="sm" variant={formType === "saida" ? "default" : "outline"} onClick={() => setFormType("saida")} className="flex-1">
-                  <TrendingDown className="h-4 w-4 mr-1" />Saída
-                </Button>
-                <Button type="button" size="sm" variant={formType === "transferencia" ? "default" : "outline"} onClick={() => setFormType("transferencia")} className="flex-1">
-                  <ArrowRightLeft className="h-4 w-4 mr-1" />Transferência
-                </Button>
-              </div>
+          <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setForm({ account_id: "", dest_account_id: "", amount: "", date: localDateString(), category: "Outros", description: "", notes: "" }); }}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />Nova Movimentação</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Nova Movimentação</DialogTitle></DialogHeader>
+              <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-3">
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant={formType === "entrada" ? "default" : "outline"} onClick={() => setFormType("entrada")} className="flex-1">
+                    <TrendingUp className="h-4 w-4 mr-1" />Entrada
+                  </Button>
+                  <Button type="button" size="sm" variant={formType === "saida" ? "default" : "outline"} onClick={() => setFormType("saida")} className="flex-1">
+                    <TrendingDown className="h-4 w-4 mr-1" />Saída
+                  </Button>
+                  <Button type="button" size="sm" variant={formType === "transferencia" ? "default" : "outline"} onClick={() => setFormType("transferencia")} className="flex-1">
+                    <ArrowRightLeft className="h-4 w-4 mr-1" />Transferência
+                  </Button>
+                </div>
 
-              {formType === "transferencia" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Conta Origem *</Label>
+                {formType === "transferencia" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>Conta Origem *</Label>
+                      <Select value={form.account_id} onValueChange={v => setForm({ ...form, account_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>Conta Destino *</Label>
+                      <Select value={form.dest_account_id} onValueChange={v => setForm({ ...form, dest_account_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>{accounts.filter(a => a.id !== form.account_id).map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : (
+                  <div><Label>Conta *</Label>
                     <Select value={form.account_id} onValueChange={v => setForm({ ...form, account_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label>Conta Destino *</Label>
-                    <Select value={form.dest_account_id} onValueChange={v => setForm({ ...form, dest_account_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>{accounts.filter(a => a.id !== form.account_id).map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
+                  <div><Label>Data *</Label><Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required /></div>
                 </div>
-              ) : (
-                <div>
-                  <Label>Conta *</Label>
-                  <Select value={form.account_id} onValueChange={v => setForm({ ...form, account_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
-                <div><Label>Data *</Label><Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required /></div>
-              </div>
+                {formType !== "transferencia" && (
+                  <>
+                    <div><Label>Descrição *</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required /></div>
+                    <div><Label>Categoria</Label>
+                      <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
 
-              {formType !== "transferencia" && (
-                <>
-                  <div><Label>Descrição *</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required /></div>
-                  <div>
-                    <Label>Categoria</Label>
-                    <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-
-              <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Registrar</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+                <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Registrar</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <Select value={filterAccount} onValueChange={setFilterAccount}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Conta" /></SelectTrigger>
@@ -294,7 +313,6 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
         <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" />
       </div>
 
-      {/* Table */}
       <div className="border rounded-lg overflow-auto max-h-[500px]">
         <Table>
           <TableHeader>
@@ -305,7 +323,7 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="text-right">Valor</TableHead>
-              {userRole === "admin" && <TableHead className="w-12">Ações</TableHead>}
+              <TableHead className="w-24">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -325,24 +343,61 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
                   <TableCell className={`text-right font-medium ${isCredit ? "text-green-700" : "text-red-700"}`}>
                     {isCredit ? "+" : "-"}{fmt(Number(m.amount))}
                   </TableCell>
-                  {userRole === "admin" && (
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(m.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  )}
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {canEdit && (
+                        <Button variant="ghost" size="icon" onClick={() => openEditMovement(m)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(m.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={userRole === "admin" ? 7 : 6} className="text-center text-muted-foreground py-8">Nenhuma movimentação encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma movimentação encontrada.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       </div>
 
-      {/* Delete confirmation dialog */}
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) setEditId(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Movimentação</DialogTitle></DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-3">
+            <div><Label>Descrição *</Label><Input value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} required /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} required /></div>
+              <div><Label>Data *</Label><Input type="date" value={editForm.date} onChange={e => setEditForm({ ...editForm, date: e.target.value })} required /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Conta</Label>
+                <Select value={editForm.account_id} onValueChange={v => setEditForm({ ...editForm, account_id: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Categoria</Label>
+                <Select value={editForm.category} onValueChange={v => setEditForm({ ...editForm, category: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Observações</Label><Textarea value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} /></div>
+            <Button type="submit" className="w-full" disabled={editMutation.isPending}>Salvar</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDeleteReason(""); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle className="text-destructive">Confirmar Exclusão</DialogTitle></DialogHeader>

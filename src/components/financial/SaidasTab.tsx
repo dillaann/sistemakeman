@@ -259,7 +259,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                 <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                    {(userRole === "admin" || userRole === "financeiro") && <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>}
                     {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
                 </TableCell>

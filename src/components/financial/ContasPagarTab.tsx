@@ -4,17 +4,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, Eye } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, Eye, Pencil, Trash2 } from "lucide-react";
 import { formatDateBR, localDateString } from "@/lib/utils";
 import { isInRange } from "@/components/MonthFilter";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFinancialCategories } from "@/hooks/useFinancialCategories";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const categorias = ["Compras", "Folha de Pagamento", "Despesa Administrativa", "Marketing", "Aluguel", "Serviço", "Fornecedor", "Material", "Outro"];
+const paymentMethods = [
+  { value: "pix", label: "Pix" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "boleto", label: "Boleto" },
+  { value: "cheque", label: "Cheque" },
+  { value: "cartao_credito", label: "Cartão Crédito" },
+  { value: "cartao_debito", label: "Cartão Débito" },
+  { value: "transferencia", label: "Transferência Bancária" },
+];
 
 function daysUntil(dateStr: string): number {
   const today = new Date();
@@ -46,13 +59,30 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
     return isInRange(dateStr, dateRange);
   };
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const qc = useQueryClient();
+  const { categories: catList } = useFinancialCategories("saida");
+  const categorias = catList.map(c => c.name);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [catFilter, setCatFilter] = useState("all");
   const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
   const [sortAsc, setSortAsc] = useState(true);
   const [showAllPending, setShowAllPending] = useState(false);
+
+  // Edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    due_date: "", description: "", amount: "", category: "", status: "pendente", payment_method: "pix", account_id: "", notes: "",
+  });
+
+  // Delete state
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
+  const canEdit = userRole === "admin" || userRole === "financeiro";
+  const canDelete = userRole === "admin";
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-contas-pagar"],
@@ -76,16 +106,12 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
 
   const filtered = useMemo(() => {
     let list = transactions.map(t => ({ ...t, computedStatus: getStatus(t) }));
-
-    // Apply date range filter (fixed in due_date month) unless showing all pending
     if (dateRange && !showAllPending) {
       list = list.filter(t => isInRange(t.due_date, dateRange));
     }
-    // When showAllPending, only show open items
     if (showAllPending) {
       list = list.filter(t => t.computedStatus !== "pago");
     }
-
     if (statusFilter !== "all") {
       list = list.filter(t => t.computedStatus === statusFilter);
     }
@@ -96,7 +122,6 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
       const s = search.toLowerCase();
       list = list.filter(t => t.description.toLowerCase().includes(s) || (t.category ?? "").toLowerCase().includes(s));
     }
-
     list.sort((a, b) => {
       if (sortField === "amount") return sortAsc ? Number(a.amount) - Number(b.amount) : Number(b.amount) - Number(a.amount);
       return sortAsc ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);
@@ -110,13 +135,8 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
   const total7d = openItems.filter(t => { const d = daysUntil(t.due_date); return d >= 0 && d <= 7; }).reduce((s, t) => s + Number(t.amount), 0);
   const total30d = openItems.filter(t => { const d = daysUntil(t.due_date); return d >= 0 && d <= 30; }).reduce((s, t) => s + Number(t.amount), 0);
 
-  // ── Accumulated breakdown ──
-  const doMesPagar = openItems
-    .filter(t => isInCurrentRange(t.due_date))
-    .reduce((s, t) => s + Number(t.amount), 0);
-  const acumuladoAnteriorPagar = openItems
-    .filter(t => isBeforeRange(t.due_date))
-    .reduce((s, t) => s + Number(t.amount), 0);
+  const doMesPagar = openItems.filter(t => isInCurrentRange(t.due_date)).reduce((s, t) => s + Number(t.amount), 0);
+  const acumuladoAnteriorPagar = openItems.filter(t => isBeforeRange(t.due_date)).reduce((s, t) => s + Number(t.amount), 0);
   const totalAPagarAcumulado = doMesPagar + acumuladoAnteriorPagar;
 
   const markPaid = useMutation({
@@ -132,45 +152,83 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
     },
   });
 
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        due_date: editForm.due_date,
+        description: editForm.description,
+        amount: parseFloat(editForm.amount),
+        category: editForm.category || null,
+        status: editForm.status as any,
+        payment_method: editForm.payment_method || null,
+        account_id: editForm.account_id || null,
+        paid_date: editForm.status === "pago" ? (editForm.due_date <= localDateString() ? editForm.due_date : localDateString()) : null,
+      };
+      const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setEditOpen(false);
+      setEditId(null);
+      toast({ title: "Conta atualizada!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("financial_transactions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setDeleteTarget(null);
+      setDeleteReason("");
+      toast({ title: "Registro excluído!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const openEdit = (t: any) => {
+    setEditId(t.id);
+    setEditForm({
+      due_date: t.due_date,
+      description: t.description,
+      amount: String(t.amount),
+      category: t.category ?? "",
+      status: t.status,
+      payment_method: t.payment_method ?? "pix",
+      account_id: t.account_id ?? "",
+      notes: "",
+    });
+    setEditOpen(true);
+  };
+
   const toggleSort = (field: "due_date" | "amount") => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
   };
 
-  const getRowClass = (cs: string) => {
-    if (cs === "vencido") return "bg-red-50 dark:bg-red-950/20";
-    if (cs === "a_vencer" && filtered.find(t => t.computedStatus === cs)) {
-      // highlight items due within 7 days
-    }
-    return "";
-  };
-
   return (
     <div className="space-y-4">
-      {/* Accumulated Breakdown */}
       {dateRange && (acumuladoAnteriorPagar > 0 || doMesPagar > 0) && (
         <Card className="border-orange-200 dark:border-orange-800">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-orange-600 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Composição do Saldo a Pagar</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-xs text-muted-foreground">Do mês</p>
-                <p className="text-lg font-bold text-red-600">{fmt(doMesPagar)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Acumulado anterior</p>
-                <p className="text-lg font-bold text-orange-600">{fmt(acumuladoAnteriorPagar)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total a pagar</p>
-                <p className="text-lg font-bold">{fmt(totalAPagarAcumulado)}</p>
-              </div>
+              <div><p className="text-xs text-muted-foreground">Do mês</p><p className="text-lg font-bold text-red-600">{fmt(doMesPagar)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Acumulado anterior</p><p className="text-lg font-bold text-orange-600">{fmt(acumuladoAnteriorPagar)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Total a pagar</p><p className="text-lg font-bold">{fmt(totalAPagarAcumulado)}</p></div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Total a Pagar</CardTitle></CardHeader>
@@ -190,7 +248,6 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
         </Card>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -212,18 +269,12 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
             {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button
-          variant={showAllPending ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowAllPending(!showAllPending)}
-          className="flex items-center gap-1"
-        >
+        <Button variant={showAllPending ? "default" : "outline"} size="sm" onClick={() => setShowAllPending(!showAllPending)} className="flex items-center gap-1">
           <Eye className="h-4 w-4" />
           {showAllPending ? "Filtrar por mês" : "Ver todos pendentes"}
         </Button>
       </div>
 
-      {/* Table */}
       <div className="border rounded-lg overflow-auto">
         <Table>
           <TableHeader>
@@ -234,7 +285,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
               <TableHead>Conta</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-28">Ações</TableHead>
+              <TableHead className="w-36">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -253,11 +304,23 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
                   <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
                   <TableCell><Badge className={badge.className}>{badge.label}</Badge></TableCell>
                   <TableCell>
-                    {t.computedStatus !== "pago" && (
-                      <Button size="sm" variant="outline" onClick={() => markPaid.mutate(t.id)} disabled={markPaid.isPending}>
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Pagar
-                      </Button>
-                    )}
+                    <div className="flex gap-1">
+                      {t.computedStatus !== "pago" && (
+                        <Button size="sm" variant="outline" onClick={() => markPaid.mutate(t.id)} disabled={markPaid.isPending}>
+                          <CheckCircle2 className="h-4 w-4 mr-1" /> Pagar
+                        </Button>
+                      )}
+                      {canEdit && (
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(t)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -268,6 +331,72 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) setEditId(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Conta a Pagar</DialogTitle></DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-3">
+            <div><Label>Descrição *</Label><Input value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} required /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} required /></div>
+              <div><Label>Vencimento *</Label><Input type="date" value={editForm.due_date} onChange={e => setEditForm({ ...editForm, due_date: e.target.value })} required /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Categoria</Label>
+                <Select value={editForm.category} onValueChange={v => setEditForm({ ...editForm, category: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Forma de Pagamento</Label>
+                <Select value={editForm.payment_method} onValueChange={v => setEditForm({ ...editForm, payment_method: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Status</Label>
+                <Select value={editForm.status} onValueChange={v => setEditForm({ ...editForm, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Conta</Label>
+                <Select value={editForm.account_id} onValueChange={v => setEditForm({ ...editForm, account_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhuma</SelectItem>
+                    {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Observações</Label><Textarea value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} /></div>
+            <Button type="submit" className="w-full" disabled={editMutation.isPending}>Salvar</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="text-destructive">Confirmar Exclusão</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir este registro?</p>
+          <div><Label>Motivo da Exclusão *</Label><Textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Informe o motivo..." /></div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteReason(""); }}>Cancelar</Button>
+            <Button variant="destructive" disabled={!deleteReason.trim() || deleteMutation.isPending} onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}>
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
