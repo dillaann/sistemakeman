@@ -210,7 +210,7 @@ const Quotes = () => {
       const txns = allTransactions.filter((t: any) => t.work_order_id === woId);
       const paidTotal = txns.filter((t: any) => t.status === "pago").reduce((s: number, t: any) => s + Number(t.amount), 0);
       const hasFuturePending = txns.some((t: any) => t.status === "pendente" && t.due_date > localDateString());
-      const osFinished = wo.status === "concluido" || wo.status === "entregue";
+      const osFinished = wo.status === "aguardando_instalacao" || wo.status === "entregue";
 
       if (paidTotal >= total && osFinished) {
         statusMap[q.id] = "concluido_pago";
@@ -313,8 +313,8 @@ const Quotes = () => {
       // Check if approved and OS already delivered
       if (isApproved) {
         const { data: wo } = await supabase.from("work_orders").select("id, status").eq("quote_id", quoteId).maybeSingle();
-        if (wo && (wo.status === "concluido" || wo.status === "entregue")) {
-          throw new Error("Não é possível editar: a OS vinculada já foi concluída/entregue.");
+        if (wo && (wo.status === "aguardando_instalacao" || wo.status === "entregue")) {
+          throw new Error("Não é possível editar: a OS vinculada já está aguardando instalação/entregue.");
         }
       }
 

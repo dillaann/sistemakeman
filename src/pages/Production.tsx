@@ -17,14 +17,14 @@ const columns = [
   { key: "Fila de Produção", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30" },
   { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-500/10 border-blue-500/30" },
   { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-500/10 border-orange-500/30" },
-  { key: "Finalizado", label: "Finalizado", color: "bg-green-500/10 border-green-500/30" },
+  { key: "Aguardando Instalação", label: "Aguardando Instalação", color: "bg-green-500/10 border-green-500/30" },
 ];
 
 const nextColumnMap: Record<string, string[]> = {
   "Fila de Produção": ["Em Andamento", "Aguardando Material"],
-  "Em Andamento": ["Aguardando Material", "Finalizado"],
-  "Aguardando Material": ["Em Andamento", "Finalizado"],
-  "Finalizado": ["Entregue"],
+  "Em Andamento": ["Aguardando Material", "Aguardando Instalação"],
+  "Aguardando Material": ["Em Andamento", "Aguardando Instalação"],
+  "Aguardando Instalação": ["Entregue"],
 };
 
 const STORAGE_KEY = "production-collapsed-columns";
@@ -228,10 +228,10 @@ const Production = () => {
   const moveToStatus = (id: string, status: string) => {
     const item = productionItems.find((p: any) => p.id === id);
     if (item) {
-      let woStatus: "aguardando" | "em_producao" | "concluido" | "entregue" = "aguardando";
+      let woStatus: "aguardando" | "em_producao" | "aguardando_instalacao" | "entregue" = "aguardando";
       if (status === "Em Andamento") woStatus = "em_producao";
       if (status === "Aguardando Material") woStatus = "em_producao";
-      if (status === "Finalizado") woStatus = "concluido";
+      if (status === "Aguardando Instalação") woStatus = "aguardando_instalacao";
       if (status === "Entregue") woStatus = "entregue";
       supabase.from("work_orders").update({ status: woStatus }).eq("id", item.os_id).then(() => {
         queryClient.invalidateQueries({ queryKey: ["work-orders"] });
@@ -254,7 +254,7 @@ const Production = () => {
   const getColumnItems = (columnKey: string) => {
     return productionItems.filter((p: any) => {
       if (p.status !== columnKey) return false;
-      const isOpen = p.status !== "Finalizado";
+      const isOpen = p.status !== "Aguardando Instalação";
       return isInRangeOrOpen(p.created_at, dateRange, isOpen, p.data_conclusao);
     });
   };
@@ -414,7 +414,7 @@ const Production = () => {
                                     <MessageSquare className="h-3 w-3 mr-1" /> Notas
                                   </Button>
 
-                                  {col.key !== "Finalizado" && (
+                                  {col.key !== "Aguardando Instalação" && (
                                     <Select onValueChange={(status) => moveToStatus(item.id, status)}>
                                       <SelectTrigger className="h-7 text-xs flex-1">
                                         <SelectValue placeholder="Mover →" />
@@ -427,7 +427,7 @@ const Production = () => {
                                     </Select>
                                   )}
 
-                                  {col.key === "Finalizado" && (
+                                  {col.key === "Aguardando Instalação" && (
                                     <Button
                                       size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
                                       onClick={() => moveToStatus(item.id, "Entregue")}
@@ -441,7 +441,7 @@ const Production = () => {
 
                             {!expanded && (
                               <div className="flex items-center gap-1 pt-0.5">
-                                {col.key !== "Finalizado" && (
+                                {col.key !== "Aguardando Instalação" && (
                                   <Select onValueChange={(status) => moveToStatus(item.id, status)}>
                                     <SelectTrigger className="h-6 text-[10px] flex-1">
                                       <SelectValue placeholder="Mover →" />
@@ -453,7 +453,7 @@ const Production = () => {
                                     </SelectContent>
                                   </Select>
                                 )}
-                                {col.key === "Finalizado" && (
+                                {col.key === "Aguardando Instalação" && (
                                   <Button
                                     size="sm" variant="outline" className="h-6 px-2 text-[10px] flex-1"
                                     onClick={() => moveToStatus(item.id, "Entregue")}
