@@ -23,10 +23,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
   em_producao: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-  concluido: "bg-green-500/10 text-green-700 border-green-500/20",
+  aguardando_instalacao: "bg-green-500/10 text-green-700 border-green-500/20",
   entregue: "bg-purple-500/10 text-purple-700 border-purple-500/20",
 };
-const statusLabels: Record<string, string> = { aguardando: "Aguardando", em_producao: "Em Produção", concluido: "Concluído", entregue: "Entregue" };
+const statusLabels: Record<string, string> = { aguardando: "Aguardando", em_producao: "Em Produção", aguardando_instalacao: "Aguardando Instalação", entregue: "Entregue" };
 const commStatusLabels: Record<string, string> = { pendente: "Pendente", aprovada: "Aprovada", paga: "Paga" };
 const commStatusColors: Record<string, string> = {
   pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",

@@ -19,10 +19,10 @@ import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/c
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
   em_producao: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-  concluido: "bg-green-500/10 text-green-700 border-green-500/20",
+  aguardando_instalacao: "bg-green-500/10 text-green-700 border-green-500/20",
   entregue: "bg-purple-500/10 text-purple-700 border-purple-500/20",
 };
-const statusLabels: Record<string, string> = { aguardando: "Aguardando", em_producao: "Em Produção", concluido: "Concluído", entregue: "Entregue" };
+const statusLabels: Record<string, string> = { aguardando: "Aguardando", em_producao: "Em Produção", aguardando_instalacao: "Aguardando Instalação", entregue: "Entregue" };
 
 const WorkOrders = () => {
   const { toast } = useToast();
@@ -77,7 +77,7 @@ const WorkOrders = () => {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const updates: any = { status };
       if (status === "em_producao") updates.started_at = new Date().toISOString();
-      if (status === "concluido") updates.completed_at = new Date().toISOString();
+      if (status === "aguardando_instalacao") updates.completed_at = new Date().toISOString();
       if (status === "entregue") updates.delivered_at = new Date().toISOString();
       const { error } = await supabase.from("work_orders").update(updates).eq("id", id);
       if (error) throw error;
@@ -99,7 +99,7 @@ const WorkOrders = () => {
   });
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const nextStatus: Record<string, string> = { aguardando: "em_producao", em_producao: "concluido", concluido: "entregue" };
+  const nextStatus: Record<string, string> = { aguardando: "em_producao", em_producao: "aguardando_instalacao", aguardando_instalacao: "entregue" };
 
   const getItemSummary = (o: any) => {
     const items = o.items || [];

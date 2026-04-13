@@ -151,7 +151,7 @@ const Dashboard = () => {
   const woByStatus = useMemo(() => ({
     aguardando: workOrders.filter(w => w.status === "aguardando").length,
     em_producao: workOrders.filter(w => w.status === "em_producao").length,
-    concluido: workOrders.filter(w => w.status === "concluido").length,
+    aguardando_instalacao: workOrders.filter(w => w.status === "aguardando_instalacao").length,
     entregue: workOrders.filter(w => w.status === "entregue").length,
   }), [workOrders]);
 
@@ -193,7 +193,7 @@ const Dashboard = () => {
   const statusLabels: Record<string, string> = {
     aguardando: "Aguardando",
     em_producao: "Em Produção",
-    concluido: "Concluído",
+    aguardando_instalacao: "Aguardando Instalação",
     entregue: "Entregue",
   };
 
@@ -322,7 +322,7 @@ const Dashboard = () => {
               {[
                 { key: "aguardando", label: "Fila de Produção" },
                 { key: "em_producao", label: "Em Andamento" },
-                { key: "concluido", label: "Finalizado" },
+                { key: "aguardando_instalacao", label: "Aguardando Instalação" },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-sm">{label}</span>
