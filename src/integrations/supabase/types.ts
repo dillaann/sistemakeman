@@ -1745,7 +1745,11 @@ export type Database = {
       quote_status: "pendente" | "aprovado" | "rejeitado"
       transaction_status: "pendente" | "pago" | "atrasado" | "cancelado"
       transaction_type: "a_pagar" | "a_receber"
-      work_order_status: "aguardando" | "em_producao" | "concluido" | "entregue"
+      work_order_status:
+        | "aguardando"
+        | "em_producao"
+        | "aguardando_instalacao"
+        | "entregue"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1885,7 +1889,12 @@ export const Constants = {
       quote_status: ["pendente", "aprovado", "rejeitado"],
       transaction_status: ["pendente", "pago", "atrasado", "cancelado"],
       transaction_type: ["a_pagar", "a_receber"],
-      work_order_status: ["aguardando", "em_producao", "concluido", "entregue"],
+      work_order_status: [
+        "aguardando",
+        "em_producao",
+        "aguardando_instalacao",
+        "entregue",
+      ],
     },
   },
 } as const
