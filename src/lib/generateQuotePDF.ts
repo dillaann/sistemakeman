@@ -93,8 +93,8 @@ export async function generateQuotePDF(data: QuotePDFData) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("Rua Jornalista Adolfo Ziguelli, n° 347 - Roçado", rightX, y + 25);
-  doc.text("CEP 88.108-176 - São José - SC", rightX, y + 30);
+  doc.text("R. Ivo Vicente Coelho - Forquilhas", rightX, y + 25);
+  doc.text("São José - SC, 88107-110", rightX, y + 30);
 
   y += 38;
 
@@ -148,7 +148,7 @@ export async function generateQuotePDF(data: QuotePDFData) {
   doc.setFont("helvetica", "bold");
   doc.text("Endereco:", labelX, y);
   doc.setFont("helvetica", "normal");
-  doc.text("Rua Jornalista Adolfo Ziguelli, n° 347 - Roçado", valueX, y);
+  doc.text("R. Ivo Vicente Coelho - Forquilhas, São José - SC, 88107-110", valueX, y);
   y += 5;
 
   doc.setFont("helvetica", "bold");
