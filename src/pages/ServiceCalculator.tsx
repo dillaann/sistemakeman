@@ -67,19 +67,10 @@ export default function ServiceCalculator() {
     setSaving(true);
     try {
       const lines: string[] = [];
-      if (calc.subFunc > 0) lines.push(`Funcionários: ${qtdFunc || 1} func. × ${diasServico} dias × ${fmt(VALOR_DIARIO)} = ${fmt(calc.subFunc)}`);
-      if (calc.subMat > 0) lines.push(`Material: ${fmt(parseFloat(valorMaterial))} × ${MULT_MATERIAL} = ${fmt(calc.subMat)}`);
-      if (calc.subDist > 0) lines.push(`Distância: ${km}km × ${fmt(VALOR_KM)} = ${fmt(calc.subDist)}`);
-      lines.push(`Gasolina: ${fmt(GASOLINA_FIXA)}`);
-
-      const fullDesc = descricao
-        ? `${descricao}\n\n--- Detalhamento ---\n${lines.join("\n")}`
-        : lines.join("\n");
-
       const { data: quote, error } = await supabase.from("quotes").insert({
         client_id: clientId,
         total: calc.total,
-        description: fullDesc,
+        description: descricao || "Serviço calculado",
         seller_id: user?.id,
         status: "pendente",
       }).select("id").single();
