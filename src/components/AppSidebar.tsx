@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone,
+  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone, Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ const menuItems: { title: string; url: string; icon: any; roles: AppRole[] }[] =
   { title: "RH", url: "/rh", icon: Briefcase, roles: ["admin", "financeiro"] },
   { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
   { title: "Marketing", url: "/marketing", icon: Megaphone, roles: ["admin", "marketing"] },
+  { title: "Calculadora", url: "/calculadora", icon: Calculator, roles: ["admin", "vendedor"] },
   { title: "Usuários", url: "/usuarios", icon: Shield, roles: ["admin"] },
 ];
 
