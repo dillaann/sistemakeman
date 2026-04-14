@@ -529,15 +529,23 @@ const Quotes = () => {
         payment_status: paymentStatus,
       } as any).eq("id", quoteId);
 
-      const { data: wo, error: woError } = await supabase.from("work_orders").insert({
-        client_id: clientId,
-        quote_id: quoteId,
-        total,
-        description: description || "OS gerada a partir de orçamento",
-        status: "aguardando" as any,
-        origem_venda: origemVenda,
-      } as any).select().single();
-      if (woError) throw woError;
+      // Prevent duplicate work orders for the same quote
+      const { data: existingWO } = await supabase.from("work_orders").select("id").eq("quote_id", quoteId).maybeSingle();
+      let wo: any;
+      if (existingWO) {
+        wo = existingWO;
+      } else {
+        const { data: newWO, error: woError } = await supabase.from("work_orders").insert({
+          client_id: clientId,
+          quote_id: quoteId,
+          total,
+          description: description || "OS gerada a partir de orçamento",
+          status: "aguardando" as any,
+          origem_venda: origemVenda,
+        } as any).select().single();
+        if (woError) throw woError;
+        wo = newWO;
+      }
 
       // Copy quote items to work_order_items
       const { data: quoteItems } = await supabase.from("quote_items").select("*").eq("quote_id", quoteId);
