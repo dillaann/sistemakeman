@@ -29,6 +29,7 @@ const WorkOrders = () => {
   const { userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
@@ -112,6 +113,7 @@ const WorkOrders = () => {
     const isOpen = ["aguardando", "em_producao", "aguardando_instalacao"].includes(o.status);
     const completionDate = o.completed_at || o.delivered_at;
     if (!isInRangeOrOpen(o.created_at, dateRange, isOpen, completionDate)) return false;
+    if (statusFilter !== "todos" && o.status !== statusFilter) return false;
     return (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       (o.description ?? "").toLowerCase().includes(search.toLowerCase());
   });
@@ -152,9 +154,21 @@ const WorkOrders = () => {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar ordens..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar ordens..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Filtrar por status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            <SelectItem value="aguardando">Aguardando</SelectItem>
+            <SelectItem value="em_producao">Em Produção</SelectItem>
+            <SelectItem value="aguardando_instalacao">Aguardando Instalação</SelectItem>
+            <SelectItem value="entregue">Entregue</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Mobile card view */}
