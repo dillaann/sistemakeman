@@ -93,7 +93,7 @@ export async function generateQuotePDF(data: QuotePDFData) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("R. Ivo Vicente Coelho - Forquilhas", rightX, y + 25);
+  doc.text("R. Ivo Vicente Coelho 890 - Forquilhas", rightX, y + 25);
   doc.text("São José - SC, 88107-110", rightX, y + 30);
 
   y += 38;
@@ -148,7 +148,7 @@ export async function generateQuotePDF(data: QuotePDFData) {
   doc.setFont("helvetica", "bold");
   doc.text("Endereco:", labelX, y);
   doc.setFont("helvetica", "normal");
-  doc.text("R. Ivo Vicente Coelho - Forquilhas, São José - SC, 88107-110", valueX, y);
+  doc.text("R. Ivo Vicente Coelho 890 - Forquilhas, São José - SC, 88107-110", valueX, y);
   y += 5;
 
   doc.setFont("helvetica", "bold");
