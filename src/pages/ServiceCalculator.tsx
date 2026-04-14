@@ -24,6 +24,7 @@ export default function ServiceCalculator() {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  const [qtdFunc, setQtdFunc] = useState("");
   const [diasServico, setDiasServico] = useState("");
   const [valorMaterial, setValorMaterial] = useState("");
   const [km, setKm] = useState("");
@@ -40,17 +41,18 @@ export default function ServiceCalculator() {
   });
 
   const calc = useMemo(() => {
+    const nFunc = parseFloat(qtdFunc) || 1;
     const dias = parseFloat(diasServico) || 0;
     const mat = parseFloat(valorMaterial) || 0;
     const distancia = parseFloat(km) || 0;
 
-    const subFunc = dias * VALOR_DIARIO;
+    const subFunc = nFunc * dias * VALOR_DIARIO;
     const subMat = mat * MULT_MATERIAL;
     const subDist = distancia * VALOR_KM;
     const total = subFunc + subMat + subDist + GASOLINA_FIXA;
 
     return { subFunc, subMat, subDist, total };
-  }, [diasServico, valorMaterial, km]);
+  }, [qtdFunc, diasServico, valorMaterial, km]);
 
   const handleSaveAsQuote = async () => {
     if (!clientId) {
@@ -65,7 +67,7 @@ export default function ServiceCalculator() {
     setSaving(true);
     try {
       const lines: string[] = [];
-      if (calc.subFunc > 0) lines.push(`Funcionários: ${diasServico} dias × ${fmt(VALOR_DIARIO)} = ${fmt(calc.subFunc)}`);
+      if (calc.subFunc > 0) lines.push(`Funcionários: ${qtdFunc || 1} func. × ${diasServico} dias × ${fmt(VALOR_DIARIO)} = ${fmt(calc.subFunc)}`);
       if (calc.subMat > 0) lines.push(`Material: ${fmt(parseFloat(valorMaterial))} × ${MULT_MATERIAL} = ${fmt(calc.subMat)}`);
       if (calc.subDist > 0) lines.push(`Distância: ${km}km × ${fmt(VALOR_KM)} = ${fmt(calc.subDist)}`);
       lines.push(`Gasolina: ${fmt(GASOLINA_FIXA)}`);
@@ -93,7 +95,7 @@ export default function ServiceCalculator() {
       });
 
       toast({ title: "Orçamento criado com sucesso!" });
-      setDiasServico(""); setValorMaterial(""); setKm(""); setClientId(""); setDescricao("");
+      setQtdFunc(""); setDiasServico(""); setValorMaterial(""); setKm(""); setClientId(""); setDescricao("");
     } catch (e: any) {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
     } finally {
@@ -117,10 +119,21 @@ export default function ServiceCalculator() {
                 <Users className="h-4 w-4" /> Funcionários
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Quantidade de funcionários</Label>
+                <Input
+                  type="number"
+                  step="1"
+                  min="1"
+                  value={qtdFunc}
+                  onChange={(e) => setQtdFunc(e.target.value)}
+                  placeholder="1"
+                />
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">
-                  Tempo de serviço (em dias) — ex: 0.5, 1, 1.5
+                  Tempo de serviço (dias) — ex: 0.5, 1, 1.5
                 </Label>
                 <Input
                   type="number"
@@ -132,11 +145,11 @@ export default function ServiceCalculator() {
                 />
               </div>
               {calc.subFunc > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  {diasServico} dias × {fmt(VALOR_DIARIO)} = <strong className="text-foreground">{fmt(calc.subFunc)}</strong>
+                <p className="col-span-2 text-xs text-muted-foreground">
+                  {qtdFunc || 1} func. × {diasServico} dias × {fmt(VALOR_DIARIO)} = <strong className="text-foreground">{fmt(calc.subFunc)}</strong>
                 </p>
               )}
-              <p className="text-[11px] text-muted-foreground mt-1">Valor diário fixo: {fmt(VALOR_DIARIO)}</p>
+              <p className="col-span-2 text-[11px] text-muted-foreground">Valor diário fixo: {fmt(VALOR_DIARIO)}</p>
             </CardContent>
           </Card>
 
