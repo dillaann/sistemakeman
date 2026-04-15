@@ -65,6 +65,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
   const { userRole } = useAuth();
   const qc = useQueryClient();
   const { categories: receberCategories } = useFinancialCategories("entrada");
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<"due_date" | "remaining">("due_date");
   const [sortAsc, setSortAsc] = useState(true);
