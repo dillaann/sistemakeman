@@ -695,20 +695,69 @@ const Quotes = () => {
       const isFuture = payRegForm.date > today;
 
       const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", quote.id).single();
+      const woId = wo?.id || null;
 
       const clientName = clients.find(c => c.id === quote.client_id)?.name ?? "";
-      await supabase.from("financial_transactions").insert({
-        type: "a_receber" as any,
-        description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
-        amount,
-        due_date: payRegForm.date,
-        paid_date: isFuture ? null : payRegForm.date,
-        status: isFuture ? ("pendente" as any) : ("pago" as any),
-        category: `Faturamento - ${payRegForm.method}`,
-        payment_method: payRegForm.method || null,
-        work_order_id: wo?.id || null,
-        client_id: quote.client_id,
-      });
+
+      // Find existing pending "Saldo" transaction for this work order
+      const { data: pendingSaldo } = await supabase.from("financial_transactions")
+        .select("*")
+        .eq("work_order_id", woId || "")
+        .eq("status", "pendente")
+        .eq("type", "a_receber")
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      const saldoTx = pendingSaldo?.[0];
+
+      if (!isFuture) {
+        // Create paid transaction for the received amount
+        await supabase.from("financial_transactions").insert({
+          type: "a_receber" as any,
+          description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
+          amount,
+          due_date: payRegForm.date,
+          paid_date: payRegForm.date,
+          status: "pago" as any,
+          category: `Faturamento - ${payRegForm.method}`,
+          payment_method: payRegForm.method || null,
+          work_order_id: woId,
+          client_id: quote.client_id,
+        });
+
+        // Reduce or remove the pending Saldo transaction
+        if (saldoTx) {
+          const newSaldoAmount = Number(saldoTx.amount) - amount;
+          if (newSaldoAmount <= 0) {
+            // Fully paid — mark as pago with zero or delete
+            await supabase.from("financial_transactions").update({
+              status: "pago" as any,
+              paid_date: payRegForm.date,
+              amount: 0,
+            }).eq("id", saldoTx.id);
+          } else {
+            // Reduce the pending amount
+            await supabase.from("financial_transactions").update({
+              amount: newSaldoAmount,
+              description: `Saldo - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
+            }).eq("id", saldoTx.id);
+          }
+        }
+      } else {
+        // Future payment — create as pending
+        await supabase.from("financial_transactions").insert({
+          type: "a_receber" as any,
+          description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
+          amount,
+          due_date: payRegForm.date,
+          paid_date: null,
+          status: "pendente" as any,
+          category: `Faturamento - ${payRegForm.method}`,
+          payment_method: payRegForm.method || null,
+          work_order_id: woId,
+          client_id: quote.client_id,
+        });
+      }
 
       const currentPaid = Number(quote.down_payment || 0);
       const effectiveNewPaid = isFuture ? 0 : amount;
@@ -733,13 +782,14 @@ const Quotes = () => {
         payment_status: newStatus,
       } as any).eq("id", quote.id);
 
-      if (totalPaidNow >= total) {
-        const { data: pendingTxns } = await supabase.from("financial_transactions")
+      // If fully paid, mark any remaining pending transactions as pago
+      if (totalPaidNow >= total && woId) {
+        const { data: remainingPending } = await supabase.from("financial_transactions")
           .select("id")
-          .eq("work_order_id", wo?.id || "")
+          .eq("work_order_id", woId)
           .eq("status", "pendente")
           .eq("type", "a_receber");
-        for (const txn of pendingTxns ?? []) {
+        for (const txn of remainingPending ?? []) {
           await supabase.from("financial_transactions").update({
             status: "pago" as any,
             paid_date: payRegForm.date,
