@@ -16,6 +16,7 @@ import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp, Ey
 import { formatDateBR, localDateString } from "@/lib/utils";
 import { isInRange } from "@/components/MonthFilter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFinancialCategories } from "@/hooks/useFinancialCategories";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -63,6 +64,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
   const { toast } = useToast();
   const { userRole } = useAuth();
   const qc = useQueryClient();
+  const { categories: receberCategories } = useFinancialCategories("entrada");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<"due_date" | "remaining">("due_date");
@@ -457,6 +459,15 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <div><Label>Categoria</Label>
+                <Select value={editForm.category} onValueChange={v => setEditForm({ ...editForm, category: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhuma</SelectItem>
+                    {receberCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Status</Label>
                 <Select value={editForm.status} onValueChange={v => setEditForm({ ...editForm, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -467,6 +478,8 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div><Label>Conta</Label>
                 <Select value={editForm.account_id} onValueChange={v => setEditForm({ ...editForm, account_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
