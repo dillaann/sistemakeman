@@ -460,10 +460,10 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Categoria</Label>
-                <Select value={editForm.category} onValueChange={v => setEditForm({ ...editForm, category: v })}>
+                <Select value={editForm.category || "__none__"} onValueChange={v => setEditForm({ ...editForm, category: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
                     {receberCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
