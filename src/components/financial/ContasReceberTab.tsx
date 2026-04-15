@@ -16,6 +16,7 @@ import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp, Ey
 import { formatDateBR, localDateString } from "@/lib/utils";
 import { isInRange } from "@/components/MonthFilter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFinancialCategories } from "@/hooks/useFinancialCategories";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
