@@ -705,6 +705,7 @@ const Quotes = () => {
         paid_date: isFuture ? null : payRegForm.date,
         status: isFuture ? ("pendente" as any) : ("pago" as any),
         category: `Faturamento - ${payRegForm.method}`,
+        payment_method: payRegForm.method || null,
         work_order_id: wo?.id || null,
         client_id: quote.client_id,
       });
