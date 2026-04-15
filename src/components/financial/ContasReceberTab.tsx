@@ -443,10 +443,10 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Cliente</Label>
-                <Select value={editForm.client_id} onValueChange={v => setEditForm({ ...editForm, client_id: v })}>
+                <Select value={editForm.client_id || "__none__"} onValueChange={v => setEditForm({ ...editForm, client_id: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -460,10 +460,10 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Categoria</Label>
-                <Select value={editForm.category} onValueChange={v => setEditForm({ ...editForm, category: v })}>
+                <Select value={editForm.category || "__none__"} onValueChange={v => setEditForm({ ...editForm, category: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
                     {receberCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -481,10 +481,10 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Conta</Label>
-                <Select value={editForm.account_id} onValueChange={v => setEditForm({ ...editForm, account_id: v })}>
+                <Select value={editForm.account_id || "__none__"} onValueChange={v => setEditForm({ ...editForm, account_id: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
                     {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                   </SelectContent>
                 </Select>

@@ -705,6 +705,7 @@ const Quotes = () => {
         paid_date: isFuture ? null : payRegForm.date,
         status: isFuture ? ("pendente" as any) : ("pago" as any),
         category: `Faturamento - ${payRegForm.method}`,
+        payment_method: payRegForm.method || null,
         work_order_id: wo?.id || null,
         client_id: quote.client_id,
       });
@@ -752,7 +753,16 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["quotes-work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-list"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-all"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setPayRegDialog(null);
       toast({ title: "Pagamento registrado!" });
     },

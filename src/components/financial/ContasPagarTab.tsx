@@ -344,9 +344,12 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Categoria</Label>
-                <Select value={editForm.category} onValueChange={v => setEditForm({ ...editForm, category: v })}>
+                <Select value={editForm.category || "__none__"} onValueChange={v => setEditForm({ ...editForm, category: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
+                    {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
               <div><Label>Forma de Pagamento</Label>
@@ -368,10 +371,10 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
                 </Select>
               </div>
               <div><Label>Conta</Label>
-                <Select value={editForm.account_id} onValueChange={v => setEditForm({ ...editForm, account_id: v })}>
+                <Select value={editForm.account_id || "__none__"} onValueChange={v => setEditForm({ ...editForm, account_id: v === "__none__" ? "" : v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma</SelectItem>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
                     {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
