@@ -456,11 +456,17 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-list"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-all"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setEditOpen(false);
       setEditQuote(null);
       const desc = syncMessages && syncMessages.length > 0
@@ -634,17 +640,26 @@ const Quotes = () => {
       }
 
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["quotes-financial-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["quotes-work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
       queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
       queryClient.invalidateQueries({ queryKey: ["account-movements-list"] });
       queryClient.invalidateQueries({ queryKey: ["account-movements-all"] });
       queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["production"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
       queryClient.invalidateQueries({ queryKey: ["marketing-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast({ title: "Orçamento aprovado!", description: "OS, pagamento e lançamentos financeiros criados." });
     } catch (e: any) {
       toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" });
@@ -673,15 +688,55 @@ const Quotes = () => {
 
   const deleteQuoteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Cascade: delete related work orders, financial transactions, sales, commissions
+      const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", id);
+      const woIds = (wo ?? []).map((w: any) => w.id);
+      
+      if (woIds.length > 0) {
+        // Delete financial transactions linked to work orders
+        for (const woId of woIds) {
+          await supabase.from("financial_transactions").delete().eq("work_order_id", woId);
+          await supabase.from("account_movements").delete().eq("work_order_id", woId);
+        }
+        // Delete sales and commissions
+        const { data: sales } = await supabase.from("sales").select("id").in("work_order_id", woIds);
+        if (sales && sales.length > 0) {
+          const saleIds = sales.map((s: any) => s.id);
+          await supabase.from("sales_commissions").delete().in("sale_id", saleIds);
+          await supabase.from("sales").delete().in("id", saleIds);
+        }
+        // Delete production, work order items, work order materials, purchase requests
+        for (const woId of woIds) {
+          await supabase.from("production").delete().eq("os_id", woId);
+          await supabase.from("work_order_items").delete().eq("work_order_id", woId);
+          await supabase.from("work_order_materials").delete().eq("work_order_id", woId);
+          await supabase.from("purchase_requests").delete().eq("work_order_id", woId);
+        }
+        // Delete work orders
+        await supabase.from("work_orders").delete().in("id", woIds);
+      }
+      // Delete quote items
+      await supabase.from("quote_items").delete().eq("quote_id", id);
+      // Delete quote
       const { error } = await supabase.from("quotes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["production"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setDeleteTarget(null);
-      toast({ title: "Orçamento removido!" });
+      toast({ title: "Orçamento e registros vinculados removidos!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });

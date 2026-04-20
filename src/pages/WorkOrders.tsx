@@ -88,13 +88,35 @@ const WorkOrders = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Cascade: delete related records
+      await supabase.from("financial_transactions").delete().eq("work_order_id", id);
+      await supabase.from("account_movements").delete().eq("work_order_id", id);
+      const { data: sales } = await supabase.from("sales").select("id").eq("work_order_id", id);
+      if (sales && sales.length > 0) {
+        const saleIds = sales.map((s: any) => s.id);
+        await supabase.from("sales_commissions").delete().in("sale_id", saleIds);
+        await supabase.from("sales").delete().in("id", saleIds);
+      }
+      await supabase.from("production").delete().eq("os_id", id);
+      await supabase.from("work_order_items").delete().eq("work_order_id", id);
+      await supabase.from("work_order_materials").delete().eq("work_order_id", id);
+      await supabase.from("purchase_requests").delete().eq("work_order_id", id);
       const { error } = await supabase.from("work_orders").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["production"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setDeleteTarget(null);
-      toast({ title: "OS removida!" });
+      toast({ title: "OS e registros vinculados removidos!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });

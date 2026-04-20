@@ -343,12 +343,20 @@ const Purchases = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async ({ type, id }: { type: string; id: string }) => {
+      // If deleting a purchase, also cascade to financial transactions
+      if (type === "purchases") {
+        await supabase.from("financial_transactions").delete().eq("purchase_id", id);
+      }
       const { error } = await supabase.from(type as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       setDeleteTarget(null);
       toast({ title: "Removido com sucesso!" });
     },
@@ -366,6 +374,9 @@ const Purchases = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       toast({ title: "Pagamento registrado!" });
     },
   });
