@@ -456,11 +456,17 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-list"] });
+      queryClient.invalidateQueries({ queryKey: ["account-movements-all"] });
       queryClient.invalidateQueries({ queryKey: ["billing-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["billing-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setEditOpen(false);
       setEditQuote(null);
       const desc = syncMessages && syncMessages.length > 0
