@@ -688,6 +688,36 @@ const Quotes = () => {
 
   const deleteQuoteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Cascade: delete related work orders, financial transactions, sales, commissions
+      const { data: wo } = await supabase.from("work_orders").select("id").eq("quote_id", id);
+      const woIds = (wo ?? []).map((w: any) => w.id);
+      
+      if (woIds.length > 0) {
+        // Delete financial transactions linked to work orders
+        for (const woId of woIds) {
+          await supabase.from("financial_transactions").delete().eq("work_order_id", woId);
+          await supabase.from("account_movements").delete().eq("work_order_id", woId);
+        }
+        // Delete sales and commissions
+        const { data: sales } = await supabase.from("sales").select("id").in("work_order_id", woIds);
+        if (sales && sales.length > 0) {
+          const saleIds = sales.map((s: any) => s.id);
+          await supabase.from("sales_commissions").delete().in("sale_id", saleIds);
+          await supabase.from("sales").delete().in("id", saleIds);
+        }
+        // Delete production, work order items, work order materials, purchase requests
+        for (const woId of woIds) {
+          await supabase.from("production").delete().eq("os_id", woId);
+          await supabase.from("work_order_items").delete().eq("work_order_id", woId);
+          await supabase.from("work_order_materials").delete().eq("work_order_id", woId);
+          await supabase.from("purchase_requests").delete().eq("work_order_id", woId);
+        }
+        // Delete work orders
+        await supabase.from("work_orders").delete().in("id", woIds);
+      }
+      // Delete quote items
+      await supabase.from("quote_items").delete().eq("quote_id", id);
+      // Delete quote
       const { error } = await supabase.from("quotes").delete().eq("id", id);
       if (error) throw error;
     },
