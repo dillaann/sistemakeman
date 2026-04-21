@@ -110,9 +110,6 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (form.status === "pago" && !form.account_id) {
-        throw new Error("Selecione a conta bancária para registrar o pagamento.");
-      }
       const payload = {
         type: "a_pagar" as const,
         description: form.description,
@@ -211,7 +208,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Conta {form.status === "pago" ? "*" : ""}</Label>
+                <div><Label>Conta</Label>
                   <Select value={form.account_id} onValueChange={v => setForm({ ...form, account_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
                     <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>

@@ -147,9 +147,6 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         toast({ title: "Aviso", description: "Data futura detectada. Status alterado para 'Pendente'." });
       }
 
-      if (finalStatus === "pago" && !form.account_id) {
-        throw new Error("Selecione a conta bancária para registrar o recebimento.");
-      }
 
       const payload = {
         type: "a_receber" as const,
@@ -250,7 +247,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Conta {form.status === "recebido" ? "*" : ""}</Label>
+                <div><Label>Conta</Label>
                   <Select value={form.account_id} onValueChange={v => setForm({ ...form, account_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
                     <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
