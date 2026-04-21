@@ -63,13 +63,17 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
-  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix" });
+  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
 
-  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix" });
+  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-lookup"],
     queryFn: async () => { const { data } = await supabase.from("clients").select("id, name"); return data ?? []; },
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["financial-accounts-active"],
+    queryFn: async () => { const { data } = await supabase.from("financial_accounts").select("id, name").eq("active", true).order("name"); return data ?? []; },
   });
   const { data: quotes = [] } = useQuery({
     queryKey: ["quotes-lookup"],
@@ -143,6 +147,10 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         toast({ title: "Aviso", description: "Data futura detectada. Status alterado para 'Pendente'." });
       }
 
+      if (finalStatus === "pago" && !form.account_id) {
+        throw new Error("Selecione a conta bancária para registrar o recebimento.");
+      }
+
       const payload = {
         type: "a_receber" as const,
         description: form.description,
@@ -152,6 +160,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         status: finalStatus as any,
         paid_date: paidDate,
         payment_method: form.payment_method || null,
+        account_id: form.account_id || null,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
@@ -183,7 +192,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "", payment_method: t.payment_method ?? "pix" });
+    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "", payment_method: t.payment_method ?? "pix", account_id: t.account_id ?? "" });
     setOpen(true);
   };
 
@@ -239,6 +248,12 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                       <SelectItem value="recebido">Recebido</SelectItem>
                       <SelectItem value="cancelado">Cancelado</SelectItem>
                     </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Conta {form.status === "recebido" ? "*" : ""}</Label>
+                  <Select value={form.account_id} onValueChange={v => setForm({ ...form, account_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
+                    <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
