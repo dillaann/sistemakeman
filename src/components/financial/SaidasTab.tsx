@@ -61,9 +61,14 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
-  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "", payment_method: "pix" });
+  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
 
-  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "", payment_method: "pix" });
+  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Material", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["financial-accounts-active"],
+    queryFn: async () => { const { data } = await supabase.from("financial_accounts").select("id, name").eq("active", true).order("name"); return data ?? []; },
+  });
 
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-saidas"],
@@ -105,6 +110,9 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (form.status === "pago" && !form.account_id) {
+        throw new Error("Selecione a conta bancária para registrar o pagamento.");
+      }
       const payload = {
         type: "a_pagar" as const,
         description: form.description,
@@ -114,6 +122,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         status: form.status as any,
         paid_date: form.status === "pago" ? form.due_date : null,
         payment_method: form.payment_method || null,
+        account_id: form.account_id || null,
       };
       if (editId) {
         const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId);
@@ -144,7 +153,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status, notes: "", payment_method: t.payment_method ?? "pix" });
+    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status, notes: "", payment_method: t.payment_method ?? "pix", account_id: t.account_id ?? "" });
     setOpen(true);
   };
 
@@ -200,6 +209,12 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                       <SelectItem value="pago">Pago</SelectItem>
                       <SelectItem value="cancelado">Cancelado</SelectItem>
                     </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Conta {form.status === "pago" ? "*" : ""}</Label>
+                  <Select value={form.account_id} onValueChange={v => setForm({ ...form, account_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
+                    <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
