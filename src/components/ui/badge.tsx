@@ -16,7 +16,7 @@ const badgeVariants = cva(
         warning: "border-transparent bg-warning/15 text-warning [&>.dot]:bg-warning",
         gold: "border-transparent bg-gold/15 text-gold [&>.dot]:bg-gold",
         solid: "border-transparent bg-primary text-primary-foreground [&>.dot]:bg-primary-foreground",
-        info: "border-transparent bg-sky-500/15 text-sky-500 [&>.dot]:bg-sky-500",
+        info: "border-transparent bg-info/15 text-info [&>.dot]:bg-info",
       },
     },
     defaultVariants: {
