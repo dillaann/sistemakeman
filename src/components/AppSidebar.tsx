@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import logoKeman from "@/assets/logo-keman-brand.png";
 
 type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras" | "marketing";
 
@@ -97,19 +98,13 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarContent className="gradient-sidebar">
-        {/* Brand: stylized K + KEMAN wordmark */}
-        <div className={`flex items-center gap-3 px-5 py-6 border-b border-sidebar-border ${collapsed ? "px-3 py-4 justify-center" : ""}`}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md gradient-primary shadow-brass">
-            <span className="text-base font-extrabold text-primary-foreground tracking-tighter">K</span>
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <h1 className="text-base font-extrabold tracking-tight text-sidebar-foreground leading-none">
-                <span className="text-foreground">KEMAN</span>
-              </h1>
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary mt-1.5">Steelwork OS</p>
-            </div>
-          )}
+        {/* Brand: KEMAN logo */}
+        <div className={`flex items-center justify-center px-4 py-5 border-b border-sidebar-border ${collapsed ? "px-2 py-3" : ""}`}>
+          <img
+            src={logoKeman}
+            alt="KEMAN Steelwork OS"
+            className={`object-contain transition-all dark:invert-0 invert ${collapsed ? "h-10 w-10" : "h-16 w-auto"}`}
+          />
         </div>
 
         {menuGroups.map((group, groupIdx) => {
