@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import logoWhite from "@/assets/logo-keman-white.png";
+import logoBlack from "@/assets/logo-keman-black.png";
 
 type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras" | "marketing";
 
