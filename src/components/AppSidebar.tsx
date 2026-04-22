@@ -102,8 +102,8 @@ export function AppSidebar() {
         <div className={`flex items-center justify-center px-4 py-5 border-b border-sidebar-border ${collapsed ? "px-2 py-3" : ""}`}>
           <img
             src={logoKeman}
-            alt="KEMAN Steelwork OS"
-            className={`object-contain transition-all dark:invert-0 invert ${collapsed ? "h-10 w-10" : "h-16 w-auto"}`}
+            alt="Serralheria KEMAN"
+            className={`object-contain transition-all dark:invert-0 invert ${collapsed ? "h-10 w-10" : "h-20 w-auto"}`}
           />
         </div>
 
