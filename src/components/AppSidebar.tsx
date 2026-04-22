@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import logoWhite from "@/assets/logo-keman-white.png";
+import logoBlack from "@/assets/logo-keman-black.png";
 
 type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras" | "marketing";
 
@@ -98,17 +100,17 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarContent className="gradient-sidebar">
         {/* Brand */}
-        <div className={`flex items-center gap-3 px-4 py-5 border-b border-sidebar-border ${collapsed ? "justify-center px-2" : ""}`}>
-          <div className="relative shrink-0">
+        <div className={`flex items-center justify-center px-4 py-5 border-b border-sidebar-border ${collapsed ? "px-2 py-3" : ""}`}>
+          {collapsed ? (
             <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-primary shadow-glow">
               <Wrench className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
             </div>
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col leading-tight min-w-0">
-              <span className="font-display font-bold text-sm text-sidebar-accent-foreground tracking-tight">SERRALHERIA</span>
-              <span className="font-display font-extrabold text-base text-gradient-gold -mt-0.5">KEMAN</span>
-            </div>
+          ) : (
+            <img
+              src={theme === "dark" ? logoWhite : logoBlack}
+              alt="Serralheria Keman"
+              className="h-16 w-auto object-contain"
+            />
           )}
         </div>
 
