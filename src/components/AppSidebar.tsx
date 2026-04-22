@@ -11,12 +11,10 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Wrench, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone, Calculator,
+  Factory, UserCog, LogOut, Moon, Sun, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone, Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import logoWhite from "@/assets/logo-keman-white.png";
-import logoBlack from "@/assets/logo-keman-black.png";
 
 type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras" | "marketing";
 
@@ -99,29 +97,29 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarContent className="gradient-sidebar">
-        {/* Brand */}
-        <div className={`flex items-center justify-center px-4 py-5 border-b border-sidebar-border ${collapsed ? "px-2 py-3" : ""}`}>
-          {collapsed ? (
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-primary shadow-glow">
-              <Wrench className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
+        {/* Brand: stylized K + KEMAN wordmark */}
+        <div className={`flex items-center gap-3 px-5 py-6 border-b border-sidebar-border ${collapsed ? "px-3 py-4 justify-center" : ""}`}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md gradient-primary shadow-brass">
+            <span className="text-base font-extrabold text-primary-foreground tracking-tighter">K</span>
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <h1 className="text-base font-extrabold tracking-tight text-sidebar-foreground leading-none">
+                <span className="text-foreground">KEMAN</span>
+              </h1>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary mt-1.5">Steelwork OS</p>
             </div>
-          ) : (
-            <img
-              src={theme === "dark" ? logoWhite : logoBlack}
-              alt="Serralheria Keman"
-              className="h-16 w-auto object-contain"
-            />
           )}
         </div>
 
-        {menuGroups.map((group) => {
+        {menuGroups.map((group, groupIdx) => {
           const visibleItems = group.items.filter((item) => userRole && item.roles.includes(userRole));
           if (visibleItems.length === 0) return null;
 
           return (
-            <SidebarGroup key={group.label} className="px-2 py-1">
+            <SidebarGroup key={group.label} className="px-3 py-2">
               {!collapsed && (
-                <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/50 px-3 mb-1">
+                <SidebarGroupLabel className="text-[9px] uppercase tracking-[0.2em] font-bold text-sidebar-foreground/40 px-3 mb-2 mt-1">
                   {group.label}
                 </SidebarGroupLabel>
               )}
@@ -135,14 +133,17 @@ export function AppSidebar() {
                           <NavLink
                             to={item.url}
                             end={item.url === "/"}
-                            className="relative flex items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
-                            activeClassName="!bg-sidebar-accent !text-sidebar-accent-foreground"
+                            className="relative flex items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-foreground hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent hover:text-foreground transition-all duration-200"
+                            activeClassName="!bg-gradient-to-r !from-primary/15 !to-transparent !text-foreground"
                             onClick={closeSidebar}
                           >
                             {isActive && (
-                              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary shadow-glow" />
+                              <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]" />
                             )}
-                            <item.icon className={`h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? "text-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground"}`} strokeWidth={2} />
+                            <item.icon
+                              className={`h-[18px] w-[18px] shrink-0 transition-colors ${isActive ? "text-primary" : "text-sidebar-foreground/60 group-hover:text-primary"}`}
+                              strokeWidth={2}
+                            />
                             {!collapsed && <span className="truncate">{item.title}</span>}
                             {item.url === "/usuarios" && pendingCount > 0 && !collapsed && (
                               <Badge variant="destructive" className="ml-auto h-5 min-w-5 text-[10px] px-1.5 font-bold">{pendingCount}</Badge>
@@ -159,20 +160,20 @@ export function AppSidebar() {
         })}
       </SidebarContent>
 
-      <SidebarFooter className="gradient-sidebar border-t border-sidebar-border p-2 space-y-1">
+      <SidebarFooter className="gradient-sidebar border-t border-sidebar-border p-3 space-y-1">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-9 rounded-lg"
+          className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground h-9 rounded-md"
           onClick={toggleTheme}
         >
           {theme === "dark" ? <Sun className="h-4 w-4 mr-2.5" /> : <Moon className="h-4 w-4 mr-2.5" />}
-          {!collapsed && <span className="text-sm">{theme === "dark" ? "Modo Claro" : "Modo Escuro"}</span>}
+          {!collapsed && <span className="text-sm font-medium">{theme === "dark" ? "Modo Claro" : "Modo Escuro"}</span>}
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive h-9 rounded-lg"
+          className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive h-9 rounded-md"
           onClick={signOut}
         >
           <LogOut className="h-4 w-4 mr-2.5" />
