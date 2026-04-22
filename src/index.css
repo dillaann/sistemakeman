@@ -41,20 +41,20 @@
     --ring: 217 91% 55%;
     --radius: 0.75rem;
 
-    /* Sidebar - sophisticated dark */
-    --sidebar-background: 222 47% 9%;
-    --sidebar-foreground: 220 14% 75%;
+    /* Sidebar - light & clean in light mode */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 25% 30%;
     --sidebar-primary: 217 91% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 40% 14%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 40% 16%;
+    --sidebar-accent: 217 91% 96%;
+    --sidebar-accent-foreground: 217 91% 35%;
+    --sidebar-border: 220 13% 90%;
     --sidebar-ring: 217 91% 55%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 55%), hsl(217 91% 65%));
     --gradient-gold: linear-gradient(135deg, hsl(43 89% 55%), hsl(38 92% 60%));
-    --gradient-sidebar: linear-gradient(180deg, hsl(222 47% 9%), hsl(222 47% 7%));
+    --gradient-sidebar: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 20% 98%));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 20% 98%));
 
     /* Shadows */
