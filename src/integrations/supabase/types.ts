@@ -1055,6 +1055,7 @@ export type Database = {
           quantity: number
           quote_id: string
           total: number
+          unit: string
           unit_price: number
         }
         Insert: {
@@ -1064,6 +1065,7 @@ export type Database = {
           quantity?: number
           quote_id: string
           total?: number
+          unit?: string
           unit_price?: number
         }
         Update: {
@@ -1073,6 +1075,7 @@ export type Database = {
           quantity?: number
           quote_id?: string
           total?: number
+          unit?: string
           unit_price?: number
         }
         Relationships: [
@@ -1491,6 +1494,7 @@ export type Database = {
           quantity: number
           quote_item_id: string | null
           total: number
+          unit: string
           unit_price: number
           work_order_id: string
         }
@@ -1501,6 +1505,7 @@ export type Database = {
           quantity?: number
           quote_item_id?: string | null
           total?: number
+          unit?: string
           unit_price?: number
           work_order_id: string
         }
@@ -1511,6 +1516,7 @@ export type Database = {
           quantity?: number
           quote_item_id?: string | null
           total?: number
+          unit?: string
           unit_price?: number
           work_order_id?: string
         }
