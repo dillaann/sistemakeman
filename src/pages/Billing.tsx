@@ -201,18 +201,29 @@ const Billing = () => {
         payment_status: newStatus,
       } as any).eq("id", q.id);
 
-      // If fully paid, mark pending financial transactions as paid
-      if (totalPaidNow >= quoteTotal && q.woId) {
+      // Reduce or remove pending Saldo placeholder transactions to keep Financeiro clean
+      if (q.woId) {
         const { data: pendingTxns } = await supabase.from("financial_transactions")
-          .select("id")
+          .select("id, amount, description")
           .eq("work_order_id", q.woId)
           .eq("status", "pendente")
-          .eq("type", "a_receber");
+          .eq("type", "a_receber")
+          .order("created_at", { ascending: true });
+        let remainingToApply = amount;
         for (const txn of pendingTxns ?? []) {
-          await supabase.from("financial_transactions").update({
-            status: "pago" as any,
-            paid_date: payForm.date,
-          }).eq("id", txn.id);
+          if (remainingToApply <= 0) break;
+          const txnAmount = Number(txn.amount);
+          if (txnAmount <= remainingToApply + 0.009) {
+            // Fully covered — delete the placeholder so it doesn't double-count
+            await supabase.from("financial_transactions").delete().eq("id", txn.id);
+            remainingToApply -= txnAmount;
+          } else {
+            // Partial — reduce remaining pending amount
+            await supabase.from("financial_transactions").update({
+              amount: txnAmount - remainingToApply,
+            }).eq("id", txn.id);
+            remainingToApply = 0;
+          }
         }
       }
     },
