@@ -189,7 +189,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
   const filtered = useMemo(() => {
     let list = [...grouped];
     if (dateRange && !showAllPending) {
-      list = list.filter(g => isInRange(g.dueDate, dateRange));
+      list = list.filter(g => isInRange(g.referenceDate, dateRange));
     }
     if (showAllPending) {
       list = list.filter(g => g.status !== "recebido_total");
@@ -206,7 +206,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
     }
     list.sort((a, b) => {
       if (sortField === "remaining") return sortAsc ? a.remaining - b.remaining : b.remaining - a.remaining;
-      return sortAsc ? a.dueDate.localeCompare(b.dueDate) : b.dueDate.localeCompare(a.dueDate);
+      return sortAsc ? a.referenceDate.localeCompare(b.referenceDate) : b.referenceDate.localeCompare(a.referenceDate);
     });
     return list;
   }, [grouped, statusFilter, search, sortField, sortAsc, clients, dateRange, showAllPending]);
