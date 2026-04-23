@@ -46,6 +46,8 @@ interface GroupedReceivable {
   remaining: number;
   percentReceived: number;
   dueDate: string;
+  lastPaidDate: string | null;
+  referenceDate: string;
   status: "recebido_total" | "vencido" | "a_receber";
   pendingTransactionIds: string[];
   firstTransactionId: string;
