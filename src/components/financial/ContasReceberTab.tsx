@@ -400,8 +400,11 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
               const clientName = g.clientId ? (clients.find(c => c.id === g.clientId)?.name ?? "—") : "—";
 
               return (
-                <TableRow key={g.workOrderId || `no-wo-${idx}`} className={`${rowClass} ${g.status === "recebido_total" ? "opacity-60" : ""}`}>
-                  <TableCell>{formatDateBR(g.dueDate)}</TableCell>
+                <TableRow key={g.workOrderId || `no-wo-${idx}`} className={`${rowClass} ${g.status === "recebido_total" ? "opacity-70" : ""}`}>
+                  <TableCell className={g.status === "recebido_total" ? "text-green-700 font-medium" : ""}>
+                    {formatDateBR(g.referenceDate)}
+                    {g.status === "recebido_total" && <div className="text-[10px] text-muted-foreground">pago</div>}
+                  </TableCell>
                   <TableCell className="font-medium max-w-[250px] truncate">{g.description}</TableCell>
                   <TableCell>{clientName}</TableCell>
                   <TableCell className="text-muted-foreground">{fmt(g.totalValue)}</TableCell>
