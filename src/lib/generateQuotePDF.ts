@@ -5,8 +5,19 @@ interface QuoteItem {
   description: string;
   quantity: number;
   unit_price: number;
+  unit?: string;
   total: number;
 }
+
+const UNIT_LABELS: Record<string, string> = {
+  un: "un",
+  m2: "m²",
+  m: "m",
+  kg: "kg",
+};
+
+const fmtQty = (n: number) =>
+  Number.isInteger(n) ? String(n) : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
 
 interface QuoteClient {
   name: string;
@@ -192,7 +203,8 @@ export async function generateQuotePDF(data: QuotePDFData) {
 
   // Table
   const tableData = data.items.map((item) => [
-    String(item.quantity),
+    fmtQty(item.quantity),
+    UNIT_LABELS[item.unit ?? "un"] ?? (item.unit ?? "un"),
     item.description,
     `R$ ${item.unit_price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
     `R$ ${item.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
@@ -201,7 +213,7 @@ export async function generateQuotePDF(data: QuotePDFData) {
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [["QTD", "DESCRIÇAO", "VALOR UNIT.", "TOTAL"]],
+    head: [["QTD", "UNID.", "DESCRIÇAO", "VALOR UNIT.", "TOTAL"]],
     body: tableData,
     theme: "grid",
     styles: {
@@ -218,10 +230,11 @@ export async function generateQuotePDF(data: QuotePDFData) {
       halign: "left",
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: 22 },
-      1: { cellWidth: "auto" },
-      2: { halign: "right", cellWidth: 30 },
+      0: { halign: "center", cellWidth: 18 },
+      1: { halign: "center", cellWidth: 14 },
+      2: { cellWidth: "auto" },
       3: { halign: "right", cellWidth: 30 },
+      4: { halign: "right", cellWidth: 30 },
     },
     alternateRowStyles: { fillColor: [250, 250, 250] },
   });
