@@ -42,7 +42,14 @@ const paymentStatusLabels: Record<string, string> = {
   concluido_pago: "Concluído e Pago",
 };
 
-interface ItemRow { description: string; quantity: string; unit_price: string; }
+interface ItemRow { description: string; quantity: string; unit_price: string; unit: string; }
+
+const UNIT_OPTIONS = [
+  { value: "un", label: "un" },
+  { value: "m2", label: "m²" },
+  { value: "m", label: "m" },
+  { value: "kg", label: "kg" },
+];
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -57,7 +64,7 @@ const Quotes = () => {
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
-  const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "" }]);
+  const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
 
   // Edit state
   const [editOpen, setEditOpen] = useState(false);
@@ -88,7 +95,7 @@ const Quotes = () => {
   const [payRegDialog, setPayRegDialog] = useState<any>(null);
   const [payRegForm, setPayRegForm] = useState({ amount: "", method: "pix", date: localDateString() });
 
-  const addItem = () => setItems([...items, { description: "", quantity: "1", unit_price: "" }]);
+  const addItem = () => setItems([...items, { description: "", quantity: "1", unit_price: "", unit: "un" }]);
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
   const updateItem = (i: number, field: keyof ItemRow, value: string) => {
     const updated = [...items];
@@ -96,7 +103,7 @@ const Quotes = () => {
     setItems(updated);
   };
 
-  const addEditItem = () => setEditItems([...editItems, { description: "", quantity: "1", unit_price: "" }]);
+  const addEditItem = () => setEditItems([...editItems, { description: "", quantity: "1", unit_price: "", unit: "un" }]);
   const removeEditItem = (i: number) => setEditItems(editItems.filter((_, idx) => idx !== i));
   const updateEditItem = (i: number, field: keyof ItemRow, value: string) => {
     const updated = [...editItems];
@@ -253,8 +260,9 @@ const Quotes = () => {
         description: it.description,
         quantity: parseFloat(it.quantity) || 1,
         unit_price: parseFloat(it.unit_price) || 0,
+        unit: it.unit || "un",
         total: calcItemTotal(it),
-      }));
+      } as any));
       const { error: itemsError } = await supabase.from("quote_items").insert(itemsToInsert);
       if (itemsError) throw itemsError;
     },
@@ -262,7 +270,7 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
       setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
-      setItems([{ description: "", quantity: "1", unit_price: "" }]);
+      setItems([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
       toast({ title: "Orçamento criado!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -291,8 +299,8 @@ const Quotes = () => {
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
       quoteItems.length > 0
-        ? quoteItems.map((it: any) => ({ description: it.description, quantity: String(it.quantity), unit_price: String(it.unit_price) }))
-        : [{ description: "", quantity: "1", unit_price: "" }]
+        ? quoteItems.map((it: any) => ({ description: it.description, quantity: String(it.quantity), unit_price: String(it.unit_price), unit: it.unit || "un" }))
+        : [{ description: "", quantity: "1", unit_price: "", unit: "un" }]
     );
     setEditOpen(true);
   };
@@ -359,8 +367,9 @@ const Quotes = () => {
         description: it.description,
         quantity: parseFloat(it.quantity) || 1,
         unit_price: parseFloat(it.unit_price) || 0,
+        unit: it.unit || "un",
         total: calcItemTotal(it),
-      }));
+      } as any));
       const { error: itemsError } = await supabase.from("quote_items").insert(itemsToInsert);
       if (itemsError) throw itemsError;
 
@@ -563,6 +572,7 @@ const Quotes = () => {
             description: qi.description,
             quantity: qi.quantity,
             unit_price: qi.unit_price,
+            unit: qi.unit || "un",
             total: qi.total,
           }))
         );
@@ -878,8 +888,8 @@ const Quotes = () => {
     const validUntilStr = quote.valid_until ? formatDateBR(quote.valid_until) : null;
 
     const pdfItems = quoteItems.length > 0
-      ? quoteItems.map((it: any) => ({ description: it.description, quantity: Number(it.quantity), unit_price: Number(it.unit_price), total: Number(it.total) }))
-      : [{ description: quote.description ?? "Serviço", quantity: 1, unit_price: Number(quote.total), total: Number(quote.total) }];
+      ? quoteItems.map((it: any) => ({ description: it.description, quantity: Number(it.quantity), unit_price: Number(it.unit_price), unit: it.unit || "un", total: Number(it.total) }))
+      : [{ description: quote.description ?? "Serviço", quantity: 1, unit_price: Number(quote.total), unit: "un", total: Number(quote.total) }];
 
     await generateQuotePDF({
       date: dateStr,
@@ -958,13 +968,22 @@ const Quotes = () => {
                 </div>
                 {items.map((item, i) => (
                   <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-5">
+                    <div className="col-span-4">
                       {i === 0 && <Label className="text-xs">Descrição</Label>}
                       <Input placeholder="Descrição do item" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} />
                     </div>
                     <div className="col-span-2">
                       {i === 0 && <Label className="text-xs">Qtd</Label>}
-                      <Input type="number" min="1" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
+                      <Input type="number" step="any" min="0" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
+                    </div>
+                    <div className="col-span-1">
+                      {i === 0 && <Label className="text-xs">Unid.</Label>}
+                      <Select value={item.unit} onValueChange={(v) => updateItem(i, "unit", v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {UNIT_OPTIONS.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="col-span-2">
                       {i === 0 && <Label className="text-xs">Preço Un.</Label>}
@@ -1176,13 +1195,22 @@ const Quotes = () => {
               </div>
               {editItems.map((item, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-5">
+                  <div className="col-span-4">
                     {i === 0 && <Label className="text-xs">Descrição</Label>}
                     <Input placeholder="Descrição do item" value={item.description} onChange={e => updateEditItem(i, "description", e.target.value)} />
                   </div>
                   <div className="col-span-2">
                     {i === 0 && <Label className="text-xs">Qtd</Label>}
-                    <Input type="number" min="1" value={item.quantity} onChange={e => updateEditItem(i, "quantity", e.target.value)} />
+                    <Input type="number" step="any" min="0" value={item.quantity} onChange={e => updateEditItem(i, "quantity", e.target.value)} />
+                  </div>
+                  <div className="col-span-1">
+                    {i === 0 && <Label className="text-xs">Unid.</Label>}
+                    <Select value={item.unit} onValueChange={(v) => updateEditItem(i, "unit", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {UNIT_OPTIONS.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="col-span-2">
                     {i === 0 && <Label className="text-xs">Preço Un.</Label>}
