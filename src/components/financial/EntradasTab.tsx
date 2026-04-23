@@ -130,6 +130,23 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
+  // Agrupa TODAS as transações pagas por work_order_id (independente do filtro de período)
+  // para calcular o total do serviço e quantidade de parcelas vinculadas.
+  const serviceGroups = useMemo(() => {
+    const groups = new Map<string, { total: number; count: number; clientName: string }>();
+    transactions.forEach(t => {
+      if (!t.work_order_id || t.status !== "pago") return;
+      const existing = groups.get(t.work_order_id) ?? { total: 0, count: 0, clientName: "" };
+      existing.total += Number(t.amount);
+      existing.count += 1;
+      if (!existing.clientName && t.client_id) {
+        existing.clientName = clients.find(c => c.id === t.client_id)?.name ?? "";
+      }
+      groups.set(t.work_order_id, existing);
+    });
+    return groups;
+  }, [transactions, clients]);
+
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
   const isFutureDate = (dateStr: string) => {
