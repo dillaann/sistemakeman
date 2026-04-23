@@ -46,6 +46,8 @@ interface GroupedReceivable {
   remaining: number;
   percentReceived: number;
   dueDate: string;
+  lastPaidDate: string | null;
+  referenceDate: string;
   status: "recebido_total" | "vencido" | "a_receber";
   pendingTransactionIds: string[];
   firstTransactionId: string;
@@ -135,6 +137,10 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       const remaining = totalValue - totalReceived;
       const percentReceived = totalValue > 0 ? (totalReceived / totalValue) * 100 : 0;
       const pendingTxns = txns.filter(t => t.status !== "pago" && t.status !== "cancelado");
+      const paidTxns = txns.filter(t => t.status === "pago" && t.paid_date);
+      const lastPaidDate = paidTxns.length > 0
+        ? paidTxns.map(t => t.paid_date as string).sort().slice(-1)[0]
+        : null;
       const latestDue = pendingTxns.length > 0
         ? pendingTxns.sort((a, b) => a.due_date.localeCompare(b.due_date))[0].due_date
         : txns[0].due_date;
@@ -145,10 +151,13 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       if (remaining <= 0) status = "recebido_total";
       else if (daysUntil(latestDue) < 0) status = "vencido";
 
+      const referenceDate = status === "recebido_total" && lastPaidDate ? lastPaidDate : latestDue;
+
       result.push({
         workOrderId: woId, clientId, description: descTxn.description,
         totalValue, totalReceived, remaining: Math.max(remaining, 0),
-        percentReceived: Math.min(percentReceived, 100), dueDate: latestDue, status,
+        percentReceived: Math.min(percentReceived, 100), dueDate: latestDue,
+        lastPaidDate, referenceDate, status,
         pendingTransactionIds: pendingTxns.map(t => t.id),
         firstTransactionId: (pendingTxns[0] || txns[0]).id,
       });
@@ -161,11 +170,14 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       if (t.status === "pago") status = "recebido_total";
       else if (daysUntil(t.due_date) < 0) status = "vencido";
 
+      const lastPaidDate = t.status === "pago" ? t.paid_date : null;
+      const referenceDate = status === "recebido_total" && lastPaidDate ? lastPaidDate : t.due_date;
+
       result.push({
         workOrderId: null, clientId: t.client_id, description: t.description,
         totalValue: Number(t.amount), totalReceived: received,
         remaining: Math.max(remaining, 0), percentReceived: received > 0 ? 100 : 0,
-        dueDate: t.due_date, status,
+        dueDate: t.due_date, lastPaidDate, referenceDate, status,
         pendingTransactionIds: t.status !== "pago" && t.status !== "cancelado" ? [t.id] : [],
         firstTransactionId: t.id,
       });
@@ -177,7 +189,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
   const filtered = useMemo(() => {
     let list = [...grouped];
     if (dateRange && !showAllPending) {
-      list = list.filter(g => isInRange(g.dueDate, dateRange));
+      list = list.filter(g => isInRange(g.referenceDate, dateRange));
     }
     if (showAllPending) {
       list = list.filter(g => g.status !== "recebido_total");
@@ -194,7 +206,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
     }
     list.sort((a, b) => {
       if (sortField === "remaining") return sortAsc ? a.remaining - b.remaining : b.remaining - a.remaining;
-      return sortAsc ? a.dueDate.localeCompare(b.dueDate) : b.dueDate.localeCompare(a.dueDate);
+      return sortAsc ? a.referenceDate.localeCompare(b.referenceDate) : b.referenceDate.localeCompare(a.referenceDate);
     });
     return list;
   }, [grouped, statusFilter, search, sortField, sortAsc, clients, dateRange, showAllPending]);
@@ -367,7 +379,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Vencimento <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Valor Total</TableHead>
@@ -388,8 +400,11 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
               const clientName = g.clientId ? (clients.find(c => c.id === g.clientId)?.name ?? "—") : "—";
 
               return (
-                <TableRow key={g.workOrderId || `no-wo-${idx}`} className={`${rowClass} ${g.status === "recebido_total" ? "opacity-60" : ""}`}>
-                  <TableCell>{formatDateBR(g.dueDate)}</TableCell>
+                <TableRow key={g.workOrderId || `no-wo-${idx}`} className={`${rowClass} ${g.status === "recebido_total" ? "opacity-70" : ""}`}>
+                  <TableCell className={g.status === "recebido_total" ? "text-green-700 font-medium" : ""}>
+                    {formatDateBR(g.referenceDate)}
+                    {g.status === "recebido_total" && <div className="text-[10px] text-muted-foreground">pago</div>}
+                  </TableCell>
                   <TableCell className="font-medium max-w-[250px] truncate">{g.description}</TableCell>
                   <TableCell>{clientName}</TableCell>
                   <TableCell className="text-muted-foreground">{fmt(g.totalValue)}</TableCell>
