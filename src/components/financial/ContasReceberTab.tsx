@@ -137,6 +137,10 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       const remaining = totalValue - totalReceived;
       const percentReceived = totalValue > 0 ? (totalReceived / totalValue) * 100 : 0;
       const pendingTxns = txns.filter(t => t.status !== "pago" && t.status !== "cancelado");
+      const paidTxns = txns.filter(t => t.status === "pago" && t.paid_date);
+      const lastPaidDate = paidTxns.length > 0
+        ? paidTxns.map(t => t.paid_date as string).sort().slice(-1)[0]
+        : null;
       const latestDue = pendingTxns.length > 0
         ? pendingTxns.sort((a, b) => a.due_date.localeCompare(b.due_date))[0].due_date
         : txns[0].due_date;
@@ -147,10 +151,13 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       if (remaining <= 0) status = "recebido_total";
       else if (daysUntil(latestDue) < 0) status = "vencido";
 
+      const referenceDate = status === "recebido_total" && lastPaidDate ? lastPaidDate : latestDue;
+
       result.push({
         workOrderId: woId, clientId, description: descTxn.description,
         totalValue, totalReceived, remaining: Math.max(remaining, 0),
-        percentReceived: Math.min(percentReceived, 100), dueDate: latestDue, status,
+        percentReceived: Math.min(percentReceived, 100), dueDate: latestDue,
+        lastPaidDate, referenceDate, status,
         pendingTransactionIds: pendingTxns.map(t => t.id),
         firstTransactionId: (pendingTxns[0] || txns[0]).id,
       });
@@ -163,11 +170,14 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       if (t.status === "pago") status = "recebido_total";
       else if (daysUntil(t.due_date) < 0) status = "vencido";
 
+      const lastPaidDate = t.status === "pago" ? t.paid_date : null;
+      const referenceDate = status === "recebido_total" && lastPaidDate ? lastPaidDate : t.due_date;
+
       result.push({
         workOrderId: null, clientId: t.client_id, description: t.description,
         totalValue: Number(t.amount), totalReceived: received,
         remaining: Math.max(remaining, 0), percentReceived: received > 0 ? 100 : 0,
-        dueDate: t.due_date, status,
+        dueDate: t.due_date, lastPaidDate, referenceDate, status,
         pendingTransactionIds: t.status !== "pago" && t.status !== "cancelado" ? [t.id] : [],
         firstTransactionId: t.id,
       });
