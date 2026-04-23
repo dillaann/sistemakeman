@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, ArrowUpDown, Link2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { isInRange } from "@/components/MonthFilter";
@@ -128,6 +129,23 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     });
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+
+  // Agrupa TODAS as transações pagas por work_order_id (independente do filtro de período)
+  // para calcular o total do serviço e quantidade de parcelas vinculadas.
+  const serviceGroups = useMemo(() => {
+    const groups = new Map<string, { total: number; count: number; clientName: string }>();
+    transactions.forEach(t => {
+      if (!t.work_order_id || t.status !== "pago") return;
+      const existing = groups.get(t.work_order_id) ?? { total: 0, count: 0, clientName: "" };
+      existing.total += Number(t.amount);
+      existing.count += 1;
+      if (!existing.clientName && t.client_id) {
+        existing.clientName = clients.find(c => c.id === t.client_id)?.name ?? "";
+      }
+      groups.set(t.work_order_id, existing);
+    });
+    return groups;
+  }, [transactions, clients]);
 
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
@@ -300,10 +318,38 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(t => (
+            {filtered.map(t => {
+              const group = t.work_order_id ? serviceGroups.get(t.work_order_id) : null;
+              const isLinked = !!group && group.count > 1;
+              return (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
-                <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
+                <TableCell className="font-medium max-w-[280px]">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate">{enrichDescription(t.description, t.client_id)}</span>
+                    {isLinked && (
+                      <TooltipProvider delayDuration={150}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="shrink-0 gap-1 cursor-help border-primary/40 text-primary">
+                              <Link2 className="h-3 w-3" />
+                              {group!.count}x
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="font-semibold">Serviço vinculado</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Total do serviço: <span className="font-semibold text-foreground">{fmt(group!.total)}</span>
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Recebido em {group!.count} parcela{group!.count > 1 ? "s" : ""}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
                 <TableCell>{paymentMethodLabel((t as any).payment_method)}</TableCell>
@@ -315,7 +361,8 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
             {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma entrada encontrada.</TableCell></TableRow>}
           </TableBody>
         </Table>
