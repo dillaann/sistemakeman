@@ -783,13 +783,9 @@ const Quotes = () => {
         // Reduce or remove the pending Saldo transaction
         if (saldoTx) {
           const newSaldoAmount = Number(saldoTx.amount) - amount;
-          if (newSaldoAmount <= 0) {
-            // Fully paid — mark as pago with zero or delete
-            await supabase.from("financial_transactions").update({
-              status: "pago" as any,
-              paid_date: payRegForm.date,
-              amount: 0,
-            }).eq("id", saldoTx.id);
+          if (newSaldoAmount <= 0.009) {
+            // Fully paid — delete the pending Saldo placeholder so it doesn't pollute Financeiro
+            await supabase.from("financial_transactions").delete().eq("id", saldoTx.id);
           } else {
             // Reduce the pending amount
             await supabase.from("financial_transactions").update({
