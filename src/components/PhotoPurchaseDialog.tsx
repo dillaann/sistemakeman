@@ -234,18 +234,23 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
     setSaving(true);
     try {
-      const finalTotal = parseFloat(form.final_total) || calcItemsTotal();
-      const originalTotal = parseFloat(form.original_total) || 0;
+      // itemsTotal = soma de (qty * unit_price extraído pela IA) — representa o total ORIGINAL (sem desconto da nota)
       const itemsTotal = calcItemsTotal();
+      // original_total da nota: se informado, usa; senão usa a soma dos itens
+      const originalTotalNota = parseFloat(form.original_total) || itemsTotal;
+      // final_total da nota: se informado, é o valor com desconto. Senão = itemsTotal (sem desconto)
+      const finalTotalNota = parseFloat(form.final_total) || itemsTotal;
+      // Fator de desconto global aplicado uniformemente (ratio entre final e original)
+      const discountFactor = originalTotalNota > 0 ? finalTotalNota / originalTotalNota : 1;
 
       const items = form.items.filter(i => i.material).map(item => {
         const qty = parseFloat(item.quantity) || 1;
-        const unitPrice = parseFloat(item.unit_price) || 0;
-        const itemTotal = qty * unitPrice;
-        const itemShare = itemsTotal > 0 ? itemTotal / itemsTotal : 1 / form.items.length;
-        const itemOriginalTotal = originalTotal > 0 ? originalTotal * itemShare : 0;
-        const itemFinalTotal = finalTotal > 0 ? finalTotal * itemShare : itemTotal;
-        const itemDiscount = itemOriginalTotal > 0 ? itemOriginalTotal - itemFinalTotal : 0;
+        const originalUnitPrice = parseFloat(item.unit_price) || 0; // preço de tabela extraído da foto
+        // Preço unitário FINAL após aplicar o desconto rateado da nota
+        const finalUnitPrice = originalUnitPrice * discountFactor;
+        const itemFinalTotal = qty * finalUnitPrice;
+        const itemOriginalTotal = qty * originalUnitPrice;
+        const itemDiscount = itemOriginalTotal - itemFinalTotal;
         const itemDiscountPct = itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0;
 
         return {
@@ -253,15 +258,17 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           material: item.material,
           quantity: qty,
           unit: item.unit,
-          unit_price: unitPrice,
-          original_price: itemOriginalTotal > 0 ? itemOriginalTotal / qty : null,
+          // unit_price salvo é o preço final (com desconto). Garante invariante total = qty * unit_price.
+          unit_price: finalUnitPrice,
+          // original_price guarda o preço de tabela (sem desconto) para mostrar a economia
+          original_price: discountFactor < 1 && originalUnitPrice > 0 ? originalUnitPrice : null,
           total: itemFinalTotal,
           purchase_date: form.purchase_date,
           invoice_number: form.invoice_number || null,
           payment_method: form.payment_method,
           payment_status: form.payment_status,
           due_date: form.due_date || null,
-          discount_percentage: itemDiscountPct,
+          discount_percentage: itemDiscountPct > 0 ? itemDiscountPct : 0,
           discount_amount: itemDiscount > 0 ? itemDiscount : 0,
           notes: form.notes || null,
           client_id: item.client_id || null,
