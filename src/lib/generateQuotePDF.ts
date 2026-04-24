@@ -37,6 +37,8 @@ interface QuotePDFData {
   valid_until?: string | null;
   delivery_deadline?: string | null;
   quote_number?: string | null;
+  created_by_name?: string | null;
+  seller_name?: string | null;
 }
 
 const DARK = [26, 32, 44] as const; // dark navy for banners
