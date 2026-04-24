@@ -168,7 +168,34 @@ export async function generateQuotePDF(data: QuotePDFData) {
   doc.text("Telefone:", labelX, y);
   doc.setFont("helvetica", "normal");
   doc.text("(48) 3259-3772", valueX, y);
-  y += 6;
+  y += 5;
+
+  // Elaborado por / Vendedor responsável
+  const elaborador = data.created_by_name ?? "Não identificado";
+  const sellerNm = data.seller_name ?? null;
+  const sameAsSeller = sellerNm && elaborador && sellerNm.trim().toLowerCase() === elaborador.trim().toLowerCase();
+
+  if (sameAsSeller) {
+    doc.setFont("helvetica", "bold");
+    doc.text("Elaborado/Vendedor:", labelX, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(elaborador, valueX + 12, y);
+    y += 5;
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.text("Elaborado por:", labelX, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(elaborador, valueX, y);
+    y += 5;
+    if (sellerNm) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Vendedor resp.:", labelX, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(sellerNm, valueX, y);
+      y += 5;
+    }
+  }
+  y += 1;
 
   // ===== DADOS DO CLIENTE =====
   drawDarkBanner(doc, margin, y, cw, 7, "DADOS DO CLIENTE");
