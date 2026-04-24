@@ -1056,6 +1056,9 @@ const Quotes = () => {
       <div className="md:hidden space-y-3">
         {filtered.map(q => {
           const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
+          const createdByName = (q as any).created_by ? (profilesMap[(q as any).created_by] || "Não identificado") : "Não identificado";
+          const sellerName = (q as any).seller_id ? (profilesMap[(q as any).seller_id] || null) : null;
+          const sameAuthorAsSeller = (q as any).created_by && (q as any).seller_id && (q as any).created_by === (q as any).seller_id;
           return (
             <Card key={q.id} className="p-3">
               <div className="flex items-start justify-between mb-2">
@@ -1069,8 +1072,15 @@ const Quotes = () => {
                 <span className="font-bold">{fmt(Number(q.total))}</span>
                 <span className="text-muted-foreground text-xs">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm mb-2">
-                {(q as any).seller_id && <span className="text-muted-foreground text-xs">{profilesMap[(q as any).seller_id] || "—"}</span>}
+              <div className="text-xs text-muted-foreground mb-2 space-y-0.5">
+                {sameAuthorAsSeller ? (
+                  <p>Criado e responsável: <span className="font-medium text-foreground">{createdByName}</span></p>
+                ) : (
+                  <>
+                    <p>Lançado por: <span className={createdByName === "Não identificado" ? "italic" : "font-medium text-foreground"}>{createdByName}</span></p>
+                    {sellerName && <p>Vendedor: <span className="font-medium text-foreground">{sellerName}</span></p>}
+                  </>
+                )}
               </div>
               {q.status === "aprovado" && (
                 <Badge className={`${paymentStatusColors[pStatus] || paymentStatusColors.aguardando} mb-2`}>
