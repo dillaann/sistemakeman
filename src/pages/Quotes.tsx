@@ -1111,6 +1111,7 @@ const Quotes = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Cliente</TableHead>
+              <TableHead>Lançado por</TableHead>
               <TableHead>Vendedor</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>Data Emissão</TableHead>
@@ -1124,12 +1125,20 @@ const Quotes = () => {
           <TableBody>
             {filtered.map(q => {
               const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
+              const createdByName = (q as any).created_by ? (profilesMap[(q as any).created_by] || "Não identificado") : "Não identificado";
+              const sellerName = (q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—";
+              const sameAuthorAsSeller = (q as any).created_by && (q as any).seller_id && (q as any).created_by === (q as any).seller_id;
               return (
                 <TableRow key={q.id}>
                   <TableCell className="font-medium">{(q.clients as any)?.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
+                  <TableCell className="text-sm">
+                    {sameAuthorAsSeller ? (
+                      <span className="text-muted-foreground italic">= vendedor</span>
+                    ) : (
+                      <span className={createdByName === "Não identificado" ? "text-muted-foreground italic" : ""}>{createdByName}</span>
+                    )}
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{sellerName}</TableCell>
                   <TableCell><Badge variant="outline">{{ marketing: "Marketing", obras: "Obras", empresa: "Empresa" }[(q as any).origem_venda] || "—"}</Badge></TableCell>
                   <TableCell className="text-sm">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.description}</TableCell>
