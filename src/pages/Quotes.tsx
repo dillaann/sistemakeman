@@ -1033,9 +1033,23 @@ const Quotes = () => {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar orçamentos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+      <div className="flex flex-col md:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar orçamentos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+        </div>
+        {userRole === "admin" && (creatorsInUse.ids.length > 0 || creatorsInUse.hasNone) && (
+          <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+            <SelectTrigger className="md:w-64"><SelectValue placeholder="Filtrar por criador" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os criadores</SelectItem>
+              {creatorsInUse.ids.map(id => (
+                <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
+              ))}
+              {creatorsInUse.hasNone && <SelectItem value="__none__">Não identificado</SelectItem>}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Mobile card view */}
