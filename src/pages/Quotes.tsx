@@ -58,6 +58,7 @@ const Quotes = () => {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [creatorFilter, setCreatorFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
@@ -891,6 +892,9 @@ const Quotes = () => {
       ? quoteItems.map((it: any) => ({ description: it.description, quantity: Number(it.quantity), unit_price: Number(it.unit_price), unit: it.unit || "un", total: Number(it.total) }))
       : [{ description: quote.description ?? "Serviço", quantity: 1, unit_price: Number(quote.total), unit: "un", total: Number(quote.total) }];
 
+    const createdByName = (quote as any).created_by ? (profilesMap[(quote as any).created_by] || "Não identificado") : "Não identificado";
+    const sellerName = (quote as any).seller_id ? (profilesMap[(quote as any).seller_id] || null) : null;
+
     await generateQuotePDF({
       date: dateStr,
       client: { name: client?.name ?? "—", phone: client?.phone, address: client?.address, city: client?.city, state: client?.state, cpf_cnpj: client?.cpf_cnpj },
@@ -899,15 +903,32 @@ const Quotes = () => {
       description: quote.description,
       valid_until: validUntilStr,
       delivery_deadline: (quote as any).delivery_deadline,
+      created_by_name: createdByName,
+      seller_name: sellerName,
     });
     toast({ title: "PDF gerado com sucesso!" });
   };
 
   const filtered = quotes.filter(q => {
     if (!isInRange(q.issue_date, dateRange)) return false;
+    if (creatorFilter !== "all") {
+      const cb = (q as any).created_by || "__none__";
+      if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
+    }
     return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       (q.description ?? "").toLowerCase().includes(search.toLowerCase());
   });
+
+  // Unique creators present in current quote set, for filter dropdown
+  const creatorsInUse = useMemo(() => {
+    const ids = new Set<string>();
+    let hasNone = false;
+    quotes.forEach((q: any) => {
+      if (q.created_by) ids.add(q.created_by);
+      else hasNone = true;
+    });
+    return { ids: Array.from(ids), hasNone };
+  }, [quotes]);
 
   const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
   const approvalDownPayment = parseFloat(downPayment) || 0;
@@ -1012,15 +1033,32 @@ const Quotes = () => {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Buscar orçamentos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+      <div className="flex flex-col md:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar orçamentos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+        </div>
+        {userRole === "admin" && (creatorsInUse.ids.length > 0 || creatorsInUse.hasNone) && (
+          <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+            <SelectTrigger className="md:w-64"><SelectValue placeholder="Filtrar por criador" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os criadores</SelectItem>
+              {creatorsInUse.ids.map(id => (
+                <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
+              ))}
+              {creatorsInUse.hasNone && <SelectItem value="__none__">Não identificado</SelectItem>}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Mobile card view */}
       <div className="md:hidden space-y-3">
         {filtered.map(q => {
           const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
+          const createdByName = (q as any).created_by ? (profilesMap[(q as any).created_by] || "Não identificado") : "Não identificado";
+          const sellerName = (q as any).seller_id ? (profilesMap[(q as any).seller_id] || null) : null;
+          const sameAuthorAsSeller = (q as any).created_by && (q as any).seller_id && (q as any).created_by === (q as any).seller_id;
           return (
             <Card key={q.id} className="p-3">
               <div className="flex items-start justify-between mb-2">
@@ -1034,8 +1072,15 @@ const Quotes = () => {
                 <span className="font-bold">{fmt(Number(q.total))}</span>
                 <span className="text-muted-foreground text-xs">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm mb-2">
-                {(q as any).seller_id && <span className="text-muted-foreground text-xs">{profilesMap[(q as any).seller_id] || "—"}</span>}
+              <div className="text-xs text-muted-foreground mb-2 space-y-0.5">
+                {sameAuthorAsSeller ? (
+                  <p>Criado e responsável: <span className="font-medium text-foreground">{createdByName}</span></p>
+                ) : (
+                  <>
+                    <p>Lançado por: <span className={createdByName === "Não identificado" ? "italic" : "font-medium text-foreground"}>{createdByName}</span></p>
+                    {sellerName && <p>Vendedor: <span className="font-medium text-foreground">{sellerName}</span></p>}
+                  </>
+                )}
               </div>
               {q.status === "aprovado" && (
                 <Badge className={`${paymentStatusColors[pStatus] || paymentStatusColors.aguardando} mb-2`}>
@@ -1076,6 +1121,7 @@ const Quotes = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Cliente</TableHead>
+              <TableHead>Lançado por</TableHead>
               <TableHead>Vendedor</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>Data Emissão</TableHead>
@@ -1089,12 +1135,20 @@ const Quotes = () => {
           <TableBody>
             {filtered.map(q => {
               const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
+              const createdByName = (q as any).created_by ? (profilesMap[(q as any).created_by] || "Não identificado") : "Não identificado";
+              const sellerName = (q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—";
+              const sameAuthorAsSeller = (q as any).created_by && (q as any).seller_id && (q as any).created_by === (q as any).seller_id;
               return (
                 <TableRow key={q.id}>
                   <TableCell className="font-medium">{(q.clients as any)?.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {(q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—"}
+                  <TableCell className="text-sm">
+                    {sameAuthorAsSeller ? (
+                      <span className="text-muted-foreground italic">= vendedor</span>
+                    ) : (
+                      <span className={createdByName === "Não identificado" ? "text-muted-foreground italic" : ""}>{createdByName}</span>
+                    )}
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{sellerName}</TableCell>
                   <TableCell><Badge variant="outline">{{ marketing: "Marketing", obras: "Obras", empresa: "Empresa" }[(q as any).origem_venda] || "—"}</Badge></TableCell>
                   <TableCell className="text-sm">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.description}</TableCell>
@@ -1142,7 +1196,7 @@ const Quotes = () => {
                 </TableRow>
               );
             })}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum orçamento encontrado.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
