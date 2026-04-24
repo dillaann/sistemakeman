@@ -906,9 +906,24 @@ const Quotes = () => {
 
   const filtered = quotes.filter(q => {
     if (!isInRange(q.issue_date, dateRange)) return false;
+    if (creatorFilter !== "all") {
+      const cb = (q as any).created_by || "__none__";
+      if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
+    }
     return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       (q.description ?? "").toLowerCase().includes(search.toLowerCase());
   });
+
+  // Unique creators present in current quote set, for filter dropdown
+  const creatorsInUse = useMemo(() => {
+    const ids = new Set<string>();
+    let hasNone = false;
+    quotes.forEach((q: any) => {
+      if (q.created_by) ids.add(q.created_by);
+      else hasNone = true;
+    });
+    return { ids: Array.from(ids), hasNone };
+  }, [quotes]);
 
   const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
   const approvalDownPayment = parseFloat(downPayment) || 0;
