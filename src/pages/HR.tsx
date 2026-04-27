@@ -687,8 +687,21 @@ const HR = () => {
                 <DialogContent><DialogHeader><DialogTitle>Sábado Trabalhado</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); satMutation.mutate(); }} className="space-y-3">
                     <div><Label>Funcionário *</Label><select className={selectClass} value={satForm.employee_id} onChange={e => setSatForm({ ...satForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                    <div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={satForm.hours} onChange={e => setSatForm({ ...satForm, hours: e.target.value })} required /></div>
-                    {satForm.employee_id && satForm.hours && (() => { const emp = employees.find(e => e.id === satForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const hrs = parseFloat(satForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Sábado (50%): {fmt(rate * 1.5)}</p><p className="font-bold mt-1">Total: {fmt(rate * 1.5 * hrs)}</p></div>); })()}
+                    <div><Label>Quantidade de sábados *</Label><Input type="number" step="0.5" min="0.5" value={satForm.hours} onChange={e => setSatForm({ ...satForm, hours: e.target.value })} required placeholder="Ex: 1, 1.5, 2" /><p className="text-xs text-muted-foreground mt-1">Aceita decimais: 0.5 (meio sábado), 1, 1.5, 2…</p></div>
+                    {satForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === satForm.employee_id);
+                      const satValue = Number(emp?.saturday_value) || 0;
+                      if (satValue <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor do sábado de {emp?.name} antes de registrar.</div>;
+                      }
+                      const days = parseFloat(satForm.hours) || 0;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm">
+                          <p>Valor do sábado cadastrado: <strong>{fmt(satValue)}</strong></p>
+                          {days > 0 && <p className="font-bold mt-1">Total ({days} sábado{days !== 1 ? "s" : ""}): {fmt(satValue * days)}</p>}
+                        </div>
+                      );
+                    })()}
                     <div><Label>Descrição</Label><Input value={satForm.description} onChange={e => setSatForm({ ...satForm, description: e.target.value })} /></div>
                     <div><Label>Data</Label><Input type="date" value={satForm.date} onChange={e => setSatForm({ ...satForm, date: e.target.value })} /></div>
                     <Button type="submit" className="w-full" disabled={satMutation.isPending}>Salvar</Button>
