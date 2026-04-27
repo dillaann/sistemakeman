@@ -121,24 +121,35 @@ const HR = () => {
   const otMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === otForm.employee_id);
-      const fixedRate = Number(emp?.overtime_hourly_rate) || 0;
+      if (!emp) throw new Error("Selecione um funcionário");
+      const fixedRate = Number(emp.overtime_hourly_rate) || 0;
+      if (fixedRate <= 0) throw new Error(`Cadastre o valor hora extra de ${emp.name} antes de registrar`);
       const hrs = parseFloat(otForm.hours);
-      const value = fixedRate > 0 ? fixedRate * hrs : (() => { const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; return rate * (1 + pct) * hrs; })();
-      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
+      if (!hrs || hrs <= 0) throw new Error("Informe a quantidade de horas");
+      const pct = parseFloat(otForm.percentage);
+      const multiplier = pct === 100 ? 2 : 1.5; // 50% → 1.5x, 100% → 2x
+      const value = fixedRate * multiplier * hrs;
+      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: pct, calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", percentage: "50", description: "", date: localDateString() }); toast({ title: "Hora extra registrada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Saturday ──
+  // ── Saturday (contagem por dias trabalhados, aceita decimais) ──
   const [satOpen, setSatOpen] = useState(false);
   const [satForm, setSatForm] = useState({ employee_id: "", hours: "", description: "", date: localDateString() });
   const satMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === satForm.employee_id);
-      const fixedSatValue = Number(emp?.saturday_value) || 0;
-      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: parseFloat(satForm.hours), calculated_value: fixedSatValue > 0 ? fixedSatValue : Math.round(hourlyRate(Number(emp?.salary) || 0) * 1.5 * parseFloat(satForm.hours) * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
+      if (!emp) throw new Error("Selecione um funcionário");
+      const satValue = Number(emp.saturday_value) || 0;
+      if (satValue <= 0) throw new Error(`Cadastre o valor do sábado de ${emp.name} antes de registrar`);
+      const days = parseFloat(satForm.hours);
+      if (!days || days <= 0) throw new Error("Informe a quantidade de sábados");
+      const total = satValue * days;
+      // Campo "hours" reaproveitado para armazenar quantidade de sábados (decimal)
+      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: days, calculated_value: Math.round(total * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Sábado registrado!" }); },
