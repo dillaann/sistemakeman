@@ -653,7 +653,23 @@ const HR = () => {
                   <form onSubmit={e => { e.preventDefault(); otMutation.mutate(); }} className="space-y-3">
                     <div><Label>Funcionário *</Label><select className={selectClass} value={otForm.employee_id} onChange={e => setOtForm({ ...otForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
                     <div className="grid grid-cols-2 gap-3"><div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={otForm.hours} onChange={e => setOtForm({ ...otForm, hours: e.target.value })} required /></div><div><Label>Percentual *</Label><select className={selectClass} value={otForm.percentage} onChange={e => setOtForm({ ...otForm, percentage: e.target.value })}><option value="50">50% (Dia útil)</option><option value="100">100% (Feriado)</option></select></div></div>
-                    {otForm.employee_id && otForm.hours && (() => { const emp = employees.find(e => e.id === otForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; const hrs = parseFloat(otForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Com {otForm.percentage}%: {fmt(rate * (1 + pct))}</p><p className="font-bold mt-1">Total: {fmt(rate * (1 + pct) * hrs)}</p></div>); })()}
+                    {otForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === otForm.employee_id);
+                      const fixedRate = Number(emp?.overtime_hourly_rate) || 0;
+                      if (fixedRate <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor hora extra de {emp?.name} antes de registrar.</div>;
+                      }
+                      const pct = parseFloat(otForm.percentage);
+                      const multiplier = pct === 100 ? 2 : 1.5;
+                      const hrs = parseFloat(otForm.hours) || 0;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm">
+                          <p>Valor hora cadastrado: <strong>{fmt(fixedRate)}</strong></p>
+                          <p>Multiplicador {pct}%: ×{multiplier} → {fmt(fixedRate * multiplier)}/h</p>
+                          {hrs > 0 && <p className="font-bold mt-1">Total ({hrs}h): {fmt(fixedRate * multiplier * hrs)}</p>}
+                        </div>
+                      );
+                    })()}
                     <div><Label>Descrição</Label><Input value={otForm.description} onChange={e => setOtForm({ ...otForm, description: e.target.value })} /></div>
                     <div><Label>Data</Label><Input type="date" value={otForm.date} onChange={e => setOtForm({ ...otForm, date: e.target.value })} /></div>
                     <Button type="submit" className="w-full" disabled={otMutation.isPending}>Salvar</Button>
