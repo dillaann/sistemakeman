@@ -121,24 +121,35 @@ const HR = () => {
   const otMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === otForm.employee_id);
-      const fixedRate = Number(emp?.overtime_hourly_rate) || 0;
+      if (!emp) throw new Error("Selecione um funcionário");
+      const fixedRate = Number(emp.overtime_hourly_rate) || 0;
+      if (fixedRate <= 0) throw new Error(`Cadastre o valor hora extra de ${emp.name} antes de registrar`);
       const hrs = parseFloat(otForm.hours);
-      const value = fixedRate > 0 ? fixedRate * hrs : (() => { const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; return rate * (1 + pct) * hrs; })();
-      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: parseFloat(otForm.percentage), calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
+      if (!hrs || hrs <= 0) throw new Error("Informe a quantidade de horas");
+      const pct = parseFloat(otForm.percentage);
+      const multiplier = pct === 100 ? 2 : 1.5; // 50% → 1.5x, 100% → 2x
+      const value = fixedRate * multiplier * hrs;
+      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: pct, calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", percentage: "50", description: "", date: localDateString() }); toast({ title: "Hora extra registrada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Saturday ──
+  // ── Saturday (contagem por dias trabalhados, aceita decimais) ──
   const [satOpen, setSatOpen] = useState(false);
   const [satForm, setSatForm] = useState({ employee_id: "", hours: "", description: "", date: localDateString() });
   const satMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === satForm.employee_id);
-      const fixedSatValue = Number(emp?.saturday_value) || 0;
-      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: parseFloat(satForm.hours), calculated_value: fixedSatValue > 0 ? fixedSatValue : Math.round(hourlyRate(Number(emp?.salary) || 0) * 1.5 * parseFloat(satForm.hours) * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
+      if (!emp) throw new Error("Selecione um funcionário");
+      const satValue = Number(emp.saturday_value) || 0;
+      if (satValue <= 0) throw new Error(`Cadastre o valor do sábado de ${emp.name} antes de registrar`);
+      const days = parseFloat(satForm.hours);
+      if (!days || days <= 0) throw new Error("Informe a quantidade de sábados");
+      const total = satValue * days;
+      // Campo "hours" reaproveitado para armazenar quantidade de sábados (decimal)
+      const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: days, calculated_value: Math.round(total * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Sábado registrado!" }); },
@@ -642,7 +653,23 @@ const HR = () => {
                   <form onSubmit={e => { e.preventDefault(); otMutation.mutate(); }} className="space-y-3">
                     <div><Label>Funcionário *</Label><select className={selectClass} value={otForm.employee_id} onChange={e => setOtForm({ ...otForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
                     <div className="grid grid-cols-2 gap-3"><div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={otForm.hours} onChange={e => setOtForm({ ...otForm, hours: e.target.value })} required /></div><div><Label>Percentual *</Label><select className={selectClass} value={otForm.percentage} onChange={e => setOtForm({ ...otForm, percentage: e.target.value })}><option value="50">50% (Dia útil)</option><option value="100">100% (Feriado)</option></select></div></div>
-                    {otForm.employee_id && otForm.hours && (() => { const emp = employees.find(e => e.id === otForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const pct = parseFloat(otForm.percentage) / 100; const hrs = parseFloat(otForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Com {otForm.percentage}%: {fmt(rate * (1 + pct))}</p><p className="font-bold mt-1">Total: {fmt(rate * (1 + pct) * hrs)}</p></div>); })()}
+                    {otForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === otForm.employee_id);
+                      const fixedRate = Number(emp?.overtime_hourly_rate) || 0;
+                      if (fixedRate <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor hora extra de {emp?.name} antes de registrar.</div>;
+                      }
+                      const pct = parseFloat(otForm.percentage);
+                      const multiplier = pct === 100 ? 2 : 1.5;
+                      const hrs = parseFloat(otForm.hours) || 0;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm">
+                          <p>Valor hora cadastrado: <strong>{fmt(fixedRate)}</strong></p>
+                          <p>Multiplicador {pct}%: ×{multiplier} → {fmt(fixedRate * multiplier)}/h</p>
+                          {hrs > 0 && <p className="font-bold mt-1">Total ({hrs}h): {fmt(fixedRate * multiplier * hrs)}</p>}
+                        </div>
+                      );
+                    })()}
                     <div><Label>Descrição</Label><Input value={otForm.description} onChange={e => setOtForm({ ...otForm, description: e.target.value })} /></div>
                     <div><Label>Data</Label><Input type="date" value={otForm.date} onChange={e => setOtForm({ ...otForm, date: e.target.value })} /></div>
                     <Button type="submit" className="w-full" disabled={otMutation.isPending}>Salvar</Button>
@@ -660,15 +687,28 @@ const HR = () => {
                 <DialogContent><DialogHeader><DialogTitle>Sábado Trabalhado</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); satMutation.mutate(); }} className="space-y-3">
                     <div><Label>Funcionário *</Label><select className={selectClass} value={satForm.employee_id} onChange={e => setSatForm({ ...satForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                    <div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={satForm.hours} onChange={e => setSatForm({ ...satForm, hours: e.target.value })} required /></div>
-                    {satForm.employee_id && satForm.hours && (() => { const emp = employees.find(e => e.id === satForm.employee_id); const rate = hourlyRate(Number(emp?.salary) || 0); const hrs = parseFloat(satForm.hours) || 0; return (<div className="p-3 rounded-md bg-muted text-sm"><p>Valor/hora: {fmt(rate)} → Sábado (50%): {fmt(rate * 1.5)}</p><p className="font-bold mt-1">Total: {fmt(rate * 1.5 * hrs)}</p></div>); })()}
+                    <div><Label>Quantidade de sábados *</Label><Input type="number" step="0.5" min="0.5" value={satForm.hours} onChange={e => setSatForm({ ...satForm, hours: e.target.value })} required placeholder="Ex: 1, 1.5, 2" /><p className="text-xs text-muted-foreground mt-1">Aceita decimais: 0.5 (meio sábado), 1, 1.5, 2…</p></div>
+                    {satForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === satForm.employee_id);
+                      const satValue = Number(emp?.saturday_value) || 0;
+                      if (satValue <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor do sábado de {emp?.name} antes de registrar.</div>;
+                      }
+                      const days = parseFloat(satForm.hours) || 0;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm">
+                          <p>Valor do sábado cadastrado: <strong>{fmt(satValue)}</strong></p>
+                          {days > 0 && <p className="font-bold mt-1">Total ({days} sábado{days !== 1 ? "s" : ""}): {fmt(satValue * days)}</p>}
+                        </div>
+                      );
+                    })()}
                     <div><Label>Descrição</Label><Input value={satForm.description} onChange={e => setSatForm({ ...satForm, description: e.target.value })} /></div>
                     <div><Label>Data</Label><Input type="date" value={satForm.date} onChange={e => setSatForm({ ...satForm, date: e.target.value })} /></div>
                     <Button type="submit" className="w-full" disabled={satMutation.isPending}>Salvar</Button>
                   </form></DialogContent></Dialog>
             </div>
           )}
-          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}h</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)}h)</div>}</CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Qtd Sábados</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)} sábados)</div>}</CardContent></Card>
         </TabsContent>
 
         {/* ── Vales ── */}
