@@ -1036,8 +1036,8 @@ const HR = () => {
                         <TableCell>
                           <div className="flex gap-1 flex-wrap">
                             {canEdit && !t && <Button size="sm" variant="outline" onClick={() => thirteenthMutation.mutate(emp.id)} disabled={thirteenthMutation.isPending}>Calcular</Button>}
-                            {canEdit && t && !t.first_installment_paid && <Button size="sm" variant="outline" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 1 })} disabled={payInstallmentMutation.isPending}>Pagar 1ª</Button>}
-                            {canEdit && t && t.first_installment_paid && !t.second_installment_paid && <Button size="sm" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 2 })} disabled={payInstallmentMutation.isPending}>Pagar 2ª</Button>}
+                            {canEdit && t && !t.first_installment_paid && <Button size="sm" variant="outline" onClick={() => pay13thInstallmentMutation.mutate({ id: t.id, installment: 1 })} disabled={pay13thInstallmentMutation.isPending}>Pagar 1ª</Button>}
+                            {canEdit && t && t.first_installment_paid && !t.second_installment_paid && <Button size="sm" onClick={() => pay13thInstallmentMutation.mutate({ id: t.id, installment: 2 })} disabled={pay13thInstallmentMutation.isPending}>Pagar 2ª</Button>}
                             {canEdit && t && <DeleteBtn table="thirteenth_salary" id={t.id} label={`13º de ${emp.name}`} />}
                           </div>
                         </TableCell>
