@@ -722,11 +722,7 @@ const HR = () => {
                               <Pencil className="h-3 w-3" />
                             </Button>
                           )}
-                          {canEdit && (
-                            <Button size="sm" variant="outline" onClick={() => { setPayForm({ ...payForm, employee_id: e.id, amount: String(e.remaining > 0 ? e.remaining : e.netPay) }); setPayOpen(true); }}>
-                              <Banknote className="h-3 w-3 mr-1" />Pagar
-                            </Button>
-                          )}
+                          {/* Pagamento agora é feito por quinzena na aba Fechamento */}
                         </div>
                       </TableCell>
                     </TableRow>
