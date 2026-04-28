@@ -262,8 +262,9 @@ const HR = () => {
       const totalExp = 0;
       const totalOt = overtime.filter(o => o.employee_id === employeeId).reduce((s, o) => s + Number(o.calculated_value), 0);
       const totalSat = saturdays.filter(s => s.employee_id === employeeId).reduce((s, sat) => s + Number(sat.calculated_value), 0);
-      const netPay = baseSalary + totalOt + totalSat - totalAdv - totalExp;
-      const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, net_pay: netPay }, { onConflict: "employee_id,month_ref" });
+      const totalHol = holidays.filter((h: any) => h.employee_id === employeeId).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
+      const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp;
+      const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); toast({ title: "Fechamento calculado!" }); },
