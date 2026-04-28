@@ -682,6 +682,8 @@ const HR = () => {
       </Button>
     );
   };
+
+  return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Recursos Humanos</h1>
