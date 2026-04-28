@@ -161,9 +161,9 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Holiday (feriado trabalhado pago em dobro) ──
+  // ── Holiday (feriado trabalhado: cada feriado adiciona 1 diária) ──
   const [holOpen, setHolOpen] = useState(false);
-  const [holForm, setHolForm] = useState({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() });
+  const [holForm, setHolForm] = useState({ employee_id: "", holiday_name: "", description: "", date: localDateString() });
   const holMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === holForm.employee_id);
@@ -171,16 +171,13 @@ const HR = () => {
       const dailyRate = Number(emp.saturday_value) || 0;
       if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária (sábado) de ${emp.name} antes de registrar`);
       if (!holForm.holiday_name.trim()) throw new Error("Informe o nome do feriado");
-      const days = parseFloat(holForm.day_quantity);
-      if (!days || days <= 0) throw new Error("Informe a quantidade de dias");
-      const hrs = parseFloat(holForm.hours) || 0;
-      const total = dailyRate * 2 * days; // dobro
+      const total = dailyRate; // 1 diária por feriado
       const { error } = await supabase.from("employee_holidays" as any).insert({
         employee_id: holForm.employee_id,
         date: holForm.date,
         holiday_name: holForm.holiday_name,
-        hours: hrs,
-        day_quantity: days,
+        hours: 0,
+        day_quantity: 1,
         daily_rate: dailyRate,
         calculated_value: Math.round(total * 100) / 100,
         description: holForm.description || null,
@@ -188,7 +185,7 @@ const HR = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -490,7 +487,7 @@ const HR = () => {
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Folha do Mês</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(totalPayroll)}</div><p className="text-xs text-muted-foreground">{employees.length} funcionários</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Horas Extras</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalOvertime)}</div><p className="text-xs text-muted-foreground">{overtime.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Sábados</CardTitle><Calendar className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalSaturdays)}</div><p className="text-xs text-muted-foreground">{saturdays.length} registros</p></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Feriados</CardTitle><PartyPopper className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalHolidays)}</div><p className="text-xs text-muted-foreground">{totalHolidayDays} dia(s) — {holidays.length} registros</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Feriados</CardTitle><PartyPopper className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalHolidays)}</div><p className="text-xs text-muted-foreground">{holidays.length} feriado(s) trabalhado(s)</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Vales/Adiant.</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{fmt(totalAdvances)}</div></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Vales</CardTitle><Banknote className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalAdvances)}</div><p className="text-xs text-muted-foreground">{advances.length} registros</p></CardContent></Card>
           </div>
@@ -557,7 +554,7 @@ const HR = () => {
                         <p>Salário Base: {fmt(selectedPayEmployee.baseSalary)}</p>
                         {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
                         {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
-                        {selectedPayEmployee.empHolidays > 0 && <p className="text-primary">+ Feriados (×2): {fmt(selectedPayEmployee.empHolidays)}</p>}
+                        {selectedPayEmployee.empHolidays > 0 && <p className="text-primary">+ Feriados trabalhados: {fmt(selectedPayEmployee.empHolidays)}</p>}
                         {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
                         
                         <hr className="my-1 border-border" />
@@ -777,23 +774,16 @@ const HR = () => {
                       <div><Label>Data do Feriado *</Label><Input type="date" value={holForm.date} onChange={e => setHolForm({ ...holForm, date: e.target.value })} required /></div>
                       <div><Label>Nome do Feriado *</Label><Input value={holForm.holiday_name} onChange={e => setHolForm({ ...holForm, holiday_name: e.target.value })} placeholder="Ex: Tiradentes, Natal" required /></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><Label>Horas trabalhadas</Label><Input type="number" step="0.5" min="0" value={holForm.hours} onChange={e => setHolForm({ ...holForm, hours: e.target.value })} placeholder="Opcional" /></div>
-                      <div><Label>Quantidade de dias *</Label><Input type="number" step="0.5" min="0.5" value={holForm.day_quantity} onChange={e => setHolForm({ ...holForm, day_quantity: e.target.value })} required placeholder="Ex: 0.5, 1, 1.5" /></div>
-                    </div>
                     {holForm.employee_id && (() => {
                       const emp = employees.find(e => e.id === holForm.employee_id);
                       const dailyRate = Number(emp?.saturday_value) || 0;
                       if (dailyRate <= 0) {
                         return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária (sábado) de {emp?.name} antes de registrar.</div>;
                       }
-                      const days = parseFloat(holForm.day_quantity) || 0;
-                      const total = dailyRate * 2 * days;
                       return (
                         <div className="p-3 rounded-md bg-muted text-sm">
                           <p>Valor diária cadastrado: <strong>{fmt(dailyRate)}</strong></p>
-                          <p>Multiplicador feriado: ×2 → {fmt(dailyRate * 2)}/dia</p>
-                          {days > 0 && <p className="font-bold mt-1">Total ({days} dia{days !== 1 ? "s" : ""}): {fmt(total)}</p>}
+                          <p className="font-bold mt-1">Cada feriado adiciona +1 diária ao salário: {fmt(dailyRate)}</p>
                         </div>
                       );
                     })()}
@@ -813,10 +803,8 @@ const HR = () => {
                     <TableHead>Funcionário</TableHead>
                     <TableHead>Feriado</TableHead>
                     <TableHead>Data</TableHead>
-                    <TableHead>Dias</TableHead>
-                    <TableHead>Horas</TableHead>
                     <TableHead>Diária</TableHead>
-                    <TableHead>Valor (×2)</TableHead>
+                    <TableHead>Valor (+1 diária)</TableHead>
                     {canEdit && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -826,20 +814,18 @@ const HR = () => {
                       <TableCell className="font-medium">{h.employees?.name}</TableCell>
                       <TableCell>{h.holiday_name}</TableCell>
                       <TableCell>{formatDateBR(h.date)}</TableCell>
-                      <TableCell>{h.day_quantity}</TableCell>
-                      <TableCell>{Number(h.hours) > 0 ? `${h.hours}h` : "-"}</TableCell>
                       <TableCell>{fmt(Number(h.daily_rate))}</TableCell>
                       <TableCell className="font-bold text-primary">{fmt(Number(h.calculated_value))}</TableCell>
                       {canEdit && <TableCell><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
                     </TableRow>
                   ))}
                   {holidays.length === 0 && (
-                    <TableRow><TableCell colSpan={canEdit ? 8 : 7} className="text-center text-muted-foreground py-8">Nenhum feriado trabalhado neste mês.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum feriado trabalhado neste mês.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
               {holidays.length > 0 && (
-                <div className="mt-4 text-right font-bold">Total: {fmt(totalHolidays)} ({totalHolidayDays} dia(s))</div>
+                <div className="mt-4 text-right font-bold">Total: {fmt(totalHolidays)} ({holidays.length} feriado{holidays.length !== 1 ? "s" : ""})</div>
               )}
             </CardContent>
           </Card>
@@ -985,7 +971,7 @@ const HR = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)}</CardTitle>
-              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados (×2) + Feriados (×2) - Vales = Líquido</p>
+              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados (×2) + Feriados (+1 diária cada) - Vales = Líquido</p>
             </CardHeader>
             <CardContent className="overflow-auto">
               <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Feriados</TableHead><TableHead>Vales</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
