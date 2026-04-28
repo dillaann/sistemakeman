@@ -1009,7 +1009,7 @@ const HR = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum funcionário.</TableCell></TableRow>}
+                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum funcionário.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
