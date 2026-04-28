@@ -554,7 +554,7 @@ const HR = () => {
                         <p>Salário Base: {fmt(selectedPayEmployee.baseSalary)}</p>
                         {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
                         {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
-                        {selectedPayEmployee.empHolidays > 0 && <p className="text-primary">+ Feriados (×2): {fmt(selectedPayEmployee.empHolidays)}</p>}
+                        {selectedPayEmployee.empHolidays > 0 && <p className="text-primary">+ Feriados trabalhados: {fmt(selectedPayEmployee.empHolidays)}</p>}
                         {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
                         
                         <hr className="my-1 border-border" />
