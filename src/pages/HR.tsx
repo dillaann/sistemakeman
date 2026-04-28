@@ -803,10 +803,8 @@ const HR = () => {
                     <TableHead>Funcionário</TableHead>
                     <TableHead>Feriado</TableHead>
                     <TableHead>Data</TableHead>
-                    <TableHead>Dias</TableHead>
-                    <TableHead>Horas</TableHead>
                     <TableHead>Diária</TableHead>
-                    <TableHead>Valor (×2)</TableHead>
+                    <TableHead>Valor (+1 diária)</TableHead>
                     {canEdit && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -816,20 +814,18 @@ const HR = () => {
                       <TableCell className="font-medium">{h.employees?.name}</TableCell>
                       <TableCell>{h.holiday_name}</TableCell>
                       <TableCell>{formatDateBR(h.date)}</TableCell>
-                      <TableCell>{h.day_quantity}</TableCell>
-                      <TableCell>{Number(h.hours) > 0 ? `${h.hours}h` : "-"}</TableCell>
                       <TableCell>{fmt(Number(h.daily_rate))}</TableCell>
                       <TableCell className="font-bold text-primary">{fmt(Number(h.calculated_value))}</TableCell>
                       {canEdit && <TableCell><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
                     </TableRow>
                   ))}
                   {holidays.length === 0 && (
-                    <TableRow><TableCell colSpan={canEdit ? 8 : 7} className="text-center text-muted-foreground py-8">Nenhum feriado trabalhado neste mês.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum feriado trabalhado neste mês.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
               {holidays.length > 0 && (
-                <div className="mt-4 text-right font-bold">Total: {fmt(totalHolidays)} ({totalHolidayDays} dia(s))</div>
+                <div className="mt-4 text-right font-bold">Total: {fmt(totalHolidays)} ({holidays.length} feriado{holidays.length !== 1 ? "s" : ""})</div>
               )}
             </CardContent>
           </Card>
