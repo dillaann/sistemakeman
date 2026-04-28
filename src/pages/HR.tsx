@@ -1302,14 +1302,27 @@ const HR = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Label className="text-xs whitespace-nowrap">Valor:</Label>
-                                  {canEdit && !isPaid ? (
+                                  {canEdit ? (
                                     <Input
                                       type="number" step="0.01" min="0"
                                       defaultValue={String(Number(inst.amount) || 0)}
+                                      key={`${inst.id}-${inst.amount}`}
                                       className="h-8 text-sm"
                                       onBlur={(ev) => {
                                         const v = parseFloat(ev.target.value);
-                                        if (!isNaN(v) && v !== Number(inst.amount)) editInstMutation.mutate({ id: inst.id, amount: v });
+                                        if (!isNaN(v) && v !== Number(inst.amount)) {
+                                          if (isPaid) {
+                                            editPaidInstallmentMutation.mutate({
+                                              inst, amount: v,
+                                              payment_date: inst.payment_date,
+                                              payment_method: inst.payment_method || "pix",
+                                              account_id: inst.account_id || null,
+                                              notes: inst.notes || null,
+                                            });
+                                          } else {
+                                            editInstMutation.mutate({ id: inst.id, amount: v });
+                                          }
+                                        }
                                       }}
                                     />
                                   ) : (
@@ -1341,6 +1354,33 @@ const HR = () => {
                                       }}
                                     >
                                       {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
+                                    </Button>
+                                  </div>
+                                )}
+                                {canEdit && isPaid && (
+                                  <div className="flex gap-1 flex-wrap">
+                                    <Button size="sm" variant="outline" onClick={() => {
+                                      const newDate = window.prompt("Nova data real de pagamento (YYYY-MM-DD):", inst.payment_date || localDateString());
+                                      if (!newDate) return;
+                                      const newMethod = window.prompt("Forma de pagamento (pix/transferencia/dinheiro/outro):", inst.payment_method || "pix");
+                                      if (!newMethod) return;
+                                      editPaidInstallmentMutation.mutate({
+                                        inst,
+                                        amount: Number(inst.amount),
+                                        payment_date: newDate,
+                                        payment_method: newMethod,
+                                        account_id: inst.account_id || null,
+                                        notes: inst.notes || null,
+                                      });
+                                    }}>
+                                      <Pencil className="h-3 w-3 mr-1" /> Editar Pagamento
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => {
+                                      if (window.confirm(`Reabrir esta quinzena? A saída no Financeiro será REMOVIDA. Você poderá pagar novamente depois.`)) {
+                                        reopenInstallmentMutation.mutate(inst);
+                                      }
+                                    }}>
+                                      Reabrir
                                     </Button>
                                   </div>
                                 )}
