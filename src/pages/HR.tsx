@@ -733,6 +733,50 @@ const HR = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Generic Input Dialog (data/mês/forma) — substitui window.prompt */}
+      <Dialog open={!!inputDialog} onOpenChange={(o) => { if (!o) closeInputDialog(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{inputDialog?.title}</DialogTitle></DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!inputDialog) return;
+              inputDialog.onSubmit(inputDialogValues);
+              closeInputDialog();
+            }}
+            className="space-y-3"
+          >
+            {inputDialog?.description && <p className="text-sm text-muted-foreground">{inputDialog.description}</p>}
+            {inputDialog?.fields.map(f => (
+              <div key={f.key} className="space-y-1.5">
+                <Label>{f.label}</Label>
+                {f.type === "select" ? (
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={inputDialogValues[f.key] ?? ""}
+                    onChange={(e) => setInputDialogValues(v => ({ ...v, [f.key]: e.target.value }))}
+                    required
+                  >
+                    {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <Input
+                    type={f.type}
+                    value={inputDialogValues[f.key] ?? ""}
+                    onChange={(e) => setInputDialogValues(v => ({ ...v, [f.key]: e.target.value }))}
+                    required
+                  />
+                )}
+              </div>
+            ))}
+            <div className="flex gap-2 justify-end pt-2">
+              <Button type="button" variant="ghost" onClick={closeInputDialog}>Cancelar</Button>
+              <Button type="submit">{inputDialog?.submitLabel || "Confirmar"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Generic edit dialog (used by every table row's "Editar" button) */}
       <Dialog open={!!editCtx} onOpenChange={(o) => { if (!o) { setEditCtx(null); setEditValues({}); } }}>
         <DialogContent>
