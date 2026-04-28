@@ -263,7 +263,7 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Closing ──
+  // ── Closing (gera fechamento + 2 quinzenas 50/50 se ainda não existirem) ──
   const closingMutation = useMutation({
     mutationFn: async (employeeId: string) => {
       const emp = employees.find(e => e.id === employeeId);
@@ -277,83 +277,183 @@ const HR = () => {
       const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp;
       const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
+
+      // Sync quinzenas — só cria/atualiza valores das que ainda estão pendentes
+      const existing = installments.filter((i: any) => i.employee_id === employeeId);
+      const half = Math.round((netPay / 2) * 100) / 100;
+      const second = Math.round((netPay - half) * 100) / 100;
+      for (const num of [1, 2] as const) {
+        const found = existing.find((i: any) => i.installment_number === num);
+        const value = num === 1 ? half : second;
+        if (!found) {
+          await supabase.from("salary_installments" as any).insert({
+            employee_id: employeeId,
+            month_ref: selectedMonth,
+            installment_number: num,
+            amount: value,
+            status: "pendente",
+          });
+        } else if (found.status !== "pago") {
+          // Atualiza valor da quinzena pendente conforme novo líquido
+          await supabase.from("salary_installments" as any).update({ amount: value }).eq("id", found.id);
+        }
+      }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); toast({ title: "Fechamento calculado!" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      toast({ title: "Fechamento calculado! Quinzenas geradas." });
+    },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Salary Payment ──
-  const [payOpen, setPayOpen] = useState(false);
-  const [payForm, setPayForm] = useState({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+  // ── Edit installment value ──
+  const editInstMutation = useMutation({
+    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      const { error } = await supabase.from("salary_installments" as any).update({ amount }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Valor atualizado!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
 
-  const salaryPayMutation = useMutation({
-    mutationFn: async () => {
-      const emp = employees.find(e => e.id === payForm.employee_id);
-      if (!emp) throw new Error("Selecione um funcionário");
-      const payAmount = parseFloat(payForm.amount);
-      if (!payAmount || payAmount <= 0) throw new Error("Informe um valor válido");
+  // ── Lançar quinzena em Contas a Pagar (status pendente) ──
+  const sendToPayableMutation = useMutation({
+    mutationFn: async ({ inst, expectedDate }: { inst: any; expectedDate: string }) => {
+      const emp = employees.find(e => e.id === inst.employee_id);
+      const empName = emp?.name ?? "Funcionário";
+      const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
 
-      // Create financial transaction
-      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
-        type: "a_pagar" as any,
-        description: `Salário — ${emp.name} — ${monthLabel(selectedMonth)}`,
-        amount: payAmount,
-        due_date: payForm.payment_date,
-        paid_date: payForm.payment_date,
-        status: "pago" as any,
-        category: "Folha de Pagamento",
-        account_id: payForm.account_id || null,
-        sync_origin: "payroll",
-      }).select("id").single();
-      if (ftError) throw ftError;
-
-      // Record in salary_payments — month_ref derived from the payment date entered
-      const payMonthRef = payForm.payment_date.substring(0, 7); // "YYYY-MM"
-      const { error: spError } = await supabase.from("salary_payments" as any).insert({
-        employee_id: payForm.employee_id,
-        month_ref: payMonthRef,
-        amount: payAmount,
-        payment_date: payForm.payment_date,
-        payment_method: payForm.payment_method,
-        account_id: payForm.account_id || null,
-        notes: payForm.notes || null,
-        financial_transaction_id: ftData?.id || null,
-      });
-      if (spError) throw spError;
+      if (inst.payable_transaction_id) {
+        // Atualiza data prevista do lançamento existente
+        const { error } = await supabase.from("financial_transactions").update({
+          due_date: expectedDate,
+          amount: Number(inst.amount),
+          description: desc,
+        }).eq("id", inst.payable_transaction_id);
+        if (error) throw error;
+      } else {
+        const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          description: desc,
+          amount: Number(inst.amount),
+          due_date: expectedDate,
+          status: "pendente" as any,
+          category: "Folha de Pagamento",
+          sync_origin: "payroll",
+        }).select("id").single();
+        if (ftErr) throw ftErr;
+        const { error: updErr } = await supabase.from("salary_installments" as any).update({
+          expected_date: expectedDate,
+          payable_transaction_id: ft!.id,
+        }).eq("id", inst.id);
+        if (updErr) throw updErr;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      toast({ title: "Lançado em Contas a Pagar!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Pagar quinzena (regime de caixa) ──
+  const payInstFormInitial = { id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" };
+  const [payInstOpen, setPayInstOpen] = useState(false);
+  const [payInstForm, setPayInstForm] = useState(payInstFormInitial);
+  const [payInstContext, setPayInstContext] = useState<any>(null);
+
+  const payInstallmentMutation = useMutation({
+    mutationFn: async () => {
+      const inst = payInstContext;
+      if (!inst) throw new Error("Quinzena não encontrada");
+      const amount = parseFloat(payInstForm.amount);
+      if (!amount || amount <= 0) throw new Error("Informe um valor válido");
+      const emp = employees.find(e => e.id === inst.employee_id);
+      const empName = emp?.name ?? "Funcionário";
+      const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
+
+      let ftId = inst.payable_transaction_id as string | null;
+      if (ftId) {
+        // Já existia em Contas a Pagar → marca como pago
+        const { error } = await supabase.from("financial_transactions").update({
+          status: "pago" as any,
+          paid_date: payInstForm.payment_date,
+          amount,
+          payment_method: payInstForm.payment_method,
+          account_id: payInstForm.account_id || null,
+          description: desc,
+        }).eq("id", ftId);
+        if (error) throw error;
+      } else {
+        // Cria direto como pago
+        const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          description: desc,
+          amount,
+          due_date: payInstForm.payment_date,
+          paid_date: payInstForm.payment_date,
+          status: "pago" as any,
+          category: "Folha de Pagamento",
+          payment_method: payInstForm.payment_method,
+          account_id: payInstForm.account_id || null,
+          sync_origin: "payroll",
+        }).select("id").single();
+        if (ftErr) throw ftErr;
+        ftId = ft!.id;
+      }
+
+      const { error: updErr } = await supabase.from("salary_installments" as any).update({
+        status: "pago",
+        amount,
+        payment_date: payInstForm.payment_date,
+        payment_method: payInstForm.payment_method,
+        account_id: payInstForm.account_id || null,
+        notes: payInstForm.notes || null,
+        financial_transaction_id: ftId,
+        payable_transaction_id: ftId,
+      }).eq("id", inst.id);
+      if (updErr) throw updErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
-      setPayOpen(false);
-      setPayForm({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
-      toast({ title: "Pagamento registrado e lançado no Financeiro!" });
+      setPayInstOpen(false);
+      setPayInstForm(payInstFormInitial);
+      setPayInstContext(null);
+      toast({ title: "Quinzena paga e lançada no Financeiro!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const markPaidMutation = useMutation({
-    mutationFn: async (closingId: string) => {
-      const closing = closings.find(c => c.id === closingId);
-      if (!closing) throw new Error("Fechamento não encontrado");
-      const today = localDateString();
-      const { error } = await supabase.from("monthly_closings").update({ paid: true, paid_date: today }).eq("id", closingId);
-      if (error) throw error;
+  // Helpers para abrir dialog de pagamento de quinzena
+  const openPayInstallment = (inst: any) => {
+    setPayInstContext(inst);
+    setPayInstForm({
+      id: inst.id,
+      amount: String(Number(inst.amount) || 0),
+      payment_date: localDateString(),
+      payment_method: inst.payment_method || "pix",
+      account_id: inst.account_id || "",
+      notes: inst.notes || "",
+    });
+    setPayInstOpen(true);
+  };
 
-      const empName = (closing as any).employees?.name ?? employees.find(e => e.id === closing.employee_id)?.name ?? "Funcionário";
-      await supabase.from("financial_transactions").insert({
-        type: "a_pagar" as any,
-        description: `Folha de Pagamento - ${empName} (${monthLabel(closing.month_ref)})`,
-        amount: Number(closing.net_pay),
-        due_date: today,
-        paid_date: today,
-        status: "pago" as any,
-        category: "Folha de Pagamento",
-        sync_origin: "payroll",
-      });
+  // Mutation antiga para 13º salário (mantida) — renomeada pra evitar conflito
+  const pay13thInstallmentMutation = useMutation({
+    mutationFn: async ({ id, installment }: { id: string; installment: 1 | 2 }) => {
+      const update = installment === 1
+        ? { first_installment_paid: true, first_installment_date: localDateString() }
+        : { second_installment_paid: true, second_installment_date: localDateString() };
+      const { error } = await supabase.from("thirteenth_salary").update(update).eq("id", id);
+      if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["financial"] }); queryClient.invalidateQueries({ queryKey: ["financial-saidas"] }); toast({ title: "Marcado como pago!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] }); toast({ title: "Parcela paga!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
