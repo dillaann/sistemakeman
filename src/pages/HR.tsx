@@ -1331,12 +1331,22 @@ const HR = () => {
                           )}
                           {canEdit && e.closing && (
                             <Button size="sm" variant="ghost" title="Editar mês de competência" onClick={() => {
-                              const input = window.prompt("Novo mês de referência (YYYY-MM):", selectedMonth);
-                              if (input && /^\d{4}-\d{2}$/.test(input)) {
-                                editClosingMonthMutation.mutate({ closingId: e.closing!.id, employeeId: e.id, newMonthRef: input });
-                              } else if (input) {
-                                toast({ title: "Formato inválido", description: "Use AAAA-MM (ex: 2026-03)", variant: "destructive" });
-                              }
+                              const closing = e.closing!;
+                              openInputDialog({
+                                title: "Alterar mês de competência",
+                                description: "Selecione qualquer dia do mês desejado. O mês de referência (competência) será atualizado.",
+                                fields: [{ key: "date", label: "Dia / Mês / Ano", type: "date", value: `${selectedMonth}-01` }],
+                                submitLabel: "Salvar",
+                                onSubmit: (vals) => {
+                                  const d = vals.date;
+                                  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                                    toast({ title: "Data inválida", variant: "destructive" });
+                                    return;
+                                  }
+                                  const newMonthRef = d.slice(0, 7);
+                                  editClosingMonthMutation.mutate({ closingId: closing.id, employeeId: e.id, newMonthRef });
+                                },
+                              });
                             }}>
                               <Calendar className="h-3.5 w-3.5" />
                             </Button>
