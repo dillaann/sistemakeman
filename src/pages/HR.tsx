@@ -89,7 +89,7 @@ const HR = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("salary_installments" as any)
-        .select("*, employees(name)")
+        .select("*")
         .eq("month_ref", selectedMonth)
         .order("installment_number");
       return (data as any[]) ?? [];
@@ -1299,41 +1299,56 @@ const HR = () => {
                                   <p className="font-bold text-sm">{num}ª Quinzena</p>
                                   {isPaid ? <Badge variant="default">Paga</Badge> : <Badge variant="outline">Pendente</Badge>}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Label className="text-xs whitespace-nowrap">Valor:</Label>
-                                  <span className="font-bold text-base flex-1">{fmt(Number(inst.amount))}</span>
-                                  {canEdit && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 px-2"
-                                      title="Editar valor desta quinzena"
-                                      onClick={() => {
-                                        const input = window.prompt(`Valor da ${num}ª quinzena (R$):`, String(Number(inst.amount) || 0));
-                                        if (input === null) return;
-                                        const v = parseFloat(input.replace(",", "."));
-                                        if (isNaN(v) || v < 0) {
-                                          toast({ title: "Valor inválido", variant: "destructive" });
-                                          return;
-                                        }
-                                        if (v === Number(inst.amount)) return;
-                                        if (isPaid) {
-                                          editPaidInstallmentMutation.mutate({
-                                            inst, amount: v,
-                                            payment_date: inst.payment_date,
-                                            payment_method: inst.payment_method || "pix",
-                                            account_id: inst.account_id || null,
-                                            notes: inst.notes || null,
-                                          });
-                                        } else {
-                                          editInstMutation.mutate({ id: inst.id, amount: v });
-                                        }
-                                      }}
-                                    >
-                                      <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-                                    </Button>
-                                  )}
-                                </div>
+                                <form
+                                  className="grid gap-1.5"
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    const form = event.currentTarget;
+                                    const raw = new FormData(form).get("amount")?.toString() ?? "";
+                                    const v = parseFloat(raw.replace(",", "."));
+                                    if (isNaN(v) || v < 0) {
+                                      toast({ title: "Valor inválido", variant: "destructive" });
+                                      return;
+                                    }
+                                    if (isPaid) {
+                                      editPaidInstallmentMutation.mutate({
+                                        inst,
+                                        amount: v,
+                                        payment_date: inst.payment_date,
+                                        payment_method: inst.payment_method || "pix",
+                                        account_id: inst.account_id || null,
+                                        notes: inst.notes || null,
+                                      });
+                                    } else {
+                                      editInstMutation.mutate({ id: inst.id, amount: v });
+                                    }
+                                  }}
+                                >
+                                  <Label className="text-xs">Valor da {num}ª quinzena (R$)</Label>
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      name="amount"
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      defaultValue={Number(inst.amount) || 0}
+                                      disabled={!canEdit}
+                                      className="h-9 font-bold"
+                                    />
+                                    {canEdit && (
+                                      <Button
+                                        type="submit"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-9 px-3"
+                                        disabled={editInstMutation.isPending || editPaidInstallmentMutation.isPending}
+                                        title="Salvar valor desta quinzena"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5 mr-1" /> Salvar
+                                      </Button>
+                                    )}
+                                  </div>
+                                </form>
                                 {isPaid ? (
                                   <div className="text-xs space-y-0.5">
                                     <p>Pago em: <span className="font-medium">{formatDateBR(inst.payment_date)}</span></p>
