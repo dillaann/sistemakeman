@@ -1268,6 +1268,18 @@ const HR = () => {
                               Recalcular
                             </Button>
                           )}
+                          {canEdit && e.closing && (
+                            <Button size="sm" variant="ghost" title="Editar mês de competência" onClick={() => {
+                              const input = window.prompt("Novo mês de referência (YYYY-MM):", selectedMonth);
+                              if (input && /^\d{4}-\d{2}$/.test(input)) {
+                                editClosingMonthMutation.mutate({ closingId: e.closing!.id, employeeId: e.id, newMonthRef: input });
+                              } else if (input) {
+                                toast({ title: "Formato inválido", description: "Use AAAA-MM (ex: 2026-03)", variant: "destructive" });
+                              }
+                            }}>
+                              <Calendar className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {canEdit && e.closing && <DeleteBtn table="monthly_closings" id={e.closing.id} label={`Fechamento de ${e.name}`} />}
                         </div>
                       </div>
