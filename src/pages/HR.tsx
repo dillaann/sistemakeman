@@ -339,7 +339,7 @@ const HR = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
-      toast({ title: "Fechamento calculado! Quinzenas geradas." });
+      toast({ title: "Fechamento gerado!", description: "Preencha o valor de cada quinzena manualmente." });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
