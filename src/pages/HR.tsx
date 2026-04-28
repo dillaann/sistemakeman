@@ -586,6 +586,24 @@ const HR = () => {
   const [editEmpOpen, setEditEmpOpen] = useState(false);
   const [editEmpForm, setEditEmpForm] = useState({ id: "", name: "", salary: "", saturday_value: "", overtime_hourly_rate: "" });
 
+  // ── Generic Input Dialog (substitui window.prompt) ──
+  type InputDialogField = { key: string; label: string; type: "date" | "month" | "text" | "select"; value: string; options?: { value: string; label: string }[] };
+  const [inputDialog, setInputDialog] = useState<{
+    title: string;
+    description?: string;
+    fields: InputDialogField[];
+    submitLabel?: string;
+    onSubmit: (values: Record<string, string>) => void;
+  } | null>(null);
+  const [inputDialogValues, setInputDialogValues] = useState<Record<string, string>>({});
+  const openInputDialog = (cfg: NonNullable<typeof inputDialog>) => {
+    const init: Record<string, string> = {};
+    cfg.fields.forEach(f => { init[f.key] = f.value ?? ""; });
+    setInputDialogValues(init);
+    setInputDialog(cfg);
+  };
+  const closeInputDialog = () => { setInputDialog(null); setInputDialogValues({}); };
+
   const editEmpMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("employees").update({
@@ -711,6 +729,50 @@ const HR = () => {
             <div><Label>Valor Sábado (R$)</Label><Input type="number" step="0.01" min="0" value={editEmpForm.saturday_value} onChange={e => setEditEmpForm({ ...editEmpForm, saturday_value: e.target.value })} /></div>
             <div><Label>Valor Hora Extra (R$)</Label><Input type="number" step="0.01" min="0" value={editEmpForm.overtime_hourly_rate} onChange={e => setEditEmpForm({ ...editEmpForm, overtime_hourly_rate: e.target.value })} /></div>
             <Button type="submit" className="w-full" disabled={editEmpMutation.isPending}>Salvar</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generic Input Dialog (data/mês/forma) — substitui window.prompt */}
+      <Dialog open={!!inputDialog} onOpenChange={(o) => { if (!o) closeInputDialog(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{inputDialog?.title}</DialogTitle></DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!inputDialog) return;
+              inputDialog.onSubmit(inputDialogValues);
+              closeInputDialog();
+            }}
+            className="space-y-3"
+          >
+            {inputDialog?.description && <p className="text-sm text-muted-foreground">{inputDialog.description}</p>}
+            {inputDialog?.fields.map(f => (
+              <div key={f.key} className="space-y-1.5">
+                <Label>{f.label}</Label>
+                {f.type === "select" ? (
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={inputDialogValues[f.key] ?? ""}
+                    onChange={(e) => setInputDialogValues(v => ({ ...v, [f.key]: e.target.value }))}
+                    required
+                  >
+                    {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <Input
+                    type={f.type}
+                    value={inputDialogValues[f.key] ?? ""}
+                    onChange={(e) => setInputDialogValues(v => ({ ...v, [f.key]: e.target.value }))}
+                    required
+                  />
+                )}
+              </div>
+            ))}
+            <div className="flex gap-2 justify-end pt-2">
+              <Button type="button" variant="ghost" onClick={closeInputDialog}>Cancelar</Button>
+              <Button type="submit">{inputDialog?.submitLabel || "Confirmar"}</Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
@@ -1269,12 +1331,22 @@ const HR = () => {
                           )}
                           {canEdit && e.closing && (
                             <Button size="sm" variant="ghost" title="Editar mês de competência" onClick={() => {
-                              const input = window.prompt("Novo mês de referência (YYYY-MM):", selectedMonth);
-                              if (input && /^\d{4}-\d{2}$/.test(input)) {
-                                editClosingMonthMutation.mutate({ closingId: e.closing!.id, employeeId: e.id, newMonthRef: input });
-                              } else if (input) {
-                                toast({ title: "Formato inválido", description: "Use AAAA-MM (ex: 2026-03)", variant: "destructive" });
-                              }
+                              const closing = e.closing!;
+                              openInputDialog({
+                                title: "Alterar mês de competência",
+                                description: "Selecione qualquer dia do mês desejado. O mês de referência (competência) será atualizado.",
+                                fields: [{ key: "date", label: "Dia / Mês / Ano", type: "date", value: `${selectedMonth}-01` }],
+                                submitLabel: "Salvar",
+                                onSubmit: (vals) => {
+                                  const d = vals.date;
+                                  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                                    toast({ title: "Data inválida", variant: "destructive" });
+                                    return;
+                                  }
+                                  const newMonthRef = d.slice(0, 7);
+                                  editClosingMonthMutation.mutate({ closingId: closing.id, employeeId: e.id, newMonthRef });
+                                },
+                              });
                             }}>
                               <Calendar className="h-3.5 w-3.5" />
                             </Button>
@@ -1369,8 +1441,19 @@ const HR = () => {
                                       onClick={() => {
                                         const today = localDateString();
                                         const expected = inst.expected_date || today;
-                                        const input = window.prompt("Data prevista de pagamento (YYYY-MM-DD):", expected);
-                                        if (input) sendToPayableMutation.mutate({ inst, expectedDate: input });
+                                        openInputDialog({
+                                          title: inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar",
+                                          description: `Quinzena de ${e.name} — defina a data prevista de pagamento.`,
+                                          fields: [{ key: "expected", label: "Data prevista (Dia/Mês/Ano)", type: "date", value: expected }],
+                                          submitLabel: "Confirmar",
+                                          onSubmit: (vals) => {
+                                            if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.expected)) {
+                                              toast({ title: "Data inválida", variant: "destructive" });
+                                              return;
+                                            }
+                                            sendToPayableMutation.mutate({ inst, expectedDate: vals.expected });
+                                          },
+                                        });
                                       }}
                                     >
                                       {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
@@ -1380,17 +1463,33 @@ const HR = () => {
                                 {canEdit && isPaid && (
                                   <div className="flex gap-1 flex-wrap">
                                     <Button size="sm" variant="outline" onClick={() => {
-                                      const newDate = window.prompt("Nova data real de pagamento (YYYY-MM-DD):", inst.payment_date || localDateString());
-                                      if (!newDate) return;
-                                      const newMethod = window.prompt("Forma de pagamento (pix/transferencia/dinheiro/outro):", inst.payment_method || "pix");
-                                      if (!newMethod) return;
-                                      editPaidInstallmentMutation.mutate({
-                                        inst,
-                                        amount: Number(inst.amount),
-                                        payment_date: newDate,
-                                        payment_method: newMethod,
-                                        account_id: inst.account_id || null,
-                                        notes: inst.notes || null,
+                                      openInputDialog({
+                                        title: "Editar Pagamento",
+                                        description: `Quinzena de ${e.name} — atualize data real e forma de pagamento.`,
+                                        fields: [
+                                          { key: "payment_date", label: "Data real (Dia/Mês/Ano)", type: "date", value: inst.payment_date || localDateString() },
+                                          { key: "payment_method", label: "Forma de pagamento", type: "select", value: inst.payment_method || "pix", options: [
+                                            { value: "pix", label: "PIX" },
+                                            { value: "transferencia", label: "Transferência" },
+                                            { value: "dinheiro", label: "Dinheiro" },
+                                            { value: "outro", label: "Outro" },
+                                          ]},
+                                        ],
+                                        submitLabel: "Salvar",
+                                        onSubmit: (vals) => {
+                                          if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.payment_date)) {
+                                            toast({ title: "Data inválida", variant: "destructive" });
+                                            return;
+                                          }
+                                          editPaidInstallmentMutation.mutate({
+                                            inst,
+                                            amount: Number(inst.amount),
+                                            payment_date: vals.payment_date,
+                                            payment_method: vals.payment_method,
+                                            account_id: inst.account_id || null,
+                                            notes: inst.notes || null,
+                                          });
+                                        },
                                       });
                                     }}>
                                       <Pencil className="h-3 w-3 mr-1" /> Editar Pagamento
