@@ -586,6 +586,24 @@ const HR = () => {
   const [editEmpOpen, setEditEmpOpen] = useState(false);
   const [editEmpForm, setEditEmpForm] = useState({ id: "", name: "", salary: "", saturday_value: "", overtime_hourly_rate: "" });
 
+  // ── Generic Input Dialog (substitui window.prompt) ──
+  type InputDialogField = { key: string; label: string; type: "date" | "month" | "text" | "select"; value: string; options?: { value: string; label: string }[] };
+  const [inputDialog, setInputDialog] = useState<{
+    title: string;
+    description?: string;
+    fields: InputDialogField[];
+    submitLabel?: string;
+    onSubmit: (values: Record<string, string>) => void;
+  } | null>(null);
+  const [inputDialogValues, setInputDialogValues] = useState<Record<string, string>>({});
+  const openInputDialog = (cfg: NonNullable<typeof inputDialog>) => {
+    const init: Record<string, string> = {};
+    cfg.fields.forEach(f => { init[f.key] = f.value ?? ""; });
+    setInputDialogValues(init);
+    setInputDialog(cfg);
+  };
+  const closeInputDialog = () => { setInputDialog(null); setInputDialogValues({}); };
+
   const editEmpMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("employees").update({
