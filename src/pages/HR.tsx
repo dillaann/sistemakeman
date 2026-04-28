@@ -400,7 +400,92 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Pagar quinzena (regime de caixa) ──
+  // ── Editar quinzena PAGA (valor / data / forma / conta) — sincroniza Financeiro ──
+  const editPaidInstallmentMutation = useMutation({
+    mutationFn: async ({ inst, amount, payment_date, payment_method, account_id, notes }: {
+      inst: any; amount: number; payment_date: string; payment_method: string; account_id: string | null; notes: string | null;
+    }) => {
+      const emp = employees.find(e => e.id === inst.employee_id);
+      const empName = emp?.name ?? "Funcionário";
+      const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
+
+      // Atualiza a transação financeira vinculada (se existir)
+      const ftId = inst.financial_transaction_id || inst.payable_transaction_id;
+      if (ftId) {
+        const { error: ftErr } = await supabase.from("financial_transactions").update({
+          amount,
+          due_date: payment_date,
+          paid_date: payment_date,
+          payment_method,
+          account_id: account_id || null,
+          description: desc,
+        }).eq("id", ftId);
+        if (ftErr) throw ftErr;
+      }
+
+      const { error } = await supabase.from("salary_installments" as any).update({
+        amount,
+        payment_date,
+        payment_method,
+        account_id: account_id || null,
+        notes,
+      }).eq("id", inst.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      toast({ title: "Quinzena paga atualizada!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Reabrir quinzena (volta para pendente, remove sa\u00edda do caixa) ──
+  const reopenInstallmentMutation = useMutation({
+    mutationFn: async (inst: any) => {
+      const ftId = inst.financial_transaction_id || inst.payable_transaction_id;
+      if (ftId) {
+        // Apaga a transação financeira correspondente (saída de caixa)
+        const { error: delErr } = await supabase.from("financial_transactions").delete().eq("id", ftId);
+        if (delErr) throw delErr;
+      }
+      const { error } = await supabase.from("salary_installments" as any).update({
+        status: "pendente",
+        payment_date: null,
+        financial_transaction_id: null,
+        payable_transaction_id: null,
+      }).eq("id", inst.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      toast({ title: "Quinzena reaberta — saída financeira removida." });
+    },
+    onError: (e: any) => toast({ title: "Erro ao reabrir", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Editar mês de referência (compet\u00eancia) do fechamento ──
+  const editClosingMonthMutation = useMutation({
+    mutationFn: async ({ closingId, employeeId, newMonthRef }: { closingId: string; employeeId: string; newMonthRef: string }) => {
+      if (!/^\d{4}-\d{2}$/.test(newMonthRef)) throw new Error("Formato inválido (use YYYY-MM)");
+      // Atualiza o fechamento
+      const { error: cErr } = await supabase.from("monthly_closings").update({ month_ref: newMonthRef }).eq("id", closingId);
+      if (cErr) throw cErr;
+      // Atualiza as quinzenas do mesmo funcionário/mês
+      const { error: iErr } = await supabase.from("salary_installments" as any).update({ month_ref: newMonthRef }).eq("employee_id", employeeId).eq("month_ref", selectedMonth);
+      if (iErr) throw iErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      toast({ title: "Mês de referência alterado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const payInstFormInitial = { id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" };
   const [payInstOpen, setPayInstOpen] = useState(false);
   const [payInstForm, setPayInstForm] = useState(payInstFormInitial);
