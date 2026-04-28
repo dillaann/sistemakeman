@@ -96,6 +96,57 @@ const HR = () => {
     },
   });
 
+  // ── Generic edit dialog state ──
+  type EditCtx = {
+    table: string;
+    id: string;
+    title: string;
+    fields: Array<{
+      key: string;
+      label: string;
+      type: "text" | "number" | "date" | "select";
+      value: string;
+      options?: { value: string; label: string }[];
+      required?: boolean;
+      step?: string;
+      min?: string;
+      placeholder?: string;
+    }>;
+    /** Optional callback to recompute derived fields (e.g. calculated_value) before saving. */
+    transform?: (values: Record<string, string>) => Record<string, any>;
+    /** Optional callback after successful save (e.g. to also sync a financial transaction). */
+    afterSave?: (values: Record<string, string>) => Promise<void>;
+    invalidate: string[];
+  };
+  const [editCtx, setEditCtx] = useState<EditCtx | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
+  const openEdit = (ctx: EditCtx) => {
+    const initial: Record<string, string> = {};
+    for (const f of ctx.fields) initial[f.key] = f.value;
+    setEditValues(initial);
+    setEditCtx(ctx);
+  };
+
+  const editGenericMutation = useMutation({
+    mutationFn: async () => {
+      if (!editCtx) throw new Error("Sem contexto");
+      const payload = editCtx.transform ? editCtx.transform(editValues) : { ...editValues };
+      const { error } = await supabase.from(editCtx.table as any).update(payload).eq("id", editCtx.id);
+      if (error) throw error;
+      if (editCtx.afterSave) await editCtx.afterSave(editValues);
+    },
+    onSuccess: () => {
+      if (editCtx) {
+        for (const k of editCtx.invalidate) queryClient.invalidateQueries({ queryKey: [k] });
+      }
+      setEditCtx(null);
+      setEditValues({});
+      toast({ title: "Registro atualizado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao atualizar", description: e.message, variant: "destructive" }),
+  });
+
   // ── Generic delete mutation ──
   const deleteMutation = useMutation({
     mutationFn: async ({ table, id }: { table: string; id: string }) => {
@@ -349,7 +400,92 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Pagar quinzena (regime de caixa) ──
+  // ── Editar quinzena PAGA (valor / data / forma / conta) — sincroniza Financeiro ──
+  const editPaidInstallmentMutation = useMutation({
+    mutationFn: async ({ inst, amount, payment_date, payment_method, account_id, notes }: {
+      inst: any; amount: number; payment_date: string; payment_method: string; account_id: string | null; notes: string | null;
+    }) => {
+      const emp = employees.find(e => e.id === inst.employee_id);
+      const empName = emp?.name ?? "Funcionário";
+      const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
+
+      // Atualiza a transação financeira vinculada (se existir)
+      const ftId = inst.financial_transaction_id || inst.payable_transaction_id;
+      if (ftId) {
+        const { error: ftErr } = await supabase.from("financial_transactions").update({
+          amount,
+          due_date: payment_date,
+          paid_date: payment_date,
+          payment_method,
+          account_id: account_id || null,
+          description: desc,
+        }).eq("id", ftId);
+        if (ftErr) throw ftErr;
+      }
+
+      const { error } = await supabase.from("salary_installments" as any).update({
+        amount,
+        payment_date,
+        payment_method,
+        account_id: account_id || null,
+        notes,
+      }).eq("id", inst.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      toast({ title: "Quinzena paga atualizada!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Reabrir quinzena (volta para pendente, remove sa\u00edda do caixa) ──
+  const reopenInstallmentMutation = useMutation({
+    mutationFn: async (inst: any) => {
+      const ftId = inst.financial_transaction_id || inst.payable_transaction_id;
+      if (ftId) {
+        // Apaga a transação financeira correspondente (saída de caixa)
+        const { error: delErr } = await supabase.from("financial_transactions").delete().eq("id", ftId);
+        if (delErr) throw delErr;
+      }
+      const { error } = await supabase.from("salary_installments" as any).update({
+        status: "pendente",
+        payment_date: null,
+        financial_transaction_id: null,
+        payable_transaction_id: null,
+      }).eq("id", inst.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      toast({ title: "Quinzena reaberta — saída financeira removida." });
+    },
+    onError: (e: any) => toast({ title: "Erro ao reabrir", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Editar mês de referência (compet\u00eancia) do fechamento ──
+  const editClosingMonthMutation = useMutation({
+    mutationFn: async ({ closingId, employeeId, newMonthRef }: { closingId: string; employeeId: string; newMonthRef: string }) => {
+      if (!/^\d{4}-\d{2}$/.test(newMonthRef)) throw new Error("Formato inválido (use YYYY-MM)");
+      // Atualiza o fechamento
+      const { error: cErr } = await supabase.from("monthly_closings").update({ month_ref: newMonthRef }).eq("id", closingId);
+      if (cErr) throw cErr;
+      // Atualiza as quinzenas do mesmo funcionário/mês
+      const { error: iErr } = await supabase.from("salary_installments" as any).update({ month_ref: newMonthRef }).eq("employee_id", employeeId).eq("month_ref", selectedMonth);
+      if (iErr) throw iErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      toast({ title: "Mês de referência alterado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const payInstFormInitial = { id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" };
   const [payInstOpen, setPayInstOpen] = useState(false);
   const [payInstForm, setPayInstForm] = useState(payInstFormInitial);
@@ -537,6 +673,16 @@ const HR = () => {
     );
   };
 
+  // Edit button helper — opens the generic edit dialog with the row's current values
+  const EditBtn = ({ onClick, title = "Editar" }: { onClick: () => void; title?: string }) => {
+    if (!canEdit) return null;
+    return (
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClick} title={title}>
+        <Pencil className="h-3.5 w-3.5" />
+      </Button>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -566,6 +712,36 @@ const HR = () => {
             <div><Label>Valor Sábado (R$)</Label><Input type="number" step="0.01" min="0" value={editEmpForm.saturday_value} onChange={e => setEditEmpForm({ ...editEmpForm, saturday_value: e.target.value })} /></div>
             <div><Label>Valor Hora Extra (R$)</Label><Input type="number" step="0.01" min="0" value={editEmpForm.overtime_hourly_rate} onChange={e => setEditEmpForm({ ...editEmpForm, overtime_hourly_rate: e.target.value })} /></div>
             <Button type="submit" className="w-full" disabled={editEmpMutation.isPending}>Salvar</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generic edit dialog (used by every table row's "Editar" button) */}
+      <Dialog open={!!editCtx} onOpenChange={(o) => { if (!o) { setEditCtx(null); setEditValues({}); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editCtx?.title}</DialogTitle></DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); editGenericMutation.mutate(); }} className="space-y-3">
+            {editCtx?.fields.map(f => (
+              <div key={f.key}>
+                <Label>{f.label}{f.required ? " *" : ""}</Label>
+                {f.type === "select" ? (
+                  <select className={selectClass} value={editValues[f.key] ?? ""} onChange={e => setEditValues({ ...editValues, [f.key]: e.target.value })} required={f.required}>
+                    {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <Input
+                    type={f.type}
+                    step={f.step}
+                    min={f.min}
+                    placeholder={f.placeholder}
+                    value={editValues[f.key] ?? ""}
+                    onChange={e => setEditValues({ ...editValues, [f.key]: e.target.value })}
+                    required={f.required}
+                  />
+                )}
+              </div>
+            ))}
+            <Button type="submit" className="w-full" disabled={editGenericMutation.isPending}>Salvar Alterações</Button>
           </form>
         </DialogContent>
       </Dialog>
@@ -733,7 +909,7 @@ const HR = () => {
             </CardContent>
           </Card>
 
-          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'employee_advances', id: a.id, title: 'Editar Vale/Adiantamento', invalidate: ['employee-advances'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(a.amount)||0), required: true }, { key: 'type', label: 'Tipo', type: 'select', value: a.type, options: [{value:'adiantamento',label:'Adiantamento'},{value:'vale',label:'Vale'}] }, { key: 'date', label: 'Data', type: 'date', value: a.date }, { key: 'description', label: 'Descrição', type: 'text', value: a.description || '' }, { key: 'month_ref', label: 'Mês de Referência (YYYY-MM)', type: 'text', value: a.month_ref, placeholder: 'AAAA-MM', required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, type: v.type, date: v.date, description: v.description||null, month_ref: v.month_ref }) })} /><DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Pagamentos de Salário — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
@@ -761,7 +937,7 @@ const HR = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">{p.notes || "-"}</TableCell>
-                      {canEdit && <TableCell><DeleteBtn table="salary_payments" id={p.id} label={`Pagamento de ${p.employees?.name}`} /></TableCell>}
+                      {canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'salary_payments', id: p.id, title: 'Editar Pagamento', invalidate: ['salary-payments'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(p.amount)||0), required: true }, { key: 'payment_date', label: 'Data', type: 'date', value: p.payment_date, required: true }, { key: 'payment_method', label: 'Forma', type: 'select', value: p.payment_method, options: [{value:'pix',label:'PIX'},{value:'transferencia',label:'Transferência'},{value:'dinheiro',label:'Dinheiro'},{value:'outro',label:'Outro'}] }, { key: 'notes', label: 'Observações', type: 'text', value: p.notes || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: p.month_ref, required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, payment_date: v.payment_date, payment_method: v.payment_method, notes: v.notes||null, month_ref: v.month_ref }) })} /><DeleteBtn table="salary_payments" id={p.id} label={`Pagamento de ${p.employees?.name}`} /></TableCell>}
                     </TableRow>
                   ))}
                   {salaryPayments.length === 0 && (
@@ -805,7 +981,7 @@ const HR = () => {
                   </form></DialogContent></Dialog>
             </div>
           )}
-          <Card><CardHeader><CardTitle className="text-base">Horas Extras - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>%</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{overtime.map(o => (<TableRow key={o.id}><TableCell className="font-medium">{(o.employees as any)?.name}</TableCell><TableCell>{o.hours}h</TableCell><TableCell><Badge variant="secondary">{o.percentage}%</Badge></TableCell><TableCell>{fmt(Number(o.calculated_value))}</TableCell><TableCell>{formatDateBR(o.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_overtime" id={o.id} label={`H.Extra de ${(o.employees as any)?.name}`} /></TableCell>}</TableRow>))}{overtime.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhuma hora extra.</TableCell></TableRow>}</TableBody></Table>{overtime.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalOvertime)} ({overtime.reduce((s, o) => s + Number(o.hours), 0)}h)</div>}</CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Horas Extras - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Horas</TableHead><TableHead>%</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{overtime.map(o => (<TableRow key={o.id}><TableCell className="font-medium">{(o.employees as any)?.name}</TableCell><TableCell>{o.hours}h</TableCell><TableCell><Badge variant="secondary">{o.percentage}%</Badge></TableCell><TableCell>{fmt(Number(o.calculated_value))}</TableCell><TableCell>{formatDateBR(o.date)}</TableCell>{canEdit && <TableCell><EditBtn onClick={() => { const emp = employees.find(e => e.id === o.employee_id); const fixedRate = Number(emp?.overtime_hourly_rate) || 0; openEdit({ table: 'employee_overtime', id: o.id, title: 'Editar Hora Extra', invalidate: ['employee-overtime'], fields: [{ key: 'hours', label: 'Horas', type: 'number', step: '0.5', value: String(Number(o.hours)||0), required: true }, { key: 'percentage', label: 'Percentual', type: 'select', value: String(o.percentage), options: [{value:'50',label:'50% (1.5x)'},{value:'100',label:'100% (2x)'}] }, { key: 'date', label: 'Data', type: 'date', value: o.date }, { key: 'description', label: 'Descrição', type: 'text', value: o.description || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: o.month_ref, required: true }], transform: (v) => { const hrs = parseFloat(v.hours)||0; const pct = parseFloat(v.percentage); const mult = pct === 100 ? 2 : 1.5; return { hours: hrs, percentage: pct, calculated_value: Math.round(fixedRate*mult*hrs*100)/100, date: v.date, description: v.description||null, month_ref: v.month_ref }; } }); }} /><DeleteBtn table="employee_overtime" id={o.id} label={`H.Extra de ${(o.employees as any)?.name}`} /></TableCell>}</TableRow>))}{overtime.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhuma hora extra.</TableCell></TableRow>}</TableBody></Table>{overtime.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalOvertime)} ({overtime.reduce((s, o) => s + Number(o.hours), 0)}h)</div>}</CardContent></Card>
         </TabsContent>
 
         {/* ── Sábados ── */}
@@ -837,7 +1013,7 @@ const HR = () => {
                   </form></DialogContent></Dialog>
             </div>
           )}
-          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Qtd Sábados</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)} sábados)</div>}</CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Qtd Sábados</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><EditBtn onClick={() => { const emp = employees.find(e => e.id === s.employee_id); const satValue = Number(emp?.saturday_value) || 0; openEdit({ table: 'employee_saturdays', id: s.id, title: 'Editar Sábado', invalidate: ['employee-saturdays'], fields: [{ key: 'hours', label: 'Quantidade de Sábados', type: 'number', step: '0.5', value: String(Number(s.hours)||0), required: true }, { key: 'date', label: 'Data', type: 'date', value: s.date }, { key: 'description', label: 'Descrição', type: 'text', value: s.description || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: s.month_ref, required: true }], transform: (v) => { const days = parseFloat(v.hours)||0; return { hours: days, calculated_value: Math.round(satValue*days*100)/100, date: v.date, description: v.description||null, month_ref: v.month_ref }; } }); }} /><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)} sábados)</div>}</CardContent></Card>
         </TabsContent>
 
         {/* ── Feriados ── */}
@@ -901,7 +1077,7 @@ const HR = () => {
                       <TableCell>{formatDateBR(h.date)}</TableCell>
                       <TableCell>{fmt(Number(h.daily_rate))}</TableCell>
                       <TableCell className="font-bold text-primary">{fmt(Number(h.calculated_value))}</TableCell>
-                      {canEdit && <TableCell><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
+                      {canEdit && <TableCell><EditBtn onClick={() => { const emp = employees.find(e => e.id === h.employee_id); const dailyRate = Number(emp?.saturday_value) || 0; openEdit({ table: 'employee_holidays', id: h.id, title: 'Editar Feriado', invalidate: ['employee-holidays'], fields: [{ key: 'holiday_name', label: 'Nome do Feriado', type: 'text', value: h.holiday_name, required: true }, { key: 'date', label: 'Data', type: 'date', value: h.date, required: true }, { key: 'description', label: 'Descrição', type: 'text', value: h.description || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: h.month_ref, required: true }], transform: (v) => ({ holiday_name: v.holiday_name, date: v.date, description: v.description||null, month_ref: v.month_ref, daily_rate: dailyRate, calculated_value: dailyRate }) }); }} /><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
                     </TableRow>
                   ))}
                   {holidays.length === 0 && (
@@ -934,7 +1110,7 @@ const HR = () => {
                   </form></DialogContent></Dialog>
             </div>
           )}
-          <Card><CardHeader><CardTitle className="text-base">Vales - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_advances" id={a.id} label={`Vale de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum vale registrado.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-base">Vales - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant="outline">{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'employee_advances', id: a.id, title: 'Editar Vale/Adiantamento', invalidate: ['employee-advances'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(a.amount)||0), required: true }, { key: 'type', label: 'Tipo', type: 'select', value: a.type, options: [{value:'adiantamento',label:'Adiantamento'},{value:'vale',label:'Vale'}] }, { key: 'date', label: 'Data', type: 'date', value: a.date }, { key: 'description', label: 'Descrição', type: 'text', value: a.description || '' }, { key: 'month_ref', label: 'Mês de Referência (YYYY-MM)', type: 'text', value: a.month_ref, placeholder: 'AAAA-MM', required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, type: v.type, date: v.date, description: v.description||null, month_ref: v.month_ref }) })} /><DeleteBtn table="employee_advances" id={a.id} label={`Vale de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum vale registrado.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
         </TabsContent>
 
         {/* ── Férias ── */}
@@ -999,7 +1175,7 @@ const HR = () => {
                       <TableCell>{fmt(Number(v.vacation_value))}</TableCell>
                       <TableCell>{fmt(Number(v.constitutional_third))}</TableCell>
                       <TableCell className="font-bold">{fmt(Number(v.total_value))}</TableCell>
-                      {canEdit && <TableCell><DeleteBtn table="employee_vacations" id={v.id} label={`Férias de ${(v.employees as any)?.name}`} /></TableCell>}
+                      {canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'employee_vacations', id: v.id, title: 'Editar Férias', invalidate: ['employee-vacations'], fields: [{ key: 'start_date', label: 'Início', type: 'date', value: v.start_date, required: true }, { key: 'end_date', label: 'Fim', type: 'date', value: v.end_date, required: true }, { key: 'days', label: 'Dias', type: 'number', value: String(v.days), required: true }, { key: 'vacation_value', label: 'Valor das Férias (R$)', type: 'number', step: '0.01', value: String(Number(v.vacation_value)||0) }, { key: 'notes', label: 'Observações', type: 'text', value: v.notes || '' }], transform: (val) => { const vac = parseFloat(val.vacation_value)||0; const third = vac/3; return { start_date: val.start_date, end_date: val.end_date, days: parseInt(val.days)||0, vacation_value: Math.round(vac*100)/100, constitutional_third: Math.round(third*100)/100, total_value: Math.round((vac+third)*100)/100, notes: val.notes||null }; } })} /><DeleteBtn table="employee_vacations" id={v.id} label={`Férias de ${(v.employees as any)?.name}`} /></TableCell>}
                     </TableRow>
                   ))}
                   {vacations.length === 0 && <TableRow><TableCell colSpan={canEdit ? 7 : 6} className="text-center text-muted-foreground py-8">Nenhuma férias registrada.</TableCell></TableRow>}
@@ -1092,6 +1268,18 @@ const HR = () => {
                               Recalcular
                             </Button>
                           )}
+                          {canEdit && e.closing && (
+                            <Button size="sm" variant="ghost" title="Editar mês de competência" onClick={() => {
+                              const input = window.prompt("Novo mês de referência (YYYY-MM):", selectedMonth);
+                              if (input && /^\d{4}-\d{2}$/.test(input)) {
+                                editClosingMonthMutation.mutate({ closingId: e.closing!.id, employeeId: e.id, newMonthRef: input });
+                              } else if (input) {
+                                toast({ title: "Formato inválido", description: "Use AAAA-MM (ex: 2026-03)", variant: "destructive" });
+                              }
+                            }}>
+                              <Calendar className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {canEdit && e.closing && <DeleteBtn table="monthly_closings" id={e.closing.id} label={`Fechamento de ${e.name}`} />}
                         </div>
                       </div>
@@ -1114,14 +1302,27 @@ const HR = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Label className="text-xs whitespace-nowrap">Valor:</Label>
-                                  {canEdit && !isPaid ? (
+                                  {canEdit ? (
                                     <Input
                                       type="number" step="0.01" min="0"
                                       defaultValue={String(Number(inst.amount) || 0)}
+                                      key={`${inst.id}-${inst.amount}`}
                                       className="h-8 text-sm"
                                       onBlur={(ev) => {
                                         const v = parseFloat(ev.target.value);
-                                        if (!isNaN(v) && v !== Number(inst.amount)) editInstMutation.mutate({ id: inst.id, amount: v });
+                                        if (!isNaN(v) && v !== Number(inst.amount)) {
+                                          if (isPaid) {
+                                            editPaidInstallmentMutation.mutate({
+                                              inst, amount: v,
+                                              payment_date: inst.payment_date,
+                                              payment_method: inst.payment_method || "pix",
+                                              account_id: inst.account_id || null,
+                                              notes: inst.notes || null,
+                                            });
+                                          } else {
+                                            editInstMutation.mutate({ id: inst.id, amount: v });
+                                          }
+                                        }
                                       }}
                                     />
                                   ) : (
@@ -1153,6 +1354,33 @@ const HR = () => {
                                       }}
                                     >
                                       {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
+                                    </Button>
+                                  </div>
+                                )}
+                                {canEdit && isPaid && (
+                                  <div className="flex gap-1 flex-wrap">
+                                    <Button size="sm" variant="outline" onClick={() => {
+                                      const newDate = window.prompt("Nova data real de pagamento (YYYY-MM-DD):", inst.payment_date || localDateString());
+                                      if (!newDate) return;
+                                      const newMethod = window.prompt("Forma de pagamento (pix/transferencia/dinheiro/outro):", inst.payment_method || "pix");
+                                      if (!newMethod) return;
+                                      editPaidInstallmentMutation.mutate({
+                                        inst,
+                                        amount: Number(inst.amount),
+                                        payment_date: newDate,
+                                        payment_method: newMethod,
+                                        account_id: inst.account_id || null,
+                                        notes: inst.notes || null,
+                                      });
+                                    }}>
+                                      <Pencil className="h-3 w-3 mr-1" /> Editar Pagamento
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => {
+                                      if (window.confirm(`Reabrir esta quinzena? A saída no Financeiro será REMOVIDA. Você poderá pagar novamente depois.`)) {
+                                        reopenInstallmentMutation.mutate(inst);
+                                      }
+                                    }}>
+                                      Reabrir
                                     </Button>
                                   </div>
                                 )}
