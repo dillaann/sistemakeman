@@ -525,7 +525,7 @@ const HR = () => {
 
   // categories removed — no longer used
 
-  const selectedPayEmployee = employeeSummary.find(e => e.id === payForm.employee_id);
+  const selectedPayEmployee = payInstContext ? employeeSummary.find(e => e.id === payInstContext.employee_id) : null;
 
   // Delete button helper
   const DeleteBtn = ({ table, id, label }: { table: string; id: string; label: string }) => {
