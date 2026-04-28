@@ -319,24 +319,20 @@ const HR = () => {
       const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
 
-      // Sync quinzenas — só cria/atualiza valores das que ainda estão pendentes
+      // Cria quinzenas vazias (valor 0) se ainda não existem — admin preenche manualmente.
+      // NUNCA sobrescreve valores já digitados (mesmo pendentes).
       const existing = installments.filter((i: any) => i.employee_id === employeeId);
-      const half = Math.round((netPay / 2) * 100) / 100;
-      const second = Math.round((netPay - half) * 100) / 100;
       for (const num of [1, 2] as const) {
         const found = existing.find((i: any) => i.installment_number === num);
-        const value = num === 1 ? half : second;
         if (!found) {
-          await supabase.from("salary_installments" as any).insert({
+          const { error: insErr } = await supabase.from("salary_installments" as any).insert({
             employee_id: employeeId,
             month_ref: selectedMonth,
             installment_number: num,
-            amount: value,
+            amount: 0,
             status: "pendente",
           });
-        } else if (found.status !== "pago") {
-          // Atualiza valor da quinzena pendente conforme novo líquido
-          await supabase.from("salary_installments" as any).update({ amount: value }).eq("id", found.id);
+          if (insErr) throw insErr;
         }
       }
     },
