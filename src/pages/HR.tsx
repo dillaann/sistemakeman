@@ -96,6 +96,57 @@ const HR = () => {
     },
   });
 
+  // ── Generic edit dialog state ──
+  type EditCtx = {
+    table: string;
+    id: string;
+    title: string;
+    fields: Array<{
+      key: string;
+      label: string;
+      type: "text" | "number" | "date" | "select";
+      value: string;
+      options?: { value: string; label: string }[];
+      required?: boolean;
+      step?: string;
+      min?: string;
+      placeholder?: string;
+    }>;
+    /** Optional callback to recompute derived fields (e.g. calculated_value) before saving. */
+    transform?: (values: Record<string, string>) => Record<string, any>;
+    /** Optional callback after successful save (e.g. to also sync a financial transaction). */
+    afterSave?: (values: Record<string, string>) => Promise<void>;
+    invalidate: string[];
+  };
+  const [editCtx, setEditCtx] = useState<EditCtx | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
+  const openEdit = (ctx: EditCtx) => {
+    const initial: Record<string, string> = {};
+    for (const f of ctx.fields) initial[f.key] = f.value;
+    setEditValues(initial);
+    setEditCtx(ctx);
+  };
+
+  const editGenericMutation = useMutation({
+    mutationFn: async () => {
+      if (!editCtx) throw new Error("Sem contexto");
+      const payload = editCtx.transform ? editCtx.transform(editValues) : { ...editValues };
+      const { error } = await supabase.from(editCtx.table as any).update(payload).eq("id", editCtx.id);
+      if (error) throw error;
+      if (editCtx.afterSave) await editCtx.afterSave(editValues);
+    },
+    onSuccess: () => {
+      if (editCtx) {
+        for (const k of editCtx.invalidate) queryClient.invalidateQueries({ queryKey: [k] });
+      }
+      setEditCtx(null);
+      setEditValues({});
+      toast({ title: "Registro atualizado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao atualizar", description: e.message, variant: "destructive" }),
+  });
+
   // ── Generic delete mutation ──
   const deleteMutation = useMutation({
     mutationFn: async ({ table, id }: { table: string; id: string }) => {
