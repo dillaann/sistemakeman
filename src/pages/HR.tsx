@@ -971,7 +971,7 @@ const HR = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)}</CardTitle>
-              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados (×2) + Feriados (×2) - Vales = Líquido</p>
+              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados (×2) + Feriados (+1 diária cada) - Vales = Líquido</p>
             </CardHeader>
             <CardContent className="overflow-auto">
               <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Feriados</TableHead><TableHead>Vales</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
