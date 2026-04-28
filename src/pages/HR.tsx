@@ -1441,8 +1441,19 @@ const HR = () => {
                                       onClick={() => {
                                         const today = localDateString();
                                         const expected = inst.expected_date || today;
-                                        const input = window.prompt("Data prevista de pagamento (YYYY-MM-DD):", expected);
-                                        if (input) sendToPayableMutation.mutate({ inst, expectedDate: input });
+                                        openInputDialog({
+                                          title: inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar",
+                                          description: `Quinzena de ${e.name} — defina a data prevista de pagamento.`,
+                                          fields: [{ key: "expected", label: "Data prevista (Dia/Mês/Ano)", type: "date", value: expected }],
+                                          submitLabel: "Confirmar",
+                                          onSubmit: (vals) => {
+                                            if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.expected)) {
+                                              toast({ title: "Data inválida", variant: "destructive" });
+                                              return;
+                                            }
+                                            sendToPayableMutation.mutate({ inst, expectedDate: vals.expected });
+                                          },
+                                        });
                                       }}
                                     >
                                       {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
@@ -1452,17 +1463,33 @@ const HR = () => {
                                 {canEdit && isPaid && (
                                   <div className="flex gap-1 flex-wrap">
                                     <Button size="sm" variant="outline" onClick={() => {
-                                      const newDate = window.prompt("Nova data real de pagamento (YYYY-MM-DD):", inst.payment_date || localDateString());
-                                      if (!newDate) return;
-                                      const newMethod = window.prompt("Forma de pagamento (pix/transferencia/dinheiro/outro):", inst.payment_method || "pix");
-                                      if (!newMethod) return;
-                                      editPaidInstallmentMutation.mutate({
-                                        inst,
-                                        amount: Number(inst.amount),
-                                        payment_date: newDate,
-                                        payment_method: newMethod,
-                                        account_id: inst.account_id || null,
-                                        notes: inst.notes || null,
+                                      openInputDialog({
+                                        title: "Editar Pagamento",
+                                        description: `Quinzena de ${e.name} — atualize data real e forma de pagamento.`,
+                                        fields: [
+                                          { key: "payment_date", label: "Data real (Dia/Mês/Ano)", type: "date", value: inst.payment_date || localDateString() },
+                                          { key: "payment_method", label: "Forma de pagamento", type: "select", value: inst.payment_method || "pix", options: [
+                                            { value: "pix", label: "PIX" },
+                                            { value: "transferencia", label: "Transferência" },
+                                            { value: "dinheiro", label: "Dinheiro" },
+                                            { value: "outro", label: "Outro" },
+                                          ]},
+                                        ],
+                                        submitLabel: "Salvar",
+                                        onSubmit: (vals) => {
+                                          if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.payment_date)) {
+                                            toast({ title: "Data inválida", variant: "destructive" });
+                                            return;
+                                          }
+                                          editPaidInstallmentMutation.mutate({
+                                            inst,
+                                            amount: Number(inst.amount),
+                                            payment_date: vals.payment_date,
+                                            payment_method: vals.payment_method,
+                                            account_id: inst.account_id || null,
+                                            notes: inst.notes || null,
+                                          });
+                                        },
                                       });
                                     }}>
                                       <Pencil className="h-3 w-3 mr-1" /> Editar Pagamento
