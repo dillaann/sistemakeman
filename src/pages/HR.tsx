@@ -735,6 +735,8 @@ const HR = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Tabs defaultValue="dashboard">
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1 hidden sm:inline" />Dashboard</TabsTrigger>
           <TabsTrigger value="salarios"><DollarSign className="h-4 w-4 mr-1 hidden sm:inline" />Salários</TabsTrigger>
