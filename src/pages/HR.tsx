@@ -673,7 +673,15 @@ const HR = () => {
     );
   };
 
-  return (
+  // Edit button helper — opens the generic edit dialog with the row's current values
+  const EditBtn = ({ onClick, title = "Editar" }: { onClick: () => void; title?: string }) => {
+    if (!canEdit) return null;
+    return (
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClick} title={title}>
+        <Pencil className="h-3.5 w-3.5" />
+      </Button>
+    );
+  };
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Recursos Humanos</h1>
