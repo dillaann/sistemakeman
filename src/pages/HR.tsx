@@ -617,6 +617,7 @@ const HR = () => {
                       <TableCell>{fmt(e.baseSalary)}</TableCell>
                       <TableCell className="text-primary">{e.empOvertime > 0 ? fmt(e.empOvertime) : "-"}</TableCell>
                       <TableCell className="text-primary">{e.empSaturdays > 0 ? fmt(e.empSaturdays) : "-"}</TableCell>
+                      <TableCell className="text-primary">{e.empHolidays > 0 ? fmt(e.empHolidays) : "-"}</TableCell>
                       <TableCell className="text-amber-600">{e.empAdvances > 0 ? fmt(e.empAdvances) : "-"}</TableCell>
                       
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
