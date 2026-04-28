@@ -251,17 +251,7 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const payInstallmentMutation = useMutation({
-    mutationFn: async ({ id, installment }: { id: string; installment: 1 | 2 }) => {
-      const update = installment === 1
-        ? { first_installment_paid: true, first_installment_date: localDateString() }
-        : { second_installment_paid: true, second_installment_date: localDateString() };
-      const { error } = await supabase.from("thirteenth_salary").update(update).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] }); toast({ title: "Parcela paga!" }); },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
+  // Mutation antiga removida — substituída por pay13thInstallmentMutation (mais abaixo)
 
   // ── Closing (gera fechamento + 2 quinzenas 50/50 se ainda não existirem) ──
   const closingMutation = useMutation({
