@@ -83,6 +83,18 @@ const HR = () => {
     queryKey: ["salary-payments", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("salary_payments").select("*, employees(name)").eq("month_ref", selectedMonth).order("payment_date", { ascending: false }); return data ?? []; },
   });
+  // Quinzenas (regime de competência por month_ref)
+  const { data: installments = [] } = useQuery({
+    queryKey: ["salary-installments", selectedMonth],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("salary_installments" as any)
+        .select("*, employees(name)")
+        .eq("month_ref", selectedMonth)
+        .order("installment_number");
+      return (data as any[]) ?? [];
+    },
+  });
 
   // ── Generic delete mutation ──
   const deleteMutation = useMutation({
