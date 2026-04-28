@@ -638,53 +638,40 @@ const HR = () => {
                   </form></DialogContent></Dialog>
             )}
             {canEdit && (
-              <Dialog open={payOpen} onOpenChange={setPayOpen}>
-                <DialogTrigger asChild><Button><Banknote className="h-4 w-4 mr-2" />Registrar Pagamento</Button></DialogTrigger>
+              <Dialog open={payInstOpen} onOpenChange={(o) => { setPayInstOpen(o); if (!o) setPayInstContext(null); }}>
                 <DialogContent className="max-w-lg">
-                  <DialogHeader><DialogTitle>Registrar Pagamento de Salário</DialogTitle></DialogHeader>
-                  <form onSubmit={e => { e.preventDefault(); salaryPayMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label>
-                      <select className={selectClass} value={payForm.employee_id} onChange={e => setPayForm({ ...payForm, employee_id: e.target.value })} required>
-                        <option value="">Selecione</option>
-                        {employeeSummary.map(e => (
-                          <option key={e.id} value={e.id}>{e.name} {e.totalPaid > 0 ? `(já pago: ${fmt(e.totalPaid)})` : ""}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {selectedPayEmployee && (
+                  <DialogHeader>
+                    <DialogTitle>
+                      Pagar {payInstContext?.installment_number === 1 ? "1ª" : "2ª"} Quinzena — {selectedPayEmployee?.name}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); payInstallmentMutation.mutate(); }} className="space-y-3">
+                    {selectedPayEmployee && payInstContext && (
                       <div className="p-3 rounded-md bg-muted text-sm space-y-1">
-                        <p>Salário Base: {fmt(selectedPayEmployee.baseSalary)}</p>
-                        {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
-                        {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
-                        {selectedPayEmployee.empHolidays > 0 && <p className="text-primary">+ Feriados trabalhados: {fmt(selectedPayEmployee.empHolidays)}</p>}
-                        {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
-                        
-                        <hr className="my-1 border-border" />
-                        <p className="font-bold">Líquido Total: {fmt(selectedPayEmployee.netPay)}</p>
-                        {selectedPayEmployee.totalPaid > 0 && <p className="text-green-600">Já Pago: {fmt(selectedPayEmployee.totalPaid)}</p>}
-                        <p className="font-bold text-base">Restante: {fmt(selectedPayEmployee.remaining)}</p>
+                        <p>Mês de Referência: <span className="font-bold">{monthLabel(payInstContext.month_ref)}</span></p>
+                        <p>Líquido total do mês: <span className="font-bold">{fmt(selectedPayEmployee.netPay)}</span></p>
+                        <p className="text-xs text-muted-foreground">A data real do pagamento pode ser em outro mês — o registro permanece em {monthLabel(payInstContext.month_ref)}.</p>
                       </div>
                     )}
-                    <div><Label>Valor do Pagamento (R$) *</Label>
-                      <Input type="number" step="0.01" min="0.01" value={payForm.amount} onChange={e => setPayForm({ ...payForm, amount: e.target.value })} required placeholder={selectedPayEmployee ? String(selectedPayEmployee.remaining) : ""} />
+                    <div><Label>Valor da Quinzena (R$) *</Label>
+                      <Input type="number" step="0.01" min="0.01" value={payInstForm.amount} onChange={e => setPayInstForm({ ...payInstForm, amount: e.target.value })} required />
                     </div>
-                    <div><Label>Mês de Referência</Label><Input value={monthLabel(selectedMonth)} disabled /></div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div><Label>Data do Pagamento *</Label><Input type="date" value={payForm.payment_date} onChange={e => setPayForm({ ...payForm, payment_date: e.target.value })} required /></div>
+                      <div><Label>Data Real do Pagamento *</Label><Input type="date" value={payInstForm.payment_date} onChange={e => setPayInstForm({ ...payInstForm, payment_date: e.target.value })} required /></div>
                       <div><Label>Forma de Pagamento *</Label>
-                        <select className={selectClass} value={payForm.payment_method} onChange={e => setPayForm({ ...payForm, payment_method: e.target.value })}>
+                        <select className={selectClass} value={payInstForm.payment_method} onChange={e => setPayInstForm({ ...payInstForm, payment_method: e.target.value })}>
                           <option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro</option>
                         </select>
                       </div>
                     </div>
                     <div><Label>Conta de Origem</Label>
-                      <select className={selectClass} value={payForm.account_id} onChange={e => setPayForm({ ...payForm, account_id: e.target.value })}>
+                      <select className={selectClass} value={payInstForm.account_id} onChange={e => setPayInstForm({ ...payInstForm, account_id: e.target.value })}>
                         <option value="">Selecione (opcional)</option>
                         {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                       </select>
                     </div>
-                    <div><Label>Observações</Label><Input value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })} placeholder="Ex: Pagamento parcial, 2ª quinzena..." /></div>
-                    <Button type="submit" className="w-full" disabled={salaryPayMutation.isPending || !payForm.employee_id || !payForm.amount}>
+                    <div><Label>Observações</Label><Input value={payInstForm.notes} onChange={e => setPayInstForm({ ...payInstForm, notes: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={payInstallmentMutation.isPending || !payInstForm.amount}>
                       Confirmar Pagamento
                     </Button>
                   </form>
