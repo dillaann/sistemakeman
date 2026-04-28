@@ -706,7 +706,35 @@ const HR = () => {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="dashboard">
+      {/* Generic edit dialog (used by every table row's "Editar" button) */}
+      <Dialog open={!!editCtx} onOpenChange={(o) => { if (!o) { setEditCtx(null); setEditValues({}); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editCtx?.title}</DialogTitle></DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); editGenericMutation.mutate(); }} className="space-y-3">
+            {editCtx?.fields.map(f => (
+              <div key={f.key}>
+                <Label>{f.label}{f.required ? " *" : ""}</Label>
+                {f.type === "select" ? (
+                  <select className={selectClass} value={editValues[f.key] ?? ""} onChange={e => setEditValues({ ...editValues, [f.key]: e.target.value })} required={f.required}>
+                    {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <Input
+                    type={f.type}
+                    step={f.step}
+                    min={f.min}
+                    placeholder={f.placeholder}
+                    value={editValues[f.key] ?? ""}
+                    onChange={e => setEditValues({ ...editValues, [f.key]: e.target.value })}
+                    required={f.required}
+                  />
+                )}
+              </div>
+            ))}
+            <Button type="submit" className="w-full" disabled={editGenericMutation.isPending}>Salvar Alterações</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1 hidden sm:inline" />Dashboard</TabsTrigger>
           <TabsTrigger value="salarios"><DollarSign className="h-4 w-4 mr-1 hidden sm:inline" />Salários</TabsTrigger>
