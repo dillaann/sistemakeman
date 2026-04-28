@@ -259,6 +259,48 @@ export type Database = {
           },
         ]
       }
+      employee_holidays: {
+        Row: {
+          calculated_value: number
+          created_at: string
+          daily_rate: number
+          date: string
+          day_quantity: number
+          description: string | null
+          employee_id: string
+          holiday_name: string
+          hours: number
+          id: string
+          month_ref: string
+        }
+        Insert: {
+          calculated_value?: number
+          created_at?: string
+          daily_rate?: number
+          date: string
+          day_quantity?: number
+          description?: string | null
+          employee_id: string
+          holiday_name: string
+          hours?: number
+          id?: string
+          month_ref: string
+        }
+        Update: {
+          calculated_value?: number
+          created_at?: string
+          daily_rate?: number
+          date?: string
+          day_quantity?: number
+          description?: string | null
+          employee_id?: string
+          holiday_name?: string
+          hours?: number
+          id?: string
+          month_ref?: string
+        }
+        Relationships: []
+      }
       employee_overtime: {
         Row: {
           calculated_value: number
@@ -793,6 +835,7 @@ export type Database = {
           paid_date: string | null
           total_advances: number
           total_expenses: number
+          total_holidays: number
           total_overtime: number
           total_saturdays: number
         }
@@ -807,6 +850,7 @@ export type Database = {
           paid_date?: string | null
           total_advances?: number
           total_expenses?: number
+          total_holidays?: number
           total_overtime?: number
           total_saturdays?: number
         }
@@ -821,6 +865,7 @@ export type Database = {
           paid_date?: string | null
           total_advances?: number
           total_expenses?: number
+          total_holidays?: number
           total_overtime?: number
           total_saturdays?: number
         }

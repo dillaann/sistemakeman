@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
-import { Plus, DollarSign, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote, Trash2, Pencil } from "lucide-react";
+import { Plus, DollarSign, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote, Trash2, Pencil, PartyPopper } from "lucide-react";
 
 const currentMonth = () => {
   const d = new Date();
@@ -59,6 +59,10 @@ const HR = () => {
     queryKey: ["employee-saturdays", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("employee_saturdays").select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return data ?? []; },
   });
+  const { data: holidays = [] } = useQuery({
+    queryKey: ["employee-holidays", selectedMonth],
+    queryFn: async () => { const { data } = await supabase.from("employee_holidays" as any).select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return (data as any[]) ?? []; },
+  });
   const { data: closings = [] } = useQuery({
     queryKey: ["monthly-closings", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("monthly_closings").select("*, employees(name)").eq("month_ref", selectedMonth); return data ?? []; },
@@ -91,6 +95,7 @@ const HR = () => {
       queryClient.invalidateQueries({ queryKey: ["employee-expenses"] });
       queryClient.invalidateQueries({ queryKey: ["employee-overtime"] });
       queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-holidays"] });
       queryClient.invalidateQueries({ queryKey: ["employee-vacations"] });
       queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
@@ -156,7 +161,37 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Vacation ──
+  // ── Holiday (feriado trabalhado pago em dobro) ──
+  const [holOpen, setHolOpen] = useState(false);
+  const [holForm, setHolForm] = useState({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() });
+  const holMutation = useMutation({
+    mutationFn: async () => {
+      const emp = employees.find(e => e.id === holForm.employee_id);
+      if (!emp) throw new Error("Selecione um funcionário");
+      const dailyRate = Number(emp.saturday_value) || 0;
+      if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária (sábado) de ${emp.name} antes de registrar`);
+      if (!holForm.holiday_name.trim()) throw new Error("Informe o nome do feriado");
+      const days = parseFloat(holForm.day_quantity);
+      if (!days || days <= 0) throw new Error("Informe a quantidade de dias");
+      const hrs = parseFloat(holForm.hours) || 0;
+      const total = dailyRate * 2 * days; // dobro
+      const { error } = await supabase.from("employee_holidays" as any).insert({
+        employee_id: holForm.employee_id,
+        date: holForm.date,
+        holiday_name: holForm.holiday_name,
+        hours: hrs,
+        day_quantity: days,
+        daily_rate: dailyRate,
+        calculated_value: Math.round(total * 100) / 100,
+        description: holForm.description || null,
+        month_ref: selectedMonth,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const [vacOpen, setVacOpen] = useState(false);
   const [vacForm, setVacForm] = useState({ employee_id: "", start_date: "", end_date: "", days: "", notes: "" });
   const vacMutation = useMutation({
@@ -227,8 +262,9 @@ const HR = () => {
       const totalExp = 0;
       const totalOt = overtime.filter(o => o.employee_id === employeeId).reduce((s, o) => s + Number(o.calculated_value), 0);
       const totalSat = saturdays.filter(s => s.employee_id === employeeId).reduce((s, sat) => s + Number(sat.calculated_value), 0);
-      const netPay = baseSalary + totalOt + totalSat - totalAdv - totalExp;
-      const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, net_pay: netPay }, { onConflict: "employee_id,month_ref" });
+      const totalHol = holidays.filter((h: any) => h.employee_id === employeeId).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
+      const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp;
+      const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); toast({ title: "Fechamento calculado!" }); },
@@ -348,6 +384,8 @@ const HR = () => {
   const totalExpenses = 0;
   const totalOvertime = useMemo(() => overtime.reduce((s, o) => s + Number(o.calculated_value), 0), [overtime]);
   const totalSaturdays = useMemo(() => saturdays.reduce((s, sat) => s + Number(sat.calculated_value), 0), [saturdays]);
+  const totalHolidays = useMemo(() => holidays.reduce((s: number, h: any) => s + Number(h.calculated_value), 0), [holidays]);
+  const totalHolidayDays = useMemo(() => holidays.reduce((s: number, h: any) => s + Number(h.day_quantity), 0), [holidays]);
   const total13thProvision = useMemo(() => thirteenths.reduce((s, t) => s + Number(t.monthly_provision) * (new Date().getMonth() + 1), 0), [thirteenths]);
 
   const vacationAlerts = useMemo(() => {
@@ -373,14 +411,16 @@ const HR = () => {
       const empExpenses = 0;
       const empOvertime = overtime.filter(o => o.employee_id === emp.id).reduce((s, o) => s + Number(o.calculated_value), 0);
       const empSaturdays = saturdays.filter(s => s.employee_id === emp.id).reduce((s, sat) => s + Number(sat.calculated_value), 0);
+      const empHolidays = holidays.filter((h: any) => h.employee_id === emp.id).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
-      const netPay = baseSalary + empOvertime + empSaturdays - empAdvances - empExpenses;
+      const netPay = baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses;
       const totalPaid = salaryPayments.filter((p: any) => p.employee_id === emp.id).reduce((s: number, p: any) => s + Number(p.amount), 0);
       const remaining = netPay - totalPaid;
-      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, netPay, closing, totalPaid, remaining };
+      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, netPay, closing, totalPaid, remaining };
     });
-  }, [employees, advances, overtime, saturdays, closings, salaryPayments]);
+  }, [employees, advances, overtime, saturdays, holidays, closings, salaryPayments]);
+
 
   // categories removed — no longer used
 
@@ -435,6 +475,7 @@ const HR = () => {
           <TabsTrigger value="salarios"><DollarSign className="h-4 w-4 mr-1 hidden sm:inline" />Salários</TabsTrigger>
           <TabsTrigger value="horas"><Clock className="h-4 w-4 mr-1 hidden sm:inline" />Horas Extras</TabsTrigger>
           <TabsTrigger value="sabados"><Calendar className="h-4 w-4 mr-1 hidden sm:inline" />Sábados</TabsTrigger>
+          <TabsTrigger value="feriados"><PartyPopper className="h-4 w-4 mr-1 hidden sm:inline" />Feriados</TabsTrigger>
           <TabsTrigger value="vales"><Banknote className="h-4 w-4 mr-1 hidden sm:inline" />Vales</TabsTrigger>
           <TabsTrigger value="ferias"><Palmtree className="h-4 w-4 mr-1 hidden sm:inline" />Férias</TabsTrigger>
           <TabsTrigger value="decimo"><Gift className="h-4 w-4 mr-1 hidden sm:inline" />13º</TabsTrigger>
@@ -447,6 +488,7 @@ const HR = () => {
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Folha do Mês</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(totalPayroll)}</div><p className="text-xs text-muted-foreground">{employees.length} funcionários</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Horas Extras</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalOvertime)}</div><p className="text-xs text-muted-foreground">{overtime.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Sábados</CardTitle><Calendar className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalSaturdays)}</div><p className="text-xs text-muted-foreground">{saturdays.length} registros</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Feriados</CardTitle><PartyPopper className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalHolidays)}</div><p className="text-xs text-muted-foreground">{totalHolidayDays} dia(s) — {holidays.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Vales/Adiant.</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{fmt(totalAdvances)}</div></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Vales</CardTitle><Banknote className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalAdvances)}</div><p className="text-xs text-muted-foreground">{advances.length} registros</p></CardContent></Card>
           </div>
@@ -513,6 +555,7 @@ const HR = () => {
                         <p>Salário Base: {fmt(selectedPayEmployee.baseSalary)}</p>
                         {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
                         {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
+                        {selectedPayEmployee.empHolidays > 0 && <p className="text-primary">+ Feriados (×2): {fmt(selectedPayEmployee.empHolidays)}</p>}
                         {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
                         
                         <hr className="my-1 border-border" />
@@ -559,6 +602,7 @@ const HR = () => {
                     <TableHead>Salário Base</TableHead>
                     <TableHead>H. Extras</TableHead>
                     <TableHead>Sábados</TableHead>
+                    <TableHead>Feriados</TableHead>
                     <TableHead>Vales/Adiant.</TableHead>
                     <TableHead>Líquido</TableHead>
                     <TableHead>Pago</TableHead>
@@ -573,6 +617,7 @@ const HR = () => {
                       <TableCell>{fmt(e.baseSalary)}</TableCell>
                       <TableCell className="text-primary">{e.empOvertime > 0 ? fmt(e.empOvertime) : "-"}</TableCell>
                       <TableCell className="text-primary">{e.empSaturdays > 0 ? fmt(e.empSaturdays) : "-"}</TableCell>
+                      <TableCell className="text-primary">{e.empHolidays > 0 ? fmt(e.empHolidays) : "-"}</TableCell>
                       <TableCell className="text-amber-600">{e.empAdvances > 0 ? fmt(e.empAdvances) : "-"}</TableCell>
                       
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
@@ -598,7 +643,7 @@ const HR = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}
+                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -709,6 +754,93 @@ const HR = () => {
             </div>
           )}
           <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Qtd Sábados</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)} sábados)</div>}</CardContent></Card>
+        </TabsContent>
+
+        {/* ── Feriados ── */}
+        <TabsContent value="feriados" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={holOpen} onOpenChange={setHolOpen}>
+                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Feriado</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Feriado Trabalhado (pagamento em dobro)</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); holMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label>
+                      <select className={selectClass} value={holForm.employee_id} onChange={e => setHolForm({ ...holForm, employee_id: e.target.value })} required>
+                        <option value="">Selecione</option>
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Data do Feriado *</Label><Input type="date" value={holForm.date} onChange={e => setHolForm({ ...holForm, date: e.target.value })} required /></div>
+                      <div><Label>Nome do Feriado *</Label><Input value={holForm.holiday_name} onChange={e => setHolForm({ ...holForm, holiday_name: e.target.value })} placeholder="Ex: Tiradentes, Natal" required /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Horas trabalhadas</Label><Input type="number" step="0.5" min="0" value={holForm.hours} onChange={e => setHolForm({ ...holForm, hours: e.target.value })} placeholder="Opcional" /></div>
+                      <div><Label>Quantidade de dias *</Label><Input type="number" step="0.5" min="0.5" value={holForm.day_quantity} onChange={e => setHolForm({ ...holForm, day_quantity: e.target.value })} required placeholder="Ex: 0.5, 1, 1.5" /></div>
+                    </div>
+                    {holForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === holForm.employee_id);
+                      const dailyRate = Number(emp?.saturday_value) || 0;
+                      if (dailyRate <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária (sábado) de {emp?.name} antes de registrar.</div>;
+                      }
+                      const days = parseFloat(holForm.day_quantity) || 0;
+                      const total = dailyRate * 2 * days;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm">
+                          <p>Valor diária cadastrado: <strong>{fmt(dailyRate)}</strong></p>
+                          <p>Multiplicador feriado: ×2 → {fmt(dailyRate * 2)}/dia</p>
+                          {days > 0 && <p className="font-bold mt-1">Total ({days} dia{days !== 1 ? "s" : ""}): {fmt(total)}</p>}
+                        </div>
+                      );
+                    })()}
+                    <div><Label>Descrição</Label><Input value={holForm.description} onChange={e => setHolForm({ ...holForm, description: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={holMutation.isPending}>Salvar</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Feriados Trabalhados — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Feriado</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Dias</TableHead>
+                    <TableHead>Horas</TableHead>
+                    <TableHead>Diária</TableHead>
+                    <TableHead>Valor (×2)</TableHead>
+                    {canEdit && <TableHead className="w-12"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {holidays.map((h: any) => (
+                    <TableRow key={h.id}>
+                      <TableCell className="font-medium">{h.employees?.name}</TableCell>
+                      <TableCell>{h.holiday_name}</TableCell>
+                      <TableCell>{formatDateBR(h.date)}</TableCell>
+                      <TableCell>{h.day_quantity}</TableCell>
+                      <TableCell>{Number(h.hours) > 0 ? `${h.hours}h` : "-"}</TableCell>
+                      <TableCell>{fmt(Number(h.daily_rate))}</TableCell>
+                      <TableCell className="font-bold text-primary">{fmt(Number(h.calculated_value))}</TableCell>
+                      {canEdit && <TableCell><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
+                    </TableRow>
+                  ))}
+                  {holidays.length === 0 && (
+                    <TableRow><TableCell colSpan={canEdit ? 8 : 7} className="text-center text-muted-foreground py-8">Nenhum feriado trabalhado neste mês.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {holidays.length > 0 && (
+                <div className="mt-4 text-right font-bold">Total: {fmt(totalHolidays)} ({totalHolidayDays} dia(s))</div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── Vales ── */}
@@ -850,10 +982,10 @@ const HR = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)}</CardTitle>
-              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados - Vales = Líquido</p>
+              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados (×2) + Feriados (×2) - Vales = Líquido</p>
             </CardHeader>
             <CardContent className="overflow-auto">
-              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Vales</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
+              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Feriados</TableHead><TableHead>Vales</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {employeeSummary.map(e => (
                     <TableRow key={e.id}>
@@ -861,6 +993,7 @@ const HR = () => {
                       <TableCell>{fmt(e.baseSalary)}</TableCell>
                       <TableCell className="text-primary">{fmt(e.empOvertime)}</TableCell>
                       <TableCell className="text-primary">{fmt(e.empSaturdays)}</TableCell>
+                      <TableCell className="text-primary">{fmt(e.empHolidays)}</TableCell>
                       <TableCell className="text-amber-600">{fmt(e.empAdvances)}</TableCell>
                       
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
@@ -876,7 +1009,7 @@ const HR = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum funcionário.</TableCell></TableRow>}
+                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum funcionário.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
