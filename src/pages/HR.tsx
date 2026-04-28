@@ -1260,8 +1260,8 @@ const HR = () => {
                             </Button>
                           )}
                           {canEdit && e.closing && (
-                            <Button size="sm" variant="ghost" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending} title="Recalcular valores das quinzenas pendentes">
-                              Recalcular
+                            <Button size="sm" variant="ghost" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending} title="Atualizar líquido total e gerar quinzenas faltantes (não sobrescreve valores manuais)">
+                              Atualizar Totais
                             </Button>
                           )}
                           {canEdit && e.closing && (
