@@ -1301,31 +1301,37 @@ const HR = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Label className="text-xs whitespace-nowrap">Valor:</Label>
-                                  {canEdit ? (
-                                    <Input
-                                      type="number" step="0.01" min="0"
-                                      defaultValue={String(Number(inst.amount) || 0)}
-                                      key={`${inst.id}-${inst.amount}`}
-                                      className="h-8 text-sm"
-                                      onBlur={(ev) => {
-                                        const v = parseFloat(ev.target.value);
-                                        if (!isNaN(v) && v !== Number(inst.amount)) {
-                                          if (isPaid) {
-                                            editPaidInstallmentMutation.mutate({
-                                              inst, amount: v,
-                                              payment_date: inst.payment_date,
-                                              payment_method: inst.payment_method || "pix",
-                                              account_id: inst.account_id || null,
-                                              notes: inst.notes || null,
-                                            });
-                                          } else {
-                                            editInstMutation.mutate({ id: inst.id, amount: v });
-                                          }
+                                  <span className="font-bold text-base flex-1">{fmt(Number(inst.amount))}</span>
+                                  {canEdit && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2"
+                                      title="Editar valor desta quinzena"
+                                      onClick={() => {
+                                        const input = window.prompt(`Valor da ${num}ª quinzena (R$):`, String(Number(inst.amount) || 0));
+                                        if (input === null) return;
+                                        const v = parseFloat(input.replace(",", "."));
+                                        if (isNaN(v) || v < 0) {
+                                          toast({ title: "Valor inválido", variant: "destructive" });
+                                          return;
+                                        }
+                                        if (v === Number(inst.amount)) return;
+                                        if (isPaid) {
+                                          editPaidInstallmentMutation.mutate({
+                                            inst, amount: v,
+                                            payment_date: inst.payment_date,
+                                            payment_method: inst.payment_method || "pix",
+                                            account_id: inst.account_id || null,
+                                            notes: inst.notes || null,
+                                          });
+                                        } else {
+                                          editInstMutation.mutate({ id: inst.id, amount: v });
                                         }
                                       }}
-                                    />
-                                  ) : (
-                                    <span className="font-bold text-sm">{fmt(Number(inst.amount))}</span>
+                                    >
+                                      <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                                    </Button>
                                   )}
                                 </div>
                                 {isPaid ? (
