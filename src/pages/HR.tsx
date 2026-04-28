@@ -83,6 +83,18 @@ const HR = () => {
     queryKey: ["salary-payments", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("salary_payments").select("*, employees(name)").eq("month_ref", selectedMonth).order("payment_date", { ascending: false }); return data ?? []; },
   });
+  // Quinzenas (regime de competência por month_ref)
+  const { data: installments = [] } = useQuery({
+    queryKey: ["salary-installments", selectedMonth],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("salary_installments" as any)
+        .select("*, employees(name)")
+        .eq("month_ref", selectedMonth)
+        .order("installment_number");
+      return (data as any[]) ?? [];
+    },
+  });
 
   // ── Generic delete mutation ──
   const deleteMutation = useMutation({
@@ -239,19 +251,9 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const payInstallmentMutation = useMutation({
-    mutationFn: async ({ id, installment }: { id: string; installment: 1 | 2 }) => {
-      const update = installment === 1
-        ? { first_installment_paid: true, first_installment_date: localDateString() }
-        : { second_installment_paid: true, second_installment_date: localDateString() };
-      const { error } = await supabase.from("thirteenth_salary").update(update).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] }); toast({ title: "Parcela paga!" }); },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
+  // Mutation antiga removida — substituída por pay13thInstallmentMutation (mais abaixo)
 
-  // ── Closing ──
+  // ── Closing (gera fechamento + 2 quinzenas 50/50 se ainda não existirem) ──
   const closingMutation = useMutation({
     mutationFn: async (employeeId: string) => {
       const emp = employees.find(e => e.id === employeeId);
@@ -265,83 +267,183 @@ const HR = () => {
       const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp;
       const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
+
+      // Sync quinzenas — só cria/atualiza valores das que ainda estão pendentes
+      const existing = installments.filter((i: any) => i.employee_id === employeeId);
+      const half = Math.round((netPay / 2) * 100) / 100;
+      const second = Math.round((netPay - half) * 100) / 100;
+      for (const num of [1, 2] as const) {
+        const found = existing.find((i: any) => i.installment_number === num);
+        const value = num === 1 ? half : second;
+        if (!found) {
+          await supabase.from("salary_installments" as any).insert({
+            employee_id: employeeId,
+            month_ref: selectedMonth,
+            installment_number: num,
+            amount: value,
+            status: "pendente",
+          });
+        } else if (found.status !== "pago") {
+          // Atualiza valor da quinzena pendente conforme novo líquido
+          await supabase.from("salary_installments" as any).update({ amount: value }).eq("id", found.id);
+        }
+      }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); toast({ title: "Fechamento calculado!" }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      toast({ title: "Fechamento calculado! Quinzenas geradas." });
+    },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Salary Payment ──
-  const [payOpen, setPayOpen] = useState(false);
-  const [payForm, setPayForm] = useState({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+  // ── Edit installment value ──
+  const editInstMutation = useMutation({
+    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      const { error } = await supabase.from("salary_installments" as any).update({ amount }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Valor atualizado!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
 
-  const salaryPayMutation = useMutation({
-    mutationFn: async () => {
-      const emp = employees.find(e => e.id === payForm.employee_id);
-      if (!emp) throw new Error("Selecione um funcionário");
-      const payAmount = parseFloat(payForm.amount);
-      if (!payAmount || payAmount <= 0) throw new Error("Informe um valor válido");
+  // ── Lançar quinzena em Contas a Pagar (status pendente) ──
+  const sendToPayableMutation = useMutation({
+    mutationFn: async ({ inst, expectedDate }: { inst: any; expectedDate: string }) => {
+      const emp = employees.find(e => e.id === inst.employee_id);
+      const empName = emp?.name ?? "Funcionário";
+      const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
 
-      // Create financial transaction
-      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
-        type: "a_pagar" as any,
-        description: `Salário — ${emp.name} — ${monthLabel(selectedMonth)}`,
-        amount: payAmount,
-        due_date: payForm.payment_date,
-        paid_date: payForm.payment_date,
-        status: "pago" as any,
-        category: "Folha de Pagamento",
-        account_id: payForm.account_id || null,
-        sync_origin: "payroll",
-      }).select("id").single();
-      if (ftError) throw ftError;
-
-      // Record in salary_payments — month_ref derived from the payment date entered
-      const payMonthRef = payForm.payment_date.substring(0, 7); // "YYYY-MM"
-      const { error: spError } = await supabase.from("salary_payments" as any).insert({
-        employee_id: payForm.employee_id,
-        month_ref: payMonthRef,
-        amount: payAmount,
-        payment_date: payForm.payment_date,
-        payment_method: payForm.payment_method,
-        account_id: payForm.account_id || null,
-        notes: payForm.notes || null,
-        financial_transaction_id: ftData?.id || null,
-      });
-      if (spError) throw spError;
+      if (inst.payable_transaction_id) {
+        // Atualiza data prevista do lançamento existente
+        const { error } = await supabase.from("financial_transactions").update({
+          due_date: expectedDate,
+          amount: Number(inst.amount),
+          description: desc,
+        }).eq("id", inst.payable_transaction_id);
+        if (error) throw error;
+      } else {
+        const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          description: desc,
+          amount: Number(inst.amount),
+          due_date: expectedDate,
+          status: "pendente" as any,
+          category: "Folha de Pagamento",
+          sync_origin: "payroll",
+        }).select("id").single();
+        if (ftErr) throw ftErr;
+        const { error: updErr } = await supabase.from("salary_installments" as any).update({
+          expected_date: expectedDate,
+          payable_transaction_id: ft!.id,
+        }).eq("id", inst.id);
+        if (updErr) throw updErr;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      toast({ title: "Lançado em Contas a Pagar!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  // ── Pagar quinzena (regime de caixa) ──
+  const payInstFormInitial = { id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" };
+  const [payInstOpen, setPayInstOpen] = useState(false);
+  const [payInstForm, setPayInstForm] = useState(payInstFormInitial);
+  const [payInstContext, setPayInstContext] = useState<any>(null);
+
+  const payInstallmentMutation = useMutation({
+    mutationFn: async () => {
+      const inst = payInstContext;
+      if (!inst) throw new Error("Quinzena não encontrada");
+      const amount = parseFloat(payInstForm.amount);
+      if (!amount || amount <= 0) throw new Error("Informe um valor válido");
+      const emp = employees.find(e => e.id === inst.employee_id);
+      const empName = emp?.name ?? "Funcionário";
+      const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
+
+      let ftId = inst.payable_transaction_id as string | null;
+      if (ftId) {
+        // Já existia em Contas a Pagar → marca como pago
+        const { error } = await supabase.from("financial_transactions").update({
+          status: "pago" as any,
+          paid_date: payInstForm.payment_date,
+          amount,
+          payment_method: payInstForm.payment_method,
+          account_id: payInstForm.account_id || null,
+          description: desc,
+        }).eq("id", ftId);
+        if (error) throw error;
+      } else {
+        // Cria direto como pago
+        const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
+          type: "a_pagar" as any,
+          description: desc,
+          amount,
+          due_date: payInstForm.payment_date,
+          paid_date: payInstForm.payment_date,
+          status: "pago" as any,
+          category: "Folha de Pagamento",
+          payment_method: payInstForm.payment_method,
+          account_id: payInstForm.account_id || null,
+          sync_origin: "payroll",
+        }).select("id").single();
+        if (ftErr) throw ftErr;
+        ftId = ft!.id;
+      }
+
+      const { error: updErr } = await supabase.from("salary_installments" as any).update({
+        status: "pago",
+        amount,
+        payment_date: payInstForm.payment_date,
+        payment_method: payInstForm.payment_method,
+        account_id: payInstForm.account_id || null,
+        notes: payInstForm.notes || null,
+        financial_transaction_id: ftId,
+        payable_transaction_id: ftId,
+      }).eq("id", inst.id);
+      if (updErr) throw updErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["financial"] });
       queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
-      setPayOpen(false);
-      setPayForm({ employee_id: "", amount: "", payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
-      toast({ title: "Pagamento registrado e lançado no Financeiro!" });
+      setPayInstOpen(false);
+      setPayInstForm(payInstFormInitial);
+      setPayInstContext(null);
+      toast({ title: "Quinzena paga e lançada no Financeiro!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const markPaidMutation = useMutation({
-    mutationFn: async (closingId: string) => {
-      const closing = closings.find(c => c.id === closingId);
-      if (!closing) throw new Error("Fechamento não encontrado");
-      const today = localDateString();
-      const { error } = await supabase.from("monthly_closings").update({ paid: true, paid_date: today }).eq("id", closingId);
-      if (error) throw error;
+  // Helpers para abrir dialog de pagamento de quinzena
+  const openPayInstallment = (inst: any) => {
+    setPayInstContext(inst);
+    setPayInstForm({
+      id: inst.id,
+      amount: String(Number(inst.amount) || 0),
+      payment_date: localDateString(),
+      payment_method: inst.payment_method || "pix",
+      account_id: inst.account_id || "",
+      notes: inst.notes || "",
+    });
+    setPayInstOpen(true);
+  };
 
-      const empName = (closing as any).employees?.name ?? employees.find(e => e.id === closing.employee_id)?.name ?? "Funcionário";
-      await supabase.from("financial_transactions").insert({
-        type: "a_pagar" as any,
-        description: `Folha de Pagamento - ${empName} (${monthLabel(closing.month_ref)})`,
-        amount: Number(closing.net_pay),
-        due_date: today,
-        paid_date: today,
-        status: "pago" as any,
-        category: "Folha de Pagamento",
-        sync_origin: "payroll",
-      });
+  // Mutation antiga para 13º salário (mantida) — renomeada pra evitar conflito
+  const pay13thInstallmentMutation = useMutation({
+    mutationFn: async ({ id, installment }: { id: string; installment: 1 | 2 }) => {
+      const update = installment === 1
+        ? { first_installment_paid: true, first_installment_date: localDateString() }
+        : { second_installment_paid: true, second_installment_date: localDateString() };
+      const { error } = await supabase.from("thirteenth_salary").update(update).eq("id", id);
+      if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["financial"] }); queryClient.invalidateQueries({ queryKey: ["financial-saidas"] }); toast({ title: "Marcado como pago!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] }); toast({ title: "Parcela paga!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -423,7 +525,7 @@ const HR = () => {
 
   // categories removed — no longer used
 
-  const selectedPayEmployee = employeeSummary.find(e => e.id === payForm.employee_id);
+  const selectedPayEmployee = payInstContext ? employeeSummary.find(e => e.id === payInstContext.employee_id) : null;
 
   // Delete button helper
   const DeleteBtn = ({ table, id, label }: { table: string; id: string; label: string }) => {
@@ -536,53 +638,40 @@ const HR = () => {
                   </form></DialogContent></Dialog>
             )}
             {canEdit && (
-              <Dialog open={payOpen} onOpenChange={setPayOpen}>
-                <DialogTrigger asChild><Button><Banknote className="h-4 w-4 mr-2" />Registrar Pagamento</Button></DialogTrigger>
+              <Dialog open={payInstOpen} onOpenChange={(o) => { setPayInstOpen(o); if (!o) setPayInstContext(null); }}>
                 <DialogContent className="max-w-lg">
-                  <DialogHeader><DialogTitle>Registrar Pagamento de Salário</DialogTitle></DialogHeader>
-                  <form onSubmit={e => { e.preventDefault(); salaryPayMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label>
-                      <select className={selectClass} value={payForm.employee_id} onChange={e => setPayForm({ ...payForm, employee_id: e.target.value })} required>
-                        <option value="">Selecione</option>
-                        {employeeSummary.map(e => (
-                          <option key={e.id} value={e.id}>{e.name} {e.totalPaid > 0 ? `(já pago: ${fmt(e.totalPaid)})` : ""}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {selectedPayEmployee && (
+                  <DialogHeader>
+                    <DialogTitle>
+                      Pagar {payInstContext?.installment_number === 1 ? "1ª" : "2ª"} Quinzena — {selectedPayEmployee?.name}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); payInstallmentMutation.mutate(); }} className="space-y-3">
+                    {selectedPayEmployee && payInstContext && (
                       <div className="p-3 rounded-md bg-muted text-sm space-y-1">
-                        <p>Salário Base: {fmt(selectedPayEmployee.baseSalary)}</p>
-                        {selectedPayEmployee.empOvertime > 0 && <p className="text-primary">+ Horas Extras: {fmt(selectedPayEmployee.empOvertime)}</p>}
-                        {selectedPayEmployee.empSaturdays > 0 && <p className="text-primary">+ Sábados: {fmt(selectedPayEmployee.empSaturdays)}</p>}
-                        {selectedPayEmployee.empHolidays > 0 && <p className="text-primary">+ Feriados trabalhados: {fmt(selectedPayEmployee.empHolidays)}</p>}
-                        {selectedPayEmployee.empAdvances > 0 && <p className="text-amber-600">- Vales/Adiant.: {fmt(selectedPayEmployee.empAdvances)}</p>}
-                        
-                        <hr className="my-1 border-border" />
-                        <p className="font-bold">Líquido Total: {fmt(selectedPayEmployee.netPay)}</p>
-                        {selectedPayEmployee.totalPaid > 0 && <p className="text-green-600">Já Pago: {fmt(selectedPayEmployee.totalPaid)}</p>}
-                        <p className="font-bold text-base">Restante: {fmt(selectedPayEmployee.remaining)}</p>
+                        <p>Mês de Referência: <span className="font-bold">{monthLabel(payInstContext.month_ref)}</span></p>
+                        <p>Líquido total do mês: <span className="font-bold">{fmt(selectedPayEmployee.netPay)}</span></p>
+                        <p className="text-xs text-muted-foreground">A data real do pagamento pode ser em outro mês — o registro permanece em {monthLabel(payInstContext.month_ref)}.</p>
                       </div>
                     )}
-                    <div><Label>Valor do Pagamento (R$) *</Label>
-                      <Input type="number" step="0.01" min="0.01" value={payForm.amount} onChange={e => setPayForm({ ...payForm, amount: e.target.value })} required placeholder={selectedPayEmployee ? String(selectedPayEmployee.remaining) : ""} />
+                    <div><Label>Valor da Quinzena (R$) *</Label>
+                      <Input type="number" step="0.01" min="0.01" value={payInstForm.amount} onChange={e => setPayInstForm({ ...payInstForm, amount: e.target.value })} required />
                     </div>
-                    <div><Label>Mês de Referência</Label><Input value={monthLabel(selectedMonth)} disabled /></div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div><Label>Data do Pagamento *</Label><Input type="date" value={payForm.payment_date} onChange={e => setPayForm({ ...payForm, payment_date: e.target.value })} required /></div>
+                      <div><Label>Data Real do Pagamento *</Label><Input type="date" value={payInstForm.payment_date} onChange={e => setPayInstForm({ ...payInstForm, payment_date: e.target.value })} required /></div>
                       <div><Label>Forma de Pagamento *</Label>
-                        <select className={selectClass} value={payForm.payment_method} onChange={e => setPayForm({ ...payForm, payment_method: e.target.value })}>
+                        <select className={selectClass} value={payInstForm.payment_method} onChange={e => setPayInstForm({ ...payInstForm, payment_method: e.target.value })}>
                           <option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro</option>
                         </select>
                       </div>
                     </div>
                     <div><Label>Conta de Origem</Label>
-                      <select className={selectClass} value={payForm.account_id} onChange={e => setPayForm({ ...payForm, account_id: e.target.value })}>
+                      <select className={selectClass} value={payInstForm.account_id} onChange={e => setPayInstForm({ ...payInstForm, account_id: e.target.value })}>
                         <option value="">Selecione (opcional)</option>
                         {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                       </select>
                     </div>
-                    <div><Label>Observações</Label><Input value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })} placeholder="Ex: Pagamento parcial, 2ª quinzena..." /></div>
-                    <Button type="submit" className="w-full" disabled={salaryPayMutation.isPending || !payForm.employee_id || !payForm.amount}>
+                    <div><Label>Observações</Label><Input value={payInstForm.notes} onChange={e => setPayInstForm({ ...payInstForm, notes: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={payInstallmentMutation.isPending || !payInstForm.amount}>
                       Confirmar Pagamento
                     </Button>
                   </form>
@@ -633,11 +722,7 @@ const HR = () => {
                               <Pencil className="h-3 w-3" />
                             </Button>
                           )}
-                          {canEdit && (
-                            <Button size="sm" variant="outline" onClick={() => { setPayForm({ ...payForm, employee_id: e.id, amount: String(e.remaining > 0 ? e.remaining : e.netPay) }); setPayOpen(true); }}>
-                              <Banknote className="h-3 w-3 mr-1" />Pagar
-                            </Button>
-                          )}
+                          {/* Pagamento agora é feito por quinzena na aba Fechamento */}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -951,8 +1036,8 @@ const HR = () => {
                         <TableCell>
                           <div className="flex gap-1 flex-wrap">
                             {canEdit && !t && <Button size="sm" variant="outline" onClick={() => thirteenthMutation.mutate(emp.id)} disabled={thirteenthMutation.isPending}>Calcular</Button>}
-                            {canEdit && t && !t.first_installment_paid && <Button size="sm" variant="outline" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 1 })} disabled={payInstallmentMutation.isPending}>Pagar 1ª</Button>}
-                            {canEdit && t && t.first_installment_paid && !t.second_installment_paid && <Button size="sm" onClick={() => payInstallmentMutation.mutate({ id: t.id, installment: 2 })} disabled={payInstallmentMutation.isPending}>Pagar 2ª</Button>}
+                            {canEdit && t && !t.first_installment_paid && <Button size="sm" variant="outline" onClick={() => pay13thInstallmentMutation.mutate({ id: t.id, installment: 1 })} disabled={pay13thInstallmentMutation.isPending}>Pagar 1ª</Button>}
+                            {canEdit && t && t.first_installment_paid && !t.second_installment_paid && <Button size="sm" onClick={() => pay13thInstallmentMutation.mutate({ id: t.id, installment: 2 })} disabled={pay13thInstallmentMutation.isPending}>Pagar 2ª</Button>}
                             {canEdit && t && <DeleteBtn table="thirteenth_salary" id={t.id} label={`13º de ${emp.name}`} />}
                           </div>
                         </TableCell>
@@ -966,41 +1051,121 @@ const HR = () => {
           </Card>
         </TabsContent>
 
-        {/* ── Fechamento ── */}
+        {/* ── Fechamento (com quinzenas) ── */}
         <TabsContent value="fechamento" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)}</CardTitle>
-              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados (×2) + Feriados (+1 diária cada) - Vales = Líquido</p>
+              <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)} <span className="text-xs font-normal text-muted-foreground">(regime de competência)</span></CardTitle>
+              <p className="text-xs text-muted-foreground">Cada funcionário é pago em 2 quinzenas. O mês de referência nunca muda — pagamentos podem ocorrer em qualquer data.</p>
             </CardHeader>
-            <CardContent className="overflow-auto">
-              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Feriados</TableHead><TableHead>Vales</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {employeeSummary.map(e => (
-                    <TableRow key={e.id}>
-                      <TableCell className="font-medium">{e.name}</TableCell>
-                      <TableCell>{fmt(e.baseSalary)}</TableCell>
-                      <TableCell className="text-primary">{fmt(e.empOvertime)}</TableCell>
-                      <TableCell className="text-primary">{fmt(e.empSaturdays)}</TableCell>
-                      <TableCell className="text-primary">{fmt(e.empHolidays)}</TableCell>
-                      <TableCell className="text-amber-600">{fmt(e.empAdvances)}</TableCell>
-                      
-                      <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
-                      <TableCell>{e.closing?.paid ? <Badge variant="default">Pago</Badge> : e.closing ? <Badge variant="secondary">Calculado</Badge> : <Badge variant="outline">Pendente</Badge>}</TableCell>
-                      <TableCell>
-                        {canEdit && (
-                          <div className="flex gap-1">
-                            {!e.closing && <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>Calcular</Button>}
-                            {e.closing && !e.closing.paid && <Button size="sm" onClick={() => markPaidMutation.mutate(e.closing!.id)} disabled={markPaidMutation.isPending}>Pagar</Button>}
-                            {e.closing && <DeleteBtn table="monthly_closings" id={e.closing.id} label={`Fechamento de ${e.name}`} />}
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum funcionário.</TableCell></TableRow>}
-                </TableBody>
-              </Table>
+            <CardContent className="overflow-auto space-y-4">
+              {employeeSummary.map(e => {
+                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => a.installment_number - b.installment_number);
+                const inst1 = empInsts.find((i: any) => i.installment_number === 1);
+                const inst2 = empInsts.find((i: any) => i.installment_number === 2);
+                const paidCount = empInsts.filter((i: any) => i.status === "pago").length;
+                const generalStatus = !e.closing
+                  ? <Badge variant="outline">Sem fechamento</Badge>
+                  : paidCount === 2
+                  ? <Badge variant="default">Pago Total</Badge>
+                  : paidCount === 1
+                  ? <Badge variant="secondary">Parcialmente Pago</Badge>
+                  : <Badge variant="outline">Pendente</Badge>;
+
+                return (
+                  <Card key={e.id} className="border-l-4 border-l-primary/40">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <p className="font-bold">{e.name}</p>
+                          <p className="text-xs text-muted-foreground">Líquido total do mês: <span className="font-bold text-foreground">{fmt(e.netPay)}</span> · Vales: {fmt(e.empAdvances)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {generalStatus}
+                          {canEdit && !e.closing && (
+                            <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>
+                              Calcular Fechamento
+                            </Button>
+                          )}
+                          {canEdit && e.closing && (
+                            <Button size="sm" variant="ghost" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending} title="Recalcular valores das quinzenas pendentes">
+                              Recalcular
+                            </Button>
+                          )}
+                          {canEdit && e.closing && <DeleteBtn table="monthly_closings" id={e.closing.id} label={`Fechamento de ${e.name}`} />}
+                        </div>
+                      </div>
+
+                      {e.closing && (
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {[inst1, inst2].map((inst, idx) => {
+                            const num = (idx + 1) as 1 | 2;
+                            if (!inst) return (
+                              <div key={num} className="p-3 rounded-md border border-dashed text-sm text-muted-foreground">
+                                {num}ª Quinzena ainda não gerada — recalcule.
+                              </div>
+                            );
+                            const isPaid = inst.status === "pago";
+                            return (
+                              <div key={inst.id} className={`p-3 rounded-md border space-y-2 ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
+                                <div className="flex items-center justify-between">
+                                  <p className="font-bold text-sm">{num}ª Quinzena</p>
+                                  {isPaid ? <Badge variant="default">Paga</Badge> : <Badge variant="outline">Pendente</Badge>}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs whitespace-nowrap">Valor:</Label>
+                                  {canEdit && !isPaid ? (
+                                    <Input
+                                      type="number" step="0.01" min="0"
+                                      defaultValue={String(Number(inst.amount) || 0)}
+                                      className="h-8 text-sm"
+                                      onBlur={(ev) => {
+                                        const v = parseFloat(ev.target.value);
+                                        if (!isNaN(v) && v !== Number(inst.amount)) editInstMutation.mutate({ id: inst.id, amount: v });
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="font-bold text-sm">{fmt(Number(inst.amount))}</span>
+                                  )}
+                                </div>
+                                {isPaid ? (
+                                  <div className="text-xs space-y-0.5">
+                                    <p>Pago em: <span className="font-medium">{formatDateBR(inst.payment_date)}</span></p>
+                                    <p>Forma: {inst.payment_method?.toUpperCase() || "—"}</p>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs space-y-0.5">
+                                    <p className="text-muted-foreground">Data prevista: {inst.expected_date ? formatDateBR(inst.expected_date) : "—"}</p>
+                                  </div>
+                                )}
+                                {canEdit && !isPaid && (
+                                  <div className="flex gap-1 flex-wrap">
+                                    <Button size="sm" onClick={() => openPayInstallment(inst)}>
+                                      <Banknote className="h-3 w-3 mr-1" /> Pagar
+                                    </Button>
+                                    <Button
+                                      size="sm" variant="outline"
+                                      onClick={() => {
+                                        const today = localDateString();
+                                        const expected = inst.expected_date || today;
+                                        const input = window.prompt("Data prevista de pagamento (YYYY-MM-DD):", expected);
+                                        if (input) sendToPayableMutation.mutate({ inst, expectedDate: input });
+                                      }}
+                                    >
+                                      {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {employeeSummary.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhum funcionário.</p>}
             </CardContent>
           </Card>
         </TabsContent>

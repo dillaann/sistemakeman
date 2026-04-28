@@ -1210,6 +1210,60 @@ export type Database = {
           },
         ]
       }
+      salary_installments: {
+        Row: {
+          account_id: string | null
+          amount: number
+          created_at: string
+          employee_id: string
+          expected_date: string | null
+          financial_transaction_id: string | null
+          id: string
+          installment_number: number
+          month_ref: string
+          notes: string | null
+          payable_transaction_id: string | null
+          payment_date: string | null
+          payment_method: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          employee_id: string
+          expected_date?: string | null
+          financial_transaction_id?: string | null
+          id?: string
+          installment_number: number
+          month_ref: string
+          notes?: string | null
+          payable_transaction_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          created_at?: string
+          employee_id?: string
+          expected_date?: string | null
+          financial_transaction_id?: string | null
+          id?: string
+          installment_number?: number
+          month_ref?: string
+          notes?: string | null
+          payable_transaction_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       salary_payments: {
         Row: {
           account_id: string | null
