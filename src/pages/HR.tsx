@@ -1051,41 +1051,121 @@ const HR = () => {
           </Card>
         </TabsContent>
 
-        {/* ── Fechamento ── */}
+        {/* ── Fechamento (com quinzenas) ── */}
         <TabsContent value="fechamento" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)}</CardTitle>
-              <p className="text-xs text-muted-foreground">Salário Base + Horas Extras + Sábados (×2) + Feriados (+1 diária cada) - Vales = Líquido</p>
+              <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)} <span className="text-xs font-normal text-muted-foreground">(regime de competência)</span></CardTitle>
+              <p className="text-xs text-muted-foreground">Cada funcionário é pago em 2 quinzenas. O mês de referência nunca muda — pagamentos podem ocorrer em qualquer data.</p>
             </CardHeader>
-            <CardContent className="overflow-auto">
-              <Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Salário</TableHead><TableHead>H. Extras</TableHead><TableHead>Sábados</TableHead><TableHead>Feriados</TableHead><TableHead>Vales</TableHead><TableHead>Líquido</TableHead><TableHead>Status</TableHead><TableHead className="w-32">Ações</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {employeeSummary.map(e => (
-                    <TableRow key={e.id}>
-                      <TableCell className="font-medium">{e.name}</TableCell>
-                      <TableCell>{fmt(e.baseSalary)}</TableCell>
-                      <TableCell className="text-primary">{fmt(e.empOvertime)}</TableCell>
-                      <TableCell className="text-primary">{fmt(e.empSaturdays)}</TableCell>
-                      <TableCell className="text-primary">{fmt(e.empHolidays)}</TableCell>
-                      <TableCell className="text-amber-600">{fmt(e.empAdvances)}</TableCell>
-                      
-                      <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
-                      <TableCell>{e.closing?.paid ? <Badge variant="default">Pago</Badge> : e.closing ? <Badge variant="secondary">Calculado</Badge> : <Badge variant="outline">Pendente</Badge>}</TableCell>
-                      <TableCell>
-                        {canEdit && (
-                          <div className="flex gap-1">
-                            {!e.closing && <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>Calcular</Button>}
-                            {e.closing && !e.closing.paid && <Button size="sm" onClick={() => markPaidMutation.mutate(e.closing!.id)} disabled={markPaidMutation.isPending}>Pagar</Button>}
-                            {e.closing && <DeleteBtn table="monthly_closings" id={e.closing.id} label={`Fechamento de ${e.name}`} />}
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum funcionário.</TableCell></TableRow>}
-                </TableBody>
-              </Table>
+            <CardContent className="overflow-auto space-y-4">
+              {employeeSummary.map(e => {
+                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => a.installment_number - b.installment_number);
+                const inst1 = empInsts.find((i: any) => i.installment_number === 1);
+                const inst2 = empInsts.find((i: any) => i.installment_number === 2);
+                const paidCount = empInsts.filter((i: any) => i.status === "pago").length;
+                const generalStatus = !e.closing
+                  ? <Badge variant="outline">Sem fechamento</Badge>
+                  : paidCount === 2
+                  ? <Badge variant="default">Pago Total</Badge>
+                  : paidCount === 1
+                  ? <Badge variant="secondary">Parcialmente Pago</Badge>
+                  : <Badge variant="outline">Pendente</Badge>;
+
+                return (
+                  <Card key={e.id} className="border-l-4 border-l-primary/40">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <p className="font-bold">{e.name}</p>
+                          <p className="text-xs text-muted-foreground">Líquido total do mês: <span className="font-bold text-foreground">{fmt(e.netPay)}</span> · Vales: {fmt(e.empAdvances)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {generalStatus}
+                          {canEdit && !e.closing && (
+                            <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>
+                              Calcular Fechamento
+                            </Button>
+                          )}
+                          {canEdit && e.closing && (
+                            <Button size="sm" variant="ghost" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending} title="Recalcular valores das quinzenas pendentes">
+                              Recalcular
+                            </Button>
+                          )}
+                          {canEdit && e.closing && <DeleteBtn table="monthly_closings" id={e.closing.id} label={`Fechamento de ${e.name}`} />}
+                        </div>
+                      </div>
+
+                      {e.closing && (
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {[inst1, inst2].map((inst, idx) => {
+                            const num = (idx + 1) as 1 | 2;
+                            if (!inst) return (
+                              <div key={num} className="p-3 rounded-md border border-dashed text-sm text-muted-foreground">
+                                {num}ª Quinzena ainda não gerada — recalcule.
+                              </div>
+                            );
+                            const isPaid = inst.status === "pago";
+                            return (
+                              <div key={inst.id} className={`p-3 rounded-md border space-y-2 ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
+                                <div className="flex items-center justify-between">
+                                  <p className="font-bold text-sm">{num}ª Quinzena</p>
+                                  {isPaid ? <Badge variant="default">Paga</Badge> : <Badge variant="outline">Pendente</Badge>}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-xs whitespace-nowrap">Valor:</Label>
+                                  {canEdit && !isPaid ? (
+                                    <Input
+                                      type="number" step="0.01" min="0"
+                                      defaultValue={String(Number(inst.amount) || 0)}
+                                      className="h-8 text-sm"
+                                      onBlur={(ev) => {
+                                        const v = parseFloat(ev.target.value);
+                                        if (!isNaN(v) && v !== Number(inst.amount)) editInstMutation.mutate({ id: inst.id, amount: v });
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="font-bold text-sm">{fmt(Number(inst.amount))}</span>
+                                  )}
+                                </div>
+                                {isPaid ? (
+                                  <div className="text-xs space-y-0.5">
+                                    <p>Pago em: <span className="font-medium">{formatDateBR(inst.payment_date)}</span></p>
+                                    <p>Forma: {inst.payment_method?.toUpperCase() || "—"}</p>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs space-y-0.5">
+                                    <p className="text-muted-foreground">Data prevista: {inst.expected_date ? formatDateBR(inst.expected_date) : "—"}</p>
+                                  </div>
+                                )}
+                                {canEdit && !isPaid && (
+                                  <div className="flex gap-1 flex-wrap">
+                                    <Button size="sm" onClick={() => openPayInstallment(inst)}>
+                                      <Banknote className="h-3 w-3 mr-1" /> Pagar
+                                    </Button>
+                                    <Button
+                                      size="sm" variant="outline"
+                                      onClick={() => {
+                                        const today = localDateString();
+                                        const expected = inst.expected_date || today;
+                                        const input = window.prompt("Data prevista de pagamento (YYYY-MM-DD):", expected);
+                                        if (input) sendToPayableMutation.mutate({ inst, expectedDate: input });
+                                      }}
+                                    >
+                                      {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {employeeSummary.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhum funcionário.</p>}
             </CardContent>
           </Card>
         </TabsContent>
