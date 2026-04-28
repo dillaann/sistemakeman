@@ -59,6 +59,10 @@ const HR = () => {
     queryKey: ["employee-saturdays", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("employee_saturdays").select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return data ?? []; },
   });
+  const { data: holidays = [] } = useQuery({
+    queryKey: ["employee-holidays", selectedMonth],
+    queryFn: async () => { const { data } = await supabase.from("employee_holidays" as any).select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return (data as any[]) ?? []; },
+  });
   const { data: closings = [] } = useQuery({
     queryKey: ["monthly-closings", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("monthly_closings").select("*, employees(name)").eq("month_ref", selectedMonth); return data ?? []; },
