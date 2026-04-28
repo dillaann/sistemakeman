@@ -161,7 +161,37 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Vacation ──
+  // ── Holiday (feriado trabalhado pago em dobro) ──
+  const [holOpen, setHolOpen] = useState(false);
+  const [holForm, setHolForm] = useState({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() });
+  const holMutation = useMutation({
+    mutationFn: async () => {
+      const emp = employees.find(e => e.id === holForm.employee_id);
+      if (!emp) throw new Error("Selecione um funcionário");
+      const dailyRate = Number(emp.saturday_value) || 0;
+      if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária (sábado) de ${emp.name} antes de registrar`);
+      if (!holForm.holiday_name.trim()) throw new Error("Informe o nome do feriado");
+      const days = parseFloat(holForm.day_quantity);
+      if (!days || days <= 0) throw new Error("Informe a quantidade de dias");
+      const hrs = parseFloat(holForm.hours) || 0;
+      const total = dailyRate * 2 * days; // dobro
+      const { error } = await supabase.from("employee_holidays" as any).insert({
+        employee_id: holForm.employee_id,
+        date: holForm.date,
+        holiday_name: holForm.holiday_name,
+        hours: hrs,
+        day_quantity: days,
+        daily_rate: dailyRate,
+        calculated_value: Math.round(total * 100) / 100,
+        description: holForm.description || null,
+        month_ref: selectedMonth,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const [vacOpen, setVacOpen] = useState(false);
   const [vacForm, setVacForm] = useState({ employee_id: "", start_date: "", end_date: "", days: "", notes: "" });
   const vacMutation = useMutation({
