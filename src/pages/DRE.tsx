@@ -166,13 +166,16 @@ const DRE = () => {
     const custosCompras = custosOp; // Already included in custosOp from financial_transactions
     const descontosCompras = monthPurchases.reduce((s: number, p: any) => s + Number(p.discount_amount ?? 0), 0);
 
-    // Admin expenses: other "a_pagar" not in operational costs
+    // Admin expenses: other "a_pagar" not in operational costs and NOT payroll
+    // (payroll is already counted via monthly_closings under despPessoal — regime de competência)
     const despAdmin = transactions
       .filter((t) => {
         if (t.type !== "a_pagar") return false;
         if (!inMonth(t.due_date)) return false;
         const cat = (t.category ?? "").toLowerCase();
-        return !(cat.includes("material") || cat.includes("serviço") || cat.includes("servico") || cat.includes("terceiriz") || cat.includes("compras"));
+        if (cat.includes("material") || cat.includes("serviço") || cat.includes("servico") || cat.includes("terceiriz") || cat.includes("compras")) return false;
+        if (cat.includes("folha") || cat.includes("salário") || cat.includes("salario")) return false;
+        return true;
       })
       .reduce((s, t) => s + Number(t.amount), 0);
 
