@@ -753,6 +753,93 @@ const HR = () => {
           <Card><CardHeader><CardTitle className="text-base">Sábados - {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Qtd Sábados</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{saturdays.map(s => (<TableRow key={s.id}><TableCell className="font-medium">{(s.employees as any)?.name}</TableCell><TableCell>{s.hours}</TableCell><TableCell>{fmt(Number(s.calculated_value))}</TableCell><TableCell>{formatDateBR(s.date)}</TableCell>{canEdit && <TableCell><DeleteBtn table="employee_saturdays" id={s.id} label={`Sábado de ${(s.employees as any)?.name}`} /></TableCell>}</TableRow>))}{saturdays.length === 0 && <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhum sábado.</TableCell></TableRow>}</TableBody></Table>{saturdays.length > 0 && <div className="mt-4 text-right font-bold">Total: {fmt(totalSaturdays)} ({saturdays.reduce((s, sat) => s + Number(sat.hours), 0)} sábados)</div>}</CardContent></Card>
         </TabsContent>
 
+        {/* ── Feriados ── */}
+        <TabsContent value="feriados" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={holOpen} onOpenChange={setHolOpen}>
+                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Feriado</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Feriado Trabalhado (pagamento em dobro)</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); holMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label>
+                      <select className={selectClass} value={holForm.employee_id} onChange={e => setHolForm({ ...holForm, employee_id: e.target.value })} required>
+                        <option value="">Selecione</option>
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Data do Feriado *</Label><Input type="date" value={holForm.date} onChange={e => setHolForm({ ...holForm, date: e.target.value })} required /></div>
+                      <div><Label>Nome do Feriado *</Label><Input value={holForm.holiday_name} onChange={e => setHolForm({ ...holForm, holiday_name: e.target.value })} placeholder="Ex: Tiradentes, Natal" required /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Horas trabalhadas</Label><Input type="number" step="0.5" min="0" value={holForm.hours} onChange={e => setHolForm({ ...holForm, hours: e.target.value })} placeholder="Opcional" /></div>
+                      <div><Label>Quantidade de dias *</Label><Input type="number" step="0.5" min="0.5" value={holForm.day_quantity} onChange={e => setHolForm({ ...holForm, day_quantity: e.target.value })} required placeholder="Ex: 0.5, 1, 1.5" /></div>
+                    </div>
+                    {holForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === holForm.employee_id);
+                      const dailyRate = Number(emp?.saturday_value) || 0;
+                      if (dailyRate <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária (sábado) de {emp?.name} antes de registrar.</div>;
+                      }
+                      const days = parseFloat(holForm.day_quantity) || 0;
+                      const total = dailyRate * 2 * days;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm">
+                          <p>Valor diária cadastrado: <strong>{fmt(dailyRate)}</strong></p>
+                          <p>Multiplicador feriado: ×2 → {fmt(dailyRate * 2)}/dia</p>
+                          {days > 0 && <p className="font-bold mt-1">Total ({days} dia{days !== 1 ? "s" : ""}): {fmt(total)}</p>}
+                        </div>
+                      );
+                    })()}
+                    <div><Label>Descrição</Label><Input value={holForm.description} onChange={e => setHolForm({ ...holForm, description: e.target.value })} /></div>
+                    <Button type="submit" className="w-full" disabled={holMutation.isPending}>Salvar</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Feriados Trabalhados — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Feriado</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Dias</TableHead>
+                    <TableHead>Horas</TableHead>
+                    <TableHead>Diária</TableHead>
+                    <TableHead>Valor (×2)</TableHead>
+                    {canEdit && <TableHead className="w-12"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {holidays.map((h: any) => (
+                    <TableRow key={h.id}>
+                      <TableCell className="font-medium">{h.employees?.name}</TableCell>
+                      <TableCell>{h.holiday_name}</TableCell>
+                      <TableCell>{formatDateBR(h.date)}</TableCell>
+                      <TableCell>{h.day_quantity}</TableCell>
+                      <TableCell>{Number(h.hours) > 0 ? `${h.hours}h` : "-"}</TableCell>
+                      <TableCell>{fmt(Number(h.daily_rate))}</TableCell>
+                      <TableCell className="font-bold text-primary">{fmt(Number(h.calculated_value))}</TableCell>
+                      {canEdit && <TableCell><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
+                    </TableRow>
+                  ))}
+                  {holidays.length === 0 && (
+                    <TableRow><TableCell colSpan={canEdit ? 8 : 7} className="text-center text-muted-foreground py-8">Nenhum feriado trabalhado neste mês.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {holidays.length > 0 && (
+                <div className="mt-4 text-right font-bold">Total: {fmt(totalHolidays)} ({totalHolidayDays} dia(s))</div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* ── Vales ── */}
         <TabsContent value="vales" className="space-y-4">
           {canEdit && (
