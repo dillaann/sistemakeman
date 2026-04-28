@@ -320,20 +320,23 @@ const HR = () => {
       if (error) throw error;
 
       // Cria quinzenas vazias (valor 0) se ainda não existem — admin preenche manualmente.
-      // NUNCA sobrescreve valores já digitados (mesmo pendentes).
-      const existing = installments.filter((i: any) => i.employee_id === employeeId);
-      for (const num of [1, 2] as const) {
-        const found = existing.find((i: any) => i.installment_number === num);
-        if (!found) {
-          const { error: insErr } = await supabase.from("salary_installments" as any).insert({
-            employee_id: employeeId,
-            month_ref: selectedMonth,
-            installment_number: num,
-            amount: 0,
-            status: "pendente",
-          });
-          if (insErr) throw insErr;
-        }
+      // Busca direto no DB para evitar cache desatualizado.
+      const { data: existingDb } = await supabase
+        .from("salary_installments" as any)
+        .select("installment_number")
+        .eq("employee_id", employeeId)
+        .eq("month_ref", selectedMonth);
+      const existingNums = new Set((existingDb || []).map((i: any) => i.installment_number));
+      const toInsert = [1, 2].filter(n => !existingNums.has(n)).map(num => ({
+        employee_id: employeeId,
+        month_ref: selectedMonth,
+        installment_number: num,
+        amount: 0,
+        status: "pendente",
+      }));
+      if (toInsert.length > 0) {
+        const { error: insErr } = await supabase.from("salary_installments" as any).insert(toInsert);
+        if (insErr && !insErr.message?.includes("duplicate")) throw insErr;
       }
     },
     onSuccess: () => {
