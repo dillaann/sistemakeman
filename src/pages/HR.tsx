@@ -161,9 +161,9 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Holiday (feriado trabalhado pago em dobro) ──
+  // ── Holiday (feriado trabalhado: cada feriado adiciona 1 diária) ──
   const [holOpen, setHolOpen] = useState(false);
-  const [holForm, setHolForm] = useState({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() });
+  const [holForm, setHolForm] = useState({ employee_id: "", holiday_name: "", description: "", date: localDateString() });
   const holMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === holForm.employee_id);
@@ -171,16 +171,13 @@ const HR = () => {
       const dailyRate = Number(emp.saturday_value) || 0;
       if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária (sábado) de ${emp.name} antes de registrar`);
       if (!holForm.holiday_name.trim()) throw new Error("Informe o nome do feriado");
-      const days = parseFloat(holForm.day_quantity);
-      if (!days || days <= 0) throw new Error("Informe a quantidade de dias");
-      const hrs = parseFloat(holForm.hours) || 0;
-      const total = dailyRate * 2 * days; // dobro
+      const total = dailyRate; // 1 diária por feriado
       const { error } = await supabase.from("employee_holidays" as any).insert({
         employee_id: holForm.employee_id,
         date: holForm.date,
         holiday_name: holForm.holiday_name,
-        hours: hrs,
-        day_quantity: days,
+        hours: 0,
+        day_quantity: 1,
         daily_rate: dailyRate,
         calculated_value: Math.round(total * 100) / 100,
         description: holForm.description || null,
@@ -188,7 +185,7 @@ const HR = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", hours: "", day_quantity: "1", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
