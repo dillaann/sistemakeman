@@ -193,13 +193,15 @@ const HR = () => {
   });
 
   const [vacOpen, setVacOpen] = useState(false);
-  const [vacForm, setVacForm] = useState({ employee_id: "", start_date: "", end_date: "", days: "", notes: "" });
+  const [vacForm, setVacForm] = useState({ employee_id: "", start_date: "", end_date: "", days: "", vacation_value: "", notes: "" });
   const vacMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === vacForm.employee_id);
       const salary = Number(emp?.salary) || 0;
       const days = parseInt(vacForm.days);
-      const vacValue = (salary / 30) * days;
+      // Valor de férias: usa o digitado se informado, senão calcula automaticamente
+      const manualVal = parseFloat(vacForm.vacation_value);
+      const vacValue = !isNaN(manualVal) && manualVal > 0 ? manualVal : (salary / 30) * days;
       const third = vacValue / 3;
       const { error } = await supabase.from("employee_vacations").insert({
         employee_id: vacForm.employee_id, start_date: vacForm.start_date, end_date: vacForm.end_date, days,
@@ -209,7 +211,7 @@ const HR = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-vacations"] }); setVacOpen(false); setVacForm({ employee_id: "", start_date: "", end_date: "", days: "", notes: "" }); toast({ title: "Férias registradas!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-vacations"] }); setVacOpen(false); setVacForm({ employee_id: "", start_date: "", end_date: "", days: "", vacation_value: "", notes: "" }); toast({ title: "Férias registradas!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
