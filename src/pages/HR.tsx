@@ -774,23 +774,16 @@ const HR = () => {
                       <div><Label>Data do Feriado *</Label><Input type="date" value={holForm.date} onChange={e => setHolForm({ ...holForm, date: e.target.value })} required /></div>
                       <div><Label>Nome do Feriado *</Label><Input value={holForm.holiday_name} onChange={e => setHolForm({ ...holForm, holiday_name: e.target.value })} placeholder="Ex: Tiradentes, Natal" required /></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><Label>Horas trabalhadas</Label><Input type="number" step="0.5" min="0" value={holForm.hours} onChange={e => setHolForm({ ...holForm, hours: e.target.value })} placeholder="Opcional" /></div>
-                      <div><Label>Quantidade de dias *</Label><Input type="number" step="0.5" min="0.5" value={holForm.day_quantity} onChange={e => setHolForm({ ...holForm, day_quantity: e.target.value })} required placeholder="Ex: 0.5, 1, 1.5" /></div>
-                    </div>
                     {holForm.employee_id && (() => {
                       const emp = employees.find(e => e.id === holForm.employee_id);
                       const dailyRate = Number(emp?.saturday_value) || 0;
                       if (dailyRate <= 0) {
                         return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária (sábado) de {emp?.name} antes de registrar.</div>;
                       }
-                      const days = parseFloat(holForm.day_quantity) || 0;
-                      const total = dailyRate * 2 * days;
                       return (
                         <div className="p-3 rounded-md bg-muted text-sm">
                           <p>Valor diária cadastrado: <strong>{fmt(dailyRate)}</strong></p>
-                          <p>Multiplicador feriado: ×2 → {fmt(dailyRate * 2)}/dia</p>
-                          {days > 0 && <p className="font-bold mt-1">Total ({days} dia{days !== 1 ? "s" : ""}): {fmt(total)}</p>}
+                          <p className="font-bold mt-1">Cada feriado adiciona +1 diária ao salário: {fmt(dailyRate)}</p>
                         </div>
                       );
                     })()}
