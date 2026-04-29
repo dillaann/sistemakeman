@@ -1098,9 +1098,9 @@ const HR = () => {
                     </div>
                     {holForm.employee_id && (() => {
                       const emp = employees.find(e => e.id === holForm.employee_id);
-                      const dailyRate = Number(emp?.saturday_value) || 0;
+                      const dailyRate = Number(emp?.daily_rate) || 0;
                       if (dailyRate <= 0) {
-                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária (sábado) de {emp?.name} antes de registrar.</div>;
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária de {emp?.name} na aba "Diárias" antes de registrar.</div>;
                       }
                       return (
                         <div className="p-3 rounded-md bg-muted text-sm">
