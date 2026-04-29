@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Plus, DollarSign, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote, Trash2, Pencil, PartyPopper } from "lucide-react";
+import DailyRatesTab from "@/components/hr/DailyRatesTab";
 
 const currentMonth = () => {
   const d = new Date();
