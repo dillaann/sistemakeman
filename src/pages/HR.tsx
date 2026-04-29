@@ -1011,6 +1011,11 @@ const HR = () => {
           </Card>
         </TabsContent>
 
+        {/* ── Diárias ── */}
+        <TabsContent value="diarias" className="space-y-4">
+          <DailyRatesTab employees={employees} canEdit={canEdit} />
+        </TabsContent>
+
         {/* ── Horas Extras ── */}
         <TabsContent value="horas" className="space-y-4">
           {canEdit && (
