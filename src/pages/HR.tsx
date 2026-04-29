@@ -231,8 +231,8 @@ const HR = () => {
     mutationFn: async () => {
       const emp = employees.find(e => e.id === holForm.employee_id);
       if (!emp) throw new Error("Selecione um funcionário");
-      const dailyRate = Number(emp.saturday_value) || 0;
-      if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária (sábado) de ${emp.name} antes de registrar`);
+      const dailyRate = Number(emp.daily_rate) || 0;
+      if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária de ${emp.name} na aba Diárias antes de registrar`);
       if (!holForm.holiday_name.trim()) throw new Error("Informe o nome do feriado");
       const total = dailyRate; // 1 diária por feriado
       const { error } = await supabase.from("employee_holidays" as any).insert({
