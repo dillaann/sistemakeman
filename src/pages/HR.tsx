@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Plus, DollarSign, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote, Trash2, Pencil, PartyPopper } from "lucide-react";
+import DailyRatesTab from "@/components/hr/DailyRatesTab";
 
 const currentMonth = () => {
   const d = new Date();
@@ -231,8 +232,8 @@ const HR = () => {
     mutationFn: async () => {
       const emp = employees.find(e => e.id === holForm.employee_id);
       if (!emp) throw new Error("Selecione um funcionário");
-      const dailyRate = Number(emp.saturday_value) || 0;
-      if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária (sábado) de ${emp.name} antes de registrar`);
+      const dailyRate = Number(emp.daily_rate) || 0;
+      if (dailyRate <= 0) throw new Error(`Cadastre o valor da diária de ${emp.name} na aba Diárias antes de registrar`);
       if (!holForm.holiday_name.trim()) throw new Error("Informe o nome do feriado");
       const total = dailyRate; // 1 diária por feriado
       const { error } = await supabase.from("employee_holidays" as any).insert({
@@ -811,6 +812,7 @@ const HR = () => {
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1 hidden sm:inline" />Dashboard</TabsTrigger>
           <TabsTrigger value="salarios"><DollarSign className="h-4 w-4 mr-1 hidden sm:inline" />Salários</TabsTrigger>
+          <TabsTrigger value="diarias"><Banknote className="h-4 w-4 mr-1 hidden sm:inline" />Diárias</TabsTrigger>
           <TabsTrigger value="horas"><Clock className="h-4 w-4 mr-1 hidden sm:inline" />Horas Extras</TabsTrigger>
           <TabsTrigger value="sabados"><Calendar className="h-4 w-4 mr-1 hidden sm:inline" />Sábados</TabsTrigger>
           <TabsTrigger value="feriados"><PartyPopper className="h-4 w-4 mr-1 hidden sm:inline" />Feriados</TabsTrigger>
@@ -1010,6 +1012,11 @@ const HR = () => {
           </Card>
         </TabsContent>
 
+        {/* ── Diárias ── */}
+        <TabsContent value="diarias" className="space-y-4">
+          <DailyRatesTab employees={employees} canEdit={canEdit} />
+        </TabsContent>
+
         {/* ── Horas Extras ── */}
         <TabsContent value="horas" className="space-y-4">
           {canEdit && (
@@ -1098,9 +1105,9 @@ const HR = () => {
                     </div>
                     {holForm.employee_id && (() => {
                       const emp = employees.find(e => e.id === holForm.employee_id);
-                      const dailyRate = Number(emp?.saturday_value) || 0;
+                      const dailyRate = Number(emp?.daily_rate) || 0;
                       if (dailyRate <= 0) {
-                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária (sábado) de {emp?.name} antes de registrar.</div>;
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor da diária de {emp?.name} na aba "Diárias" antes de registrar.</div>;
                       }
                       return (
                         <div className="p-3 rounded-md bg-muted text-sm">
@@ -1138,7 +1145,7 @@ const HR = () => {
                       <TableCell>{formatDateBR(h.date)}</TableCell>
                       <TableCell>{fmt(Number(h.daily_rate))}</TableCell>
                       <TableCell className="font-bold text-primary">{fmt(Number(h.calculated_value))}</TableCell>
-                      {canEdit && <TableCell><EditBtn onClick={() => { const emp = employees.find(e => e.id === h.employee_id); const dailyRate = Number(emp?.saturday_value) || 0; openEdit({ table: 'employee_holidays', id: h.id, title: 'Editar Feriado', invalidate: ['employee-holidays'], fields: [{ key: 'holiday_name', label: 'Nome do Feriado', type: 'text', value: h.holiday_name, required: true }, { key: 'date', label: 'Data', type: 'date', value: h.date, required: true }, { key: 'description', label: 'Descrição', type: 'text', value: h.description || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: h.month_ref, required: true }], transform: (v) => ({ holiday_name: v.holiday_name, date: v.date, description: v.description||null, month_ref: v.month_ref, daily_rate: dailyRate, calculated_value: dailyRate }) }); }} /><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
+                      {canEdit && <TableCell><EditBtn onClick={() => { const emp = employees.find(e => e.id === h.employee_id); const dailyRate = Number(emp?.daily_rate) || 0; openEdit({ table: 'employee_holidays', id: h.id, title: 'Editar Feriado', invalidate: ['employee-holidays'], fields: [{ key: 'holiday_name', label: 'Nome do Feriado', type: 'text', value: h.holiday_name, required: true }, { key: 'date', label: 'Data', type: 'date', value: h.date, required: true }, { key: 'description', label: 'Descrição', type: 'text', value: h.description || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: h.month_ref, required: true }], transform: (v) => ({ holiday_name: v.holiday_name, date: v.date, description: v.description||null, month_ref: v.month_ref, daily_rate: dailyRate, calculated_value: dailyRate }) }); }} /><DeleteBtn table="employee_holidays" id={h.id} label={`Feriado ${h.holiday_name} de ${h.employees?.name}`} /></TableCell>}
                     </TableRow>
                   ))}
                   {holidays.length === 0 && (
