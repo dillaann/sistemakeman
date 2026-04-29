@@ -443,6 +443,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          daily_rate: number | null
           email: string | null
           hire_date: string | null
           id: string
@@ -459,6 +460,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          daily_rate?: number | null
           email?: string | null
           hire_date?: string | null
           id?: string
@@ -475,6 +477,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          daily_rate?: number | null
           email?: string | null
           hire_date?: string | null
           id?: string
