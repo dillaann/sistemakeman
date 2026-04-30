@@ -492,6 +492,7 @@ const Purchases = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
       qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
       qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
@@ -500,7 +501,27 @@ const Purchases = () => {
     },
   });
 
-  // Helper: get client name for a purchase
+  const markOrderPaid = useMutation({
+    mutationFn: async (orderId: string) => {
+      const today = localDateString();
+      await supabase.from("purchase_orders" as any).update({ payment_status: "pago" }).eq("id", orderId);
+      await supabase.from("purchases").update({ payment_status: "pago" }).eq("order_id", orderId);
+      await supabase.from("financial_transactions")
+        .update({ status: "pago" as any, paid_date: today })
+        .eq("purchase_order_id", orderId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast({ title: "Pedido pago!" });
+    },
+  });
+
+  // Helper: get client name for a purchase or order
   const getClientLabel = (p: any) => {
     if (p.work_order_id) {
       const wo = allWorkOrders.find((w: any) => w.id === p.work_order_id);
@@ -515,14 +536,36 @@ const Purchases = () => {
     return "Uso Geral / Estoque";
   };
 
-  // Calculations
+  // Group items by order_id for quick lookup
+  const itemsByOrder = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    purchases.forEach((p: any) => {
+      if (p.order_id) {
+        if (!map[p.order_id]) map[p.order_id] = [];
+        map[p.order_id].push(p);
+      }
+    });
+    return map;
+  }, [purchases]);
+
+  // Calculations (per item — for materials/discounts/client costs)
   const monthPurchases = purchases.filter(p => {
     const isOpen = p.payment_status !== "pago";
     return isInRangeOrOpen(p.purchase_date, dateRange, isOpen, p.payment_status === "pago" ? p.purchase_date : null);
   });
-  const totalMonth = monthPurchases.reduce((s, p) => s + Number(p.total), 0);
   const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
-  const pendingPayment = purchases.filter(p => p.payment_status !== "pago");
+
+  // Orders for the period (for panel + listing) — based on purchase_orders
+  const monthOrders = useMemo(() => {
+    return purchaseOrders.filter((o: any) => {
+      const isOpen = o.payment_status !== "pago";
+      return isInRangeOrOpen(o.purchase_date, dateRange, isOpen, o.payment_status === "pago" ? o.purchase_date : null);
+    });
+  }, [purchaseOrders, dateRange]);
+
+  const totalMonth = monthOrders.reduce((s: number, o: any) => s + Number(o.total ?? 0), 0);
+  const pendingOrders = purchaseOrders.filter((o: any) => o.payment_status !== "pago");
+  const pendingPayment = pendingOrders; // backwards compat for panel
 
   // Supplier discount ranking
   const supplierDiscounts = useMemo(() => {
