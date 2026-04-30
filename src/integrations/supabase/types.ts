@@ -299,7 +299,15 @@ export type Database = {
           id?: string
           month_ref?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employee_holidays_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employee_overtime: {
         Row: {
