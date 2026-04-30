@@ -718,32 +718,35 @@ const Purchases = () => {
             </Card>
           </div>
 
-          {/* Recent purchases */}
+          {/* Recent orders */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Compras Recentes</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Pedidos Recentes</CardTitle></CardHeader>
             <CardContent>
               <div className="border rounded-lg overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Material</TableHead>
+                      <TableHead>Pedido</TableHead>
                       <TableHead className="hidden md:table-cell">Fornecedor</TableHead>
-                      <TableHead className="hidden md:table-cell">Cliente / Obra</TableHead>
-                      <TableHead>Valor</TableHead>
+                      <TableHead className="hidden md:table-cell">Itens</TableHead>
+                      <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {monthPurchases.slice(0, 10).map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.material}</TableCell>
-                        <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
-                        <TableCell className="hidden md:table-cell text-xs">{getClientLabel(p)}</TableCell>
-                        <TableCell>{fmt(Number(p.total))}</TableCell>
-                        <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
-                      </TableRow>
-                    ))}
-                    {purchases.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma compra registrada.</TableCell></TableRow>}
+                    {monthOrders.slice(0, 10).map((o: any) => {
+                      const oItems = itemsByOrder[o.id] ?? [];
+                      return (
+                        <TableRow key={o.id} className="cursor-pointer" onClick={() => setOrderDetailsId(o.id)}>
+                          <TableCell className="font-medium">{o.order_number}</TableCell>
+                          <TableCell className="hidden md:table-cell">{(o as any).suppliers?.name ?? "—"}</TableCell>
+                          <TableCell className="hidden md:table-cell text-xs">{oItems.length} {oItems.length === 1 ? "item" : "itens"}</TableCell>
+                          <TableCell>{fmt(Number(o.total))}</TableCell>
+                          <TableCell><Badge className={statusColors[o.payment_status]}>{paymentStatuses[o.payment_status]}</Badge></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {monthOrders.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum pedido registrado.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </div>
