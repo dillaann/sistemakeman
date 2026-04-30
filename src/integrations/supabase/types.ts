@@ -566,6 +566,7 @@ export type Database = {
           paid_date: string | null
           payment_method: string | null
           purchase_id: string | null
+          purchase_order_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           sync_origin: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -584,6 +585,7 @@ export type Database = {
           paid_date?: string | null
           payment_method?: string | null
           purchase_id?: string | null
+          purchase_order_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           sync_origin?: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -602,6 +604,7 @@ export type Database = {
           paid_date?: string | null
           payment_method?: string | null
           purchase_id?: string | null
+          purchase_order_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           sync_origin?: string
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -967,6 +970,78 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_order_counters: {
+        Row: {
+          last_number: number
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          year: number
+        }
+        Update: {
+          last_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      purchase_orders: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          discount_amount: number | null
+          due_date: string | null
+          id: string
+          invoice_number: string | null
+          notes: string | null
+          order_number: string | null
+          original_total: number | null
+          payment_method: string | null
+          payment_status: string
+          purchase_date: string
+          supplier_id: string | null
+          total: number
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          order_number?: string | null
+          original_total?: number | null
+          payment_method?: string | null
+          payment_status?: string
+          purchase_date?: string
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          discount_amount?: number | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          order_number?: string | null
+          original_total?: number | null
+          payment_method?: string | null
+          payment_status?: string
+          purchase_date?: string
+          supplier_id?: string | null
+          total?: number
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: []
+      }
       purchase_requests: {
         Row: {
           confirmed_at: string | null
@@ -1029,6 +1104,7 @@ export type Database = {
           invoice_number: string | null
           material: string
           notes: string | null
+          order_id: string | null
           original_price: number | null
           payment_method: string | null
           payment_status: string
@@ -1051,6 +1127,7 @@ export type Database = {
           invoice_number?: string | null
           material: string
           notes?: string | null
+          order_id?: string | null
           original_price?: number | null
           payment_method?: string | null
           payment_status?: string
@@ -1073,6 +1150,7 @@ export type Database = {
           invoice_number?: string | null
           material?: string
           notes?: string | null
+          order_id?: string | null
           original_price?: number | null
           payment_method?: string | null
           payment_status?: string
@@ -1840,6 +1918,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_purchase_order_number: { Args: { _date?: string }; Returns: string }
     }
     Enums: {
       app_role:
