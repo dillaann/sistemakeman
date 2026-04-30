@@ -90,6 +90,17 @@ const Purchases = () => {
     },
   });
 
+  const { data: purchaseOrders = [] } = useQuery({
+    queryKey: ["purchase-orders"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("purchase_orders" as any)
+        .select("*, suppliers(name)")
+        .order("purchase_date", { ascending: false });
+      return (data as any[]) ?? [];
+    },
+  });
+
   const { data: purchaseRequests = [] } = useQuery({
     queryKey: ["purchase-requests"],
     queryFn: async () => {
