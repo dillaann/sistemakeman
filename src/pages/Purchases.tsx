@@ -936,118 +936,9 @@ const Purchases = () => {
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
-              <Dialog open={purchaseOpen} onOpenChange={(v) => { setPurchaseOpen(v); if (!v) { setEditPurchaseId(null); setPForm({ supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: localDateString(), invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "", client_id: "", work_order_id: "" }); } }}>
-                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>{editPurchaseId ? "Editar Compra" : "Registrar Compra"}</DialogTitle></DialogHeader>
-                  <form onSubmit={e => { e.preventDefault(); savePurchase.mutate(); }} className="space-y-3">
-                    <div>
-                      <Label>Fornecedor</Label>
-                      <Select value={pForm.supplier_id} onValueChange={v => setPForm({ ...pForm, supplier_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>Material / Produto *</Label><Input value={pForm.material} onChange={e => setPForm({ ...pForm, material: e.target.value })} required /></div>
-                    
-                    {/* Cliente / Obra */}
-                    <div>
-                      <Label>Cliente / Obra</Label>
-                      <Select
-                        value={pForm.work_order_id || pForm.client_id || "geral"}
-                        onValueChange={v => {
-                          if (v === "geral") {
-                            setPForm({ ...pForm, client_id: "", work_order_id: "" });
-                          } else {
-                            const wo = allWorkOrders.find((w: any) => w.id === v);
-                            if (wo) {
-                              setPForm({ ...pForm, work_order_id: v, client_id: wo.client_id });
-                            } else {
-                              setPForm({ ...pForm, client_id: v, work_order_id: "" });
-                            }
-                          }
-                        }}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Uso Geral / Estoque" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="geral">Uso Geral / Estoque</SelectItem>
-                          {allWorkOrders.map((wo: any) => (
-                            <SelectItem key={wo.id} value={wo.id}>
-                              {wo.clients?.name || "Cliente"} — OS #{wo.id.slice(0, 8)}
-                            </SelectItem>
-                          ))}
-                          {clients.filter(c => !allWorkOrders.some((wo: any) => wo.client_id === c.id)).map(c => (
-                            <SelectItem key={c.id} value={c.id}>{c.name} (sem OS)</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div><Label>Quantidade *</Label><Input type="number" step="0.01" value={pForm.quantity} onChange={e => setPForm({ ...pForm, quantity: e.target.value })} required /></div>
-                      <div>
-                        <Label>Unidade</Label>
-                        <Select value={pForm.unit} onValueChange={v => setPForm({ ...pForm, unit: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div><Label>Valor Negociado (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
-                    </div>
-                    <div>
-                      <Label>Valor Original do Fornecedor (R$)</Label>
-                      <Input type="number" step="0.01" value={pForm.original_price} onChange={e => setPForm({ ...pForm, original_price: e.target.value })} placeholder="Deixe vazio se não houve desconto" />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label>Total Negociado</Label>
-                        <Input value={fmt(calcTotal())} readOnly className="bg-muted" />
-                      </div>
-                      <div>
-                        <Label>Economizado</Label>
-                        <Input value={fmt(calcSavings().savings)} readOnly className="bg-muted text-green-600" />
-                      </div>
-                      <div>
-                        <Label>Desconto (%)</Label>
-                        <Input value={`${calcSavings().pct.toFixed(1)}%`} readOnly className="bg-muted text-green-600" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><Label>Data da Compra *</Label><Input type="date" value={pForm.purchase_date} onChange={e => setPForm({ ...pForm, purchase_date: e.target.value })} required /></div>
-                      <div><Label>Nº Nota/Pedido</Label><Input value={pForm.invoice_number} onChange={e => setPForm({ ...pForm, invoice_number: e.target.value })} /></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label>Forma de Pagamento</Label>
-                        <Select value={pForm.payment_method} onValueChange={v => setPForm({ ...pForm, payment_method: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(paymentMethods).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Status Pagamento</Label>
-                        <Select value={pForm.payment_status} onValueChange={v => setPForm({ ...pForm, payment_status: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(paymentStatuses).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    {pForm.payment_status !== "pago" && (
-                      <div><Label>Data de Vencimento</Label><Input type="date" value={pForm.due_date} onChange={e => setPForm({ ...pForm, due_date: e.target.value })} /></div>
-                    )}
-                    <div><Label>Observações</Label><Textarea value={pForm.notes} onChange={e => setPForm({ ...pForm, notes: e.target.value })} /></div>
-                    <Button type="submit" className="w-full" disabled={savePurchase.isPending}>{editPurchaseId ? "Salvar Alterações" : "Registrar Compra"}</Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button onClick={() => setNewOrderOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />Novo Pedido
+              </Button>
             </div>
           </div>
 
@@ -1055,57 +946,139 @@ const Purchases = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Material</TableHead>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead>Pedido</TableHead>
                   <TableHead className="hidden md:table-cell">Fornecedor</TableHead>
-                  <TableHead className="hidden md:table-cell">Cliente / Obra</TableHead>
-                  <TableHead className="hidden md:table-cell">Qtd</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead className="hidden lg:table-cell">Cliente / Obra</TableHead>
+                  <TableHead className="hidden md:table-cell">Itens</TableHead>
+                  <TableHead>Total</TableHead>
                   <TableHead className="hidden md:table-cell">Data</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-28">Ação</TableHead>
+                  <TableHead className="w-32">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPurchases.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.material}</TableCell>
-                    <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-xs">{getClientLabel(p)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{p.quantity} {p.unit}</TableCell>
-                    <TableCell>{fmt(Number(p.total))}</TableCell>
-                    <TableCell className="hidden md:table-cell">{formatDateBR(p.purchase_date)}</TableCell>
-                    <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => {
-                          setEditPurchaseId(p.id);
-                          setPForm({
-                            supplier_id: p.supplier_id || "",
-                            material: p.material,
-                            quantity: String(p.quantity),
-                            unit: p.unit,
-                            unit_price: String(p.unit_price),
-                            original_price: p.original_price ? String(p.original_price) : "",
-                            purchase_date: p.purchase_date,
-                            invoice_number: p.invoice_number || "",
-                            payment_method: p.payment_method || "pix",
-                            payment_status: p.payment_status,
-                            due_date: p.due_date || "",
-                            notes: p.notes || "",
-                            client_id: p.client_id || "",
-                            work_order_id: p.work_order_id || "",
-                          });
-                          setPurchaseOpen(true);
-                        }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {p.payment_status !== "pago" && <Button size="sm" variant="outline" onClick={() => markPurchasePaid.mutate(p.id)}>Pagar</Button>}
-                        {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "purchases", id: p.id })}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredPurchases.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma compra encontrada.</TableCell></TableRow>}
+                {(() => {
+                  // Filter orders by search/supplier/status/client
+                  const filteredOrders = monthOrders.filter((o: any) => {
+                    if (filterSupplier !== "all" && o.supplier_id !== filterSupplier) return false;
+                    if (filterStatus !== "all" && o.payment_status !== filterStatus) return false;
+                    if (filterClient !== "all") {
+                      const orderItems = itemsByOrder[o.id] ?? [];
+                      const matchesOrder =
+                        (filterClient === "geral" && !o.client_id && !o.work_order_id) ||
+                        o.client_id === filterClient || o.work_order_id === filterClient;
+                      const matchesItems = orderItems.some((it: any) => {
+                        if (filterClient === "geral") return !it.client_id && !it.work_order_id;
+                        return it.client_id === filterClient || it.work_order_id === filterClient;
+                      });
+                      if (!matchesOrder && !matchesItems) return false;
+                    }
+                    if (search) {
+                      const s = search.toLowerCase();
+                      const supName = (o as any).suppliers?.name ?? "";
+                      const orderItems = itemsByOrder[o.id] ?? [];
+                      const matchSearch =
+                        (o.order_number || "").toLowerCase().includes(s) ||
+                        supName.toLowerCase().includes(s) ||
+                        (o.invoice_number ?? "").toLowerCase().includes(s) ||
+                        orderItems.some((it: any) => (it.material || "").toLowerCase().includes(s));
+                      if (!matchSearch) return false;
+                    }
+                    return true;
+                  });
+
+                  if (filteredOrders.length === 0) {
+                    return <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum pedido encontrado.</TableCell></TableRow>;
+                  }
+
+                  return filteredOrders.flatMap((o: any) => {
+                    const oItems = itemsByOrder[o.id] ?? [];
+                    const isExpanded = expandedOrders.has(o.id);
+                    const rows = [
+                      <TableRow key={o.id} className="cursor-pointer" onClick={() => {
+                        const next = new Set(expandedOrders);
+                        if (next.has(o.id)) next.delete(o.id); else next.add(o.id);
+                        setExpandedOrders(next);
+                      }}>
+                        <TableCell>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => {
+                            e.stopPropagation();
+                            const next = new Set(expandedOrders);
+                            if (next.has(o.id)) next.delete(o.id); else next.add(o.id);
+                            setExpandedOrders(next);
+                          }}>
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-medium">{o.order_number}</TableCell>
+                        <TableCell className="hidden md:table-cell">{(o as any).suppliers?.name ?? "—"}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs">{getClientLabel(o)}</TableCell>
+                        <TableCell className="hidden md:table-cell">{oItems.length} {oItems.length === 1 ? "item" : "itens"}</TableCell>
+                        <TableCell className="font-medium">{fmt(Number(o.total))}</TableCell>
+                        <TableCell className="hidden md:table-cell">{formatDateBR(o.purchase_date)}</TableCell>
+                        <TableCell><Badge className={statusColors[o.payment_status]}>{paymentStatuses[o.payment_status]}</Badge></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => setOrderDetailsId(o.id)}>Ver</Button>
+                            {o.payment_status !== "pago" && (
+                              <Button size="sm" variant="outline" onClick={() => markOrderPaid.mutate(o.id)}>Pagar</Button>
+                            )}
+                            {userRole === "admin" && (
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "purchase_orders", id: o.id })}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>,
+                    ];
+
+                    if (isExpanded) {
+                      rows.push(
+                        <TableRow key={`${o.id}-detail`} className="bg-muted/30">
+                          <TableCell colSpan={9}>
+                            <div className="p-2 space-y-2">
+                              <div className="text-xs text-muted-foreground">
+                                {o.invoice_number && <>NF: <strong>{o.invoice_number}</strong> · </>}
+                                Forma: <strong>{paymentMethods[o.payment_method] ?? o.payment_method}</strong>
+                                {o.notes && <> · Obs: {o.notes}</>}
+                              </div>
+                              <div className="border rounded">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Material</TableHead>
+                                      <TableHead className="w-24">Qtd</TableHead>
+                                      <TableHead className="w-28">Vlr Unit.</TableHead>
+                                      <TableHead className="w-28">Total</TableHead>
+                                      <TableHead className="text-xs">Cliente / Obra</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {oItems.map((it: any) => (
+                                      <TableRow key={it.id}>
+                                        <TableCell className="font-medium">{it.material}</TableCell>
+                                        <TableCell>{it.quantity} {it.unit}</TableCell>
+                                        <TableCell>{fmt(Number(it.unit_price))}</TableCell>
+                                        <TableCell className="font-medium">{fmt(Number(it.total))}</TableCell>
+                                        <TableCell className="text-xs">{getClientLabel(it)}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                    {oItems.length === 0 && (
+                                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-4">Sem itens.</TableCell></TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                    return rows;
+                  });
+                })()}
               </TableBody>
             </Table>
           </div>
