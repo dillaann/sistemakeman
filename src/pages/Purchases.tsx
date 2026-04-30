@@ -358,9 +358,111 @@ const Purchases = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // Create a new purchase order with multiple items in one operation
+  const saveOrder = useMutation({
+    mutationFn: async (payload: {
+      order: any;
+      items: any[];
+    }) => {
+      const { order, items: orderItems } = payload;
+      // 1) Generate order number
+      const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, {
+        _date: order.purchase_date,
+      });
+      if (numErr) throw numErr;
+      const orderNumber = numData as unknown as string;
+
+      // 2) Insert purchase_orders header
+      const { data: orderRow, error: orderErr } = await supabase
+        .from("purchase_orders" as any)
+        .insert({
+          order_number: orderNumber,
+          supplier_id: order.supplier_id,
+          client_id: order.client_id,
+          work_order_id: order.work_order_id,
+          purchase_date: order.purchase_date,
+          payment_method: order.payment_method,
+          payment_status: order.payment_status,
+          due_date: order.due_date,
+          invoice_number: order.invoice_number,
+          notes: order.notes,
+          total: order.total,
+        } as any)
+        .select()
+        .single();
+      if (orderErr) throw orderErr;
+      const newOrder = orderRow as any;
+
+      // 3) Insert items linked to order
+      const itemsToInsert = orderItems.map((it: any) => ({
+        order_id: newOrder.id,
+        material: it.material,
+        quantity: it.quantity,
+        unit: it.unit,
+        unit_price: it.unit_price,
+        total: it.total,
+        supplier_id: order.supplier_id,
+        client_id: it.client_id,
+        work_order_id: it.work_order_id,
+        purchase_date: order.purchase_date,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        due_date: order.due_date,
+        invoice_number: order.invoice_number,
+      }));
+      const { error: itemsErr } = await supabase.from("purchases").insert(itemsToInsert as any);
+      if (itemsErr) throw itemsErr;
+
+      // 4) Create consolidated financial transaction
+      const supplierName = suppliers.find(s => s.id === order.supplier_id)?.name ?? "Fornecedor";
+      await supabase.from("financial_transactions").insert({
+        type: "a_pagar" as any,
+        description: `Compra — ${supplierName} — Pedido ${orderNumber}`,
+        amount: order.total,
+        due_date: order.due_date || order.purchase_date,
+        paid_date: order.payment_status === "pago" ? order.purchase_date : null,
+        category: "Compras",
+        status: (order.payment_status === "pago" ? "pago" : "pendente") as any,
+        payment_method: order.payment_method,
+        client_id: order.client_id,
+        work_order_id: order.work_order_id,
+        purchase_order_id: newOrder.id,
+        sync_origin: "purchase_order",
+      } as any);
+
+      // 5) Update WO material status if linked
+      if (order.work_order_id) {
+        await supabase.from("work_orders")
+          .update({ material_status: "comprado" } as any)
+          .eq("id", order.work_order_id);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      qc.invalidateQueries({ queryKey: ["production-orders"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      setNewOrderOpen(false);
+      toast({ title: "Pedido registrado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async ({ type, id }: { type: string; id: string }) => {
-      // If deleting a purchase, also cascade to financial transactions
+      // If deleting a purchase order, cascade to items and financial transaction
+      if (type === "purchase_orders") {
+        await supabase.from("financial_transactions").delete().eq("purchase_order_id", id);
+        await supabase.from("purchases").delete().eq("order_id", id);
+      }
+      // If deleting a single purchase item, also cascade to financial transactions
       if (type === "purchases") {
         await supabase.from("financial_transactions").delete().eq("purchase_id", id);
       }
