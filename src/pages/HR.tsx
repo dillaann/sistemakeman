@@ -186,7 +186,7 @@ const HR = () => {
 
   // ── Overtime ──
   const [otOpen, setOtOpen] = useState(false);
-  const [otForm, setOtForm] = useState({ employee_id: "", hours: "", percentage: "50", description: "", date: localDateString() });
+  const [otForm, setOtForm] = useState({ employee_id: "", hours: "", description: "", date: localDateString() });
   const otMutation = useMutation({
     mutationFn: async () => {
       const emp = employees.find(e => e.id === otForm.employee_id);
@@ -195,13 +195,11 @@ const HR = () => {
       if (fixedRate <= 0) throw new Error(`Cadastre o valor hora extra de ${emp.name} antes de registrar`);
       const hrs = parseFloat(otForm.hours);
       if (!hrs || hrs <= 0) throw new Error("Informe a quantidade de horas");
-      const pct = parseFloat(otForm.percentage);
-      const multiplier = pct === 100 ? 2 : 1.5; // 50% → 1.5x, 100% → 2x
-      const value = fixedRate * multiplier * hrs;
-      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: pct, calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
+      const value = fixedRate * hrs;
+      const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: 0, calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", percentage: "50", description: "", date: localDateString() }); toast({ title: "Hora extra registrada!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Hora extra registrada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
