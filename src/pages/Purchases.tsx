@@ -19,6 +19,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
 import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
+import OrderDetailsDialog from "@/components/purchases/OrderDetailsDialog";
+import NewOrderDialog from "@/components/purchases/NewOrderDialog";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 const paymentMethods: Record<string, string> = {
   dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", boleto: "Boleto", transferencia: "Transferência",
@@ -61,6 +64,9 @@ const Purchases = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
   const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
+  const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [orderDetailsId, setOrderDetailsId] = useState<string | null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
   // Queries
   const { data: suppliers = [] } = useQuery({
@@ -84,6 +90,17 @@ const Purchases = () => {
     queryFn: async () => {
       const { data } = await supabase.from("purchases").select("*, suppliers(name)").order("purchase_date", { ascending: false });
       return data ?? [];
+    },
+  });
+
+  const { data: purchaseOrders = [] } = useQuery({
+    queryKey: ["purchase-orders"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("purchase_orders" as any)
+        .select("*, suppliers(name)")
+        .order("purchase_date", { ascending: false });
+      return (data as any[]) ?? [];
     },
   });
 
@@ -341,9 +358,111 @@ const Purchases = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // Create a new purchase order with multiple items in one operation
+  const saveOrder = useMutation({
+    mutationFn: async (payload: {
+      order: any;
+      items: any[];
+    }) => {
+      const { order, items: orderItems } = payload;
+      // 1) Generate order number
+      const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, {
+        _date: order.purchase_date,
+      });
+      if (numErr) throw numErr;
+      const orderNumber = numData as unknown as string;
+
+      // 2) Insert purchase_orders header
+      const { data: orderRow, error: orderErr } = await supabase
+        .from("purchase_orders" as any)
+        .insert({
+          order_number: orderNumber,
+          supplier_id: order.supplier_id,
+          client_id: order.client_id,
+          work_order_id: order.work_order_id,
+          purchase_date: order.purchase_date,
+          payment_method: order.payment_method,
+          payment_status: order.payment_status,
+          due_date: order.due_date,
+          invoice_number: order.invoice_number,
+          notes: order.notes,
+          total: order.total,
+        } as any)
+        .select()
+        .single();
+      if (orderErr) throw orderErr;
+      const newOrder = orderRow as any;
+
+      // 3) Insert items linked to order
+      const itemsToInsert = orderItems.map((it: any) => ({
+        order_id: newOrder.id,
+        material: it.material,
+        quantity: it.quantity,
+        unit: it.unit,
+        unit_price: it.unit_price,
+        total: it.total,
+        supplier_id: order.supplier_id,
+        client_id: it.client_id,
+        work_order_id: it.work_order_id,
+        purchase_date: order.purchase_date,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        due_date: order.due_date,
+        invoice_number: order.invoice_number,
+      }));
+      const { error: itemsErr } = await supabase.from("purchases").insert(itemsToInsert as any);
+      if (itemsErr) throw itemsErr;
+
+      // 4) Create consolidated financial transaction
+      const supplierName = suppliers.find(s => s.id === order.supplier_id)?.name ?? "Fornecedor";
+      await supabase.from("financial_transactions").insert({
+        type: "a_pagar" as any,
+        description: `Compra — ${supplierName} — Pedido ${orderNumber}`,
+        amount: order.total,
+        due_date: order.due_date || order.purchase_date,
+        paid_date: order.payment_status === "pago" ? order.purchase_date : null,
+        category: "Compras",
+        status: (order.payment_status === "pago" ? "pago" : "pendente") as any,
+        payment_method: order.payment_method,
+        client_id: order.client_id,
+        work_order_id: order.work_order_id,
+        purchase_order_id: newOrder.id,
+        sync_origin: "purchase_order",
+      } as any);
+
+      // 5) Update WO material status if linked
+      if (order.work_order_id) {
+        await supabase.from("work_orders")
+          .update({ material_status: "comprado" } as any)
+          .eq("id", order.work_order_id);
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-list"] });
+      qc.invalidateQueries({ queryKey: ["account-movements-all"] });
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      qc.invalidateQueries({ queryKey: ["production-orders"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      setNewOrderOpen(false);
+      toast({ title: "Pedido registrado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async ({ type, id }: { type: string; id: string }) => {
-      // If deleting a purchase, also cascade to financial transactions
+      // If deleting a purchase order, cascade to items and financial transaction
+      if (type === "purchase_orders") {
+        await supabase.from("financial_transactions").delete().eq("purchase_order_id", id);
+        await supabase.from("purchases").delete().eq("order_id", id);
+      }
+      // If deleting a single purchase item, also cascade to financial transactions
       if (type === "purchases") {
         await supabase.from("financial_transactions").delete().eq("purchase_id", id);
       }
@@ -373,6 +492,7 @@ const Purchases = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
       qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
       qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
@@ -381,7 +501,27 @@ const Purchases = () => {
     },
   });
 
-  // Helper: get client name for a purchase
+  const markOrderPaid = useMutation({
+    mutationFn: async (orderId: string) => {
+      const today = localDateString();
+      await supabase.from("purchase_orders" as any).update({ payment_status: "pago" }).eq("id", orderId);
+      await supabase.from("purchases").update({ payment_status: "pago" }).eq("order_id", orderId);
+      await supabase.from("financial_transactions")
+        .update({ status: "pago" as any, paid_date: today })
+        .eq("purchase_order_id", orderId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+      qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast({ title: "Pedido pago!" });
+    },
+  });
+
+  // Helper: get client name for a purchase or order
   const getClientLabel = (p: any) => {
     if (p.work_order_id) {
       const wo = allWorkOrders.find((w: any) => w.id === p.work_order_id);
@@ -396,14 +536,36 @@ const Purchases = () => {
     return "Uso Geral / Estoque";
   };
 
-  // Calculations
+  // Group items by order_id for quick lookup
+  const itemsByOrder = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    purchases.forEach((p: any) => {
+      if (p.order_id) {
+        if (!map[p.order_id]) map[p.order_id] = [];
+        map[p.order_id].push(p);
+      }
+    });
+    return map;
+  }, [purchases]);
+
+  // Calculations (per item — for materials/discounts/client costs)
   const monthPurchases = purchases.filter(p => {
     const isOpen = p.payment_status !== "pago";
     return isInRangeOrOpen(p.purchase_date, dateRange, isOpen, p.payment_status === "pago" ? p.purchase_date : null);
   });
-  const totalMonth = monthPurchases.reduce((s, p) => s + Number(p.total), 0);
   const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
-  const pendingPayment = purchases.filter(p => p.payment_status !== "pago");
+
+  // Orders for the period (for panel + listing) — based on purchase_orders
+  const monthOrders = useMemo(() => {
+    return purchaseOrders.filter((o: any) => {
+      const isOpen = o.payment_status !== "pago";
+      return isInRangeOrOpen(o.purchase_date, dateRange, isOpen, o.payment_status === "pago" ? o.purchase_date : null);
+    });
+  }, [purchaseOrders, dateRange]);
+
+  const totalMonth = monthOrders.reduce((s: number, o: any) => s + Number(o.total ?? 0), 0);
+  const pendingOrders = purchaseOrders.filter((o: any) => o.payment_status !== "pago");
+  const pendingPayment = pendingOrders; // backwards compat for panel
 
   // Supplier discount ranking
   const supplierDiscounts = useMemo(() => {
@@ -556,32 +718,35 @@ const Purchases = () => {
             </Card>
           </div>
 
-          {/* Recent purchases */}
+          {/* Recent orders */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Compras Recentes</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Pedidos Recentes</CardTitle></CardHeader>
             <CardContent>
               <div className="border rounded-lg overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Material</TableHead>
+                      <TableHead>Pedido</TableHead>
                       <TableHead className="hidden md:table-cell">Fornecedor</TableHead>
-                      <TableHead className="hidden md:table-cell">Cliente / Obra</TableHead>
-                      <TableHead>Valor</TableHead>
+                      <TableHead className="hidden md:table-cell">Itens</TableHead>
+                      <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {monthPurchases.slice(0, 10).map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.material}</TableCell>
-                        <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
-                        <TableCell className="hidden md:table-cell text-xs">{getClientLabel(p)}</TableCell>
-                        <TableCell>{fmt(Number(p.total))}</TableCell>
-                        <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
-                      </TableRow>
-                    ))}
-                    {purchases.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma compra registrada.</TableCell></TableRow>}
+                    {monthOrders.slice(0, 10).map((o: any) => {
+                      const oItems = itemsByOrder[o.id] ?? [];
+                      return (
+                        <TableRow key={o.id} className="cursor-pointer" onClick={() => setOrderDetailsId(o.id)}>
+                          <TableCell className="font-medium">{o.order_number}</TableCell>
+                          <TableCell className="hidden md:table-cell">{(o as any).suppliers?.name ?? "—"}</TableCell>
+                          <TableCell className="hidden md:table-cell text-xs">{oItems.length} {oItems.length === 1 ? "item" : "itens"}</TableCell>
+                          <TableCell>{fmt(Number(o.total))}</TableCell>
+                          <TableCell><Badge className={statusColors[o.payment_status]}>{paymentStatuses[o.payment_status]}</Badge></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {monthOrders.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum pedido registrado.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </div>
@@ -771,118 +936,9 @@ const Purchases = () => {
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
-              <Dialog open={purchaseOpen} onOpenChange={(v) => { setPurchaseOpen(v); if (!v) { setEditPurchaseId(null); setPForm({ supplier_id: "", material: "", quantity: "1", unit: "un", unit_price: "0", original_price: "", purchase_date: localDateString(), invoice_number: "", payment_method: "pix", payment_status: "pendente", due_date: "", notes: "", client_id: "", work_order_id: "" }); } }}>
-                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Nova Compra</Button></DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                  <DialogHeader><DialogTitle>{editPurchaseId ? "Editar Compra" : "Registrar Compra"}</DialogTitle></DialogHeader>
-                  <form onSubmit={e => { e.preventDefault(); savePurchase.mutate(); }} className="space-y-3">
-                    <div>
-                      <Label>Fornecedor</Label>
-                      <Select value={pForm.supplier_id} onValueChange={v => setPForm({ ...pForm, supplier_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div><Label>Material / Produto *</Label><Input value={pForm.material} onChange={e => setPForm({ ...pForm, material: e.target.value })} required /></div>
-                    
-                    {/* Cliente / Obra */}
-                    <div>
-                      <Label>Cliente / Obra</Label>
-                      <Select
-                        value={pForm.work_order_id || pForm.client_id || "geral"}
-                        onValueChange={v => {
-                          if (v === "geral") {
-                            setPForm({ ...pForm, client_id: "", work_order_id: "" });
-                          } else {
-                            const wo = allWorkOrders.find((w: any) => w.id === v);
-                            if (wo) {
-                              setPForm({ ...pForm, work_order_id: v, client_id: wo.client_id });
-                            } else {
-                              setPForm({ ...pForm, client_id: v, work_order_id: "" });
-                            }
-                          }
-                        }}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Uso Geral / Estoque" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="geral">Uso Geral / Estoque</SelectItem>
-                          {allWorkOrders.map((wo: any) => (
-                            <SelectItem key={wo.id} value={wo.id}>
-                              {wo.clients?.name || "Cliente"} — OS #{wo.id.slice(0, 8)}
-                            </SelectItem>
-                          ))}
-                          {clients.filter(c => !allWorkOrders.some((wo: any) => wo.client_id === c.id)).map(c => (
-                            <SelectItem key={c.id} value={c.id}>{c.name} (sem OS)</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div><Label>Quantidade *</Label><Input type="number" step="0.01" value={pForm.quantity} onChange={e => setPForm({ ...pForm, quantity: e.target.value })} required /></div>
-                      <div>
-                        <Label>Unidade</Label>
-                        <Select value={pForm.unit} onValueChange={v => setPForm({ ...pForm, unit: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div><Label>Valor Negociado (R$) *</Label><Input type="number" step="0.01" value={pForm.unit_price} onChange={e => setPForm({ ...pForm, unit_price: e.target.value })} required /></div>
-                    </div>
-                    <div>
-                      <Label>Valor Original do Fornecedor (R$)</Label>
-                      <Input type="number" step="0.01" value={pForm.original_price} onChange={e => setPForm({ ...pForm, original_price: e.target.value })} placeholder="Deixe vazio se não houve desconto" />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label>Total Negociado</Label>
-                        <Input value={fmt(calcTotal())} readOnly className="bg-muted" />
-                      </div>
-                      <div>
-                        <Label>Economizado</Label>
-                        <Input value={fmt(calcSavings().savings)} readOnly className="bg-muted text-green-600" />
-                      </div>
-                      <div>
-                        <Label>Desconto (%)</Label>
-                        <Input value={`${calcSavings().pct.toFixed(1)}%`} readOnly className="bg-muted text-green-600" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><Label>Data da Compra *</Label><Input type="date" value={pForm.purchase_date} onChange={e => setPForm({ ...pForm, purchase_date: e.target.value })} required /></div>
-                      <div><Label>Nº Nota/Pedido</Label><Input value={pForm.invoice_number} onChange={e => setPForm({ ...pForm, invoice_number: e.target.value })} /></div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label>Forma de Pagamento</Label>
-                        <Select value={pForm.payment_method} onValueChange={v => setPForm({ ...pForm, payment_method: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(paymentMethods).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Status Pagamento</Label>
-                        <Select value={pForm.payment_status} onValueChange={v => setPForm({ ...pForm, payment_status: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(paymentStatuses).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    {pForm.payment_status !== "pago" && (
-                      <div><Label>Data de Vencimento</Label><Input type="date" value={pForm.due_date} onChange={e => setPForm({ ...pForm, due_date: e.target.value })} /></div>
-                    )}
-                    <div><Label>Observações</Label><Textarea value={pForm.notes} onChange={e => setPForm({ ...pForm, notes: e.target.value })} /></div>
-                    <Button type="submit" className="w-full" disabled={savePurchase.isPending}>{editPurchaseId ? "Salvar Alterações" : "Registrar Compra"}</Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button onClick={() => setNewOrderOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />Novo Pedido
+              </Button>
             </div>
           </div>
 
@@ -890,57 +946,139 @@ const Purchases = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Material</TableHead>
+                  <TableHead className="w-8"></TableHead>
+                  <TableHead>Pedido</TableHead>
                   <TableHead className="hidden md:table-cell">Fornecedor</TableHead>
-                  <TableHead className="hidden md:table-cell">Cliente / Obra</TableHead>
-                  <TableHead className="hidden md:table-cell">Qtd</TableHead>
-                  <TableHead>Valor</TableHead>
+                  <TableHead className="hidden lg:table-cell">Cliente / Obra</TableHead>
+                  <TableHead className="hidden md:table-cell">Itens</TableHead>
+                  <TableHead>Total</TableHead>
                   <TableHead className="hidden md:table-cell">Data</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-28">Ação</TableHead>
+                  <TableHead className="w-32">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPurchases.map(p => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.material}</TableCell>
-                    <TableCell className="hidden md:table-cell">{(p as any).suppliers?.name ?? "—"}</TableCell>
-                    <TableCell className="hidden md:table-cell text-xs">{getClientLabel(p)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{p.quantity} {p.unit}</TableCell>
-                    <TableCell>{fmt(Number(p.total))}</TableCell>
-                    <TableCell className="hidden md:table-cell">{formatDateBR(p.purchase_date)}</TableCell>
-                    <TableCell><Badge className={statusColors[p.payment_status]}>{paymentStatuses[p.payment_status]}</Badge></TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => {
-                          setEditPurchaseId(p.id);
-                          setPForm({
-                            supplier_id: p.supplier_id || "",
-                            material: p.material,
-                            quantity: String(p.quantity),
-                            unit: p.unit,
-                            unit_price: String(p.unit_price),
-                            original_price: p.original_price ? String(p.original_price) : "",
-                            purchase_date: p.purchase_date,
-                            invoice_number: p.invoice_number || "",
-                            payment_method: p.payment_method || "pix",
-                            payment_status: p.payment_status,
-                            due_date: p.due_date || "",
-                            notes: p.notes || "",
-                            client_id: p.client_id || "",
-                            work_order_id: p.work_order_id || "",
-                          });
-                          setPurchaseOpen(true);
-                        }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {p.payment_status !== "pago" && <Button size="sm" variant="outline" onClick={() => markPurchasePaid.mutate(p.id)}>Pagar</Button>}
-                        {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "purchases", id: p.id })}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredPurchases.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma compra encontrada.</TableCell></TableRow>}
+                {(() => {
+                  // Filter orders by search/supplier/status/client
+                  const filteredOrders = monthOrders.filter((o: any) => {
+                    if (filterSupplier !== "all" && o.supplier_id !== filterSupplier) return false;
+                    if (filterStatus !== "all" && o.payment_status !== filterStatus) return false;
+                    if (filterClient !== "all") {
+                      const orderItems = itemsByOrder[o.id] ?? [];
+                      const matchesOrder =
+                        (filterClient === "geral" && !o.client_id && !o.work_order_id) ||
+                        o.client_id === filterClient || o.work_order_id === filterClient;
+                      const matchesItems = orderItems.some((it: any) => {
+                        if (filterClient === "geral") return !it.client_id && !it.work_order_id;
+                        return it.client_id === filterClient || it.work_order_id === filterClient;
+                      });
+                      if (!matchesOrder && !matchesItems) return false;
+                    }
+                    if (search) {
+                      const s = search.toLowerCase();
+                      const supName = (o as any).suppliers?.name ?? "";
+                      const orderItems = itemsByOrder[o.id] ?? [];
+                      const matchSearch =
+                        (o.order_number || "").toLowerCase().includes(s) ||
+                        supName.toLowerCase().includes(s) ||
+                        (o.invoice_number ?? "").toLowerCase().includes(s) ||
+                        orderItems.some((it: any) => (it.material || "").toLowerCase().includes(s));
+                      if (!matchSearch) return false;
+                    }
+                    return true;
+                  });
+
+                  if (filteredOrders.length === 0) {
+                    return <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum pedido encontrado.</TableCell></TableRow>;
+                  }
+
+                  return filteredOrders.flatMap((o: any) => {
+                    const oItems = itemsByOrder[o.id] ?? [];
+                    const isExpanded = expandedOrders.has(o.id);
+                    const rows = [
+                      <TableRow key={o.id} className="cursor-pointer" onClick={() => {
+                        const next = new Set(expandedOrders);
+                        if (next.has(o.id)) next.delete(o.id); else next.add(o.id);
+                        setExpandedOrders(next);
+                      }}>
+                        <TableCell>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => {
+                            e.stopPropagation();
+                            const next = new Set(expandedOrders);
+                            if (next.has(o.id)) next.delete(o.id); else next.add(o.id);
+                            setExpandedOrders(next);
+                          }}>
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-medium">{o.order_number}</TableCell>
+                        <TableCell className="hidden md:table-cell">{(o as any).suppliers?.name ?? "—"}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-xs">{getClientLabel(o)}</TableCell>
+                        <TableCell className="hidden md:table-cell">{oItems.length} {oItems.length === 1 ? "item" : "itens"}</TableCell>
+                        <TableCell className="font-medium">{fmt(Number(o.total))}</TableCell>
+                        <TableCell className="hidden md:table-cell">{formatDateBR(o.purchase_date)}</TableCell>
+                        <TableCell><Badge className={statusColors[o.payment_status]}>{paymentStatuses[o.payment_status]}</Badge></TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => setOrderDetailsId(o.id)}>Ver</Button>
+                            {o.payment_status !== "pago" && (
+                              <Button size="sm" variant="outline" onClick={() => markOrderPaid.mutate(o.id)}>Pagar</Button>
+                            )}
+                            {userRole === "admin" && (
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ type: "purchase_orders", id: o.id })}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>,
+                    ];
+
+                    if (isExpanded) {
+                      rows.push(
+                        <TableRow key={`${o.id}-detail`} className="bg-muted/30">
+                          <TableCell colSpan={9}>
+                            <div className="p-2 space-y-2">
+                              <div className="text-xs text-muted-foreground">
+                                {o.invoice_number && <>NF: <strong>{o.invoice_number}</strong> · </>}
+                                Forma: <strong>{paymentMethods[o.payment_method] ?? o.payment_method}</strong>
+                                {o.notes && <> · Obs: {o.notes}</>}
+                              </div>
+                              <div className="border rounded">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Material</TableHead>
+                                      <TableHead className="w-24">Qtd</TableHead>
+                                      <TableHead className="w-28">Vlr Unit.</TableHead>
+                                      <TableHead className="w-28">Total</TableHead>
+                                      <TableHead className="text-xs">Cliente / Obra</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {oItems.map((it: any) => (
+                                      <TableRow key={it.id}>
+                                        <TableCell className="font-medium">{it.material}</TableCell>
+                                        <TableCell>{it.quantity} {it.unit}</TableCell>
+                                        <TableCell>{fmt(Number(it.unit_price))}</TableCell>
+                                        <TableCell className="font-medium">{fmt(Number(it.total))}</TableCell>
+                                        <TableCell className="text-xs">{getClientLabel(it)}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                    {oItems.length === 0 && (
+                                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-4">Sem itens.</TableCell></TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                    return rows;
+                  });
+                })()}
               </TableBody>
             </Table>
           </div>
@@ -1109,52 +1247,97 @@ const Purchases = () => {
         workOrders={allWorkOrders}
         onSave={async (data: any) => {
           const { items, linked_wo_id } = data;
-          for (const item of items) {
-            const { data: newPurchase, error } = await supabase.from("purchases").insert(item).select().single();
-            if (error) {
-              toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-              return;
-            }
-            const supplierName = suppliers.find(s => s.id === item.supplier_id)?.name ?? "Fornecedor";
-            const clientName2 = item.client_id ? clients.find(c => c.id === item.client_id)?.name : null;
-            const desc2 = clientName2 ? `Compra: ${item.material} - ${supplierName} (${clientName2})` : `Compra: ${item.material} - ${supplierName}`;
-            await supabase.from("financial_transactions").insert({
-              type: "a_pagar" as any,
-              description: desc2,
-              amount: item.total,
-              due_date: item.due_date || item.purchase_date,
-              paid_date: item.payment_status === "pago" ? item.purchase_date : null,
-              category: "Compras",
-              status: (item.payment_status === "pago" ? "pago" : "pendente") as any,
-              client_id: item.client_id || null,
-              work_order_id: item.work_order_id || null,
-              purchase_id: newPurchase.id,
-            } as any);
-            // Update work order material status if linked
-            if (item.work_order_id) {
-              await supabase.from("work_orders")
-                .update({ material_status: "comprado" } as any)
-                .eq("id", item.work_order_id);
-            }
+          if (!items || items.length === 0) return;
+          // Group all items into ONE purchase_order (foto = nota fiscal única)
+          const first = items[0];
+          const supplierId = first.supplier_id || null;
+          const purchaseDate = first.purchase_date;
+          const paymentMethod = first.payment_method || "pix";
+          const paymentStatus = first.payment_status || "pendente";
+          const dueDate = first.due_date || null;
+          const invoiceNumber = first.invoice_number || null;
+          const orderTotal = items.reduce((s: number, it: any) => s + Number(it.total || 0), 0);
+          const orderClient = first.client_id || null;
+          const orderWO = first.work_order_id || null;
+
+          // Generate order number
+          const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, { _date: purchaseDate });
+          if (numErr) { toast({ title: "Erro", description: numErr.message, variant: "destructive" }); return; }
+          const orderNumber = numData as unknown as string;
+
+          // Insert order header
+          const { data: newOrder, error: oErr } = await supabase.from("purchase_orders" as any).insert({
+            order_number: orderNumber, supplier_id: supplierId, client_id: orderClient, work_order_id: orderWO,
+            purchase_date: purchaseDate, payment_method: paymentMethod, payment_status: paymentStatus,
+            due_date: dueDate, invoice_number: invoiceNumber, total: orderTotal,
+          } as any).select().single();
+          if (oErr) { toast({ title: "Erro", description: oErr.message, variant: "destructive" }); return; }
+
+          // Insert items linked to order
+          const itemsPayload = items.map((it: any) => ({ ...it, order_id: (newOrder as any).id }));
+          const { error: iErr } = await supabase.from("purchases").insert(itemsPayload);
+          if (iErr) { toast({ title: "Erro", description: iErr.message, variant: "destructive" }); return; }
+
+          // Single consolidated financial transaction
+          const supplierName = suppliers.find(s => s.id === supplierId)?.name ?? "Fornecedor";
+          await supabase.from("financial_transactions").insert({
+            type: "a_pagar" as any,
+            description: `Compra — ${supplierName} — Pedido ${orderNumber}`,
+            amount: orderTotal,
+            due_date: dueDate || purchaseDate,
+            paid_date: paymentStatus === "pago" ? purchaseDate : null,
+            category: "Compras",
+            status: (paymentStatus === "pago" ? "pago" : "pendente") as any,
+            payment_method: paymentMethod,
+            client_id: orderClient, work_order_id: orderWO,
+            purchase_order_id: (newOrder as any).id, sync_origin: "purchase_order",
+          } as any);
+
+          // Update WO material status
+          if (orderWO) {
+            await supabase.from("work_orders").update({ material_status: "comprado" } as any).eq("id", orderWO);
           }
           if (linked_wo_id && linked_wo_id !== "none") {
             const req = purchaseRequests.find((r: any) => r.work_order_id === linked_wo_id);
             if (req) {
-              await supabase.from("purchase_requests")
-                .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
-                .eq("id", req.id);
-              await supabase.from("work_orders")
-                .update({ material_status: "comprado" } as any)
-                .eq("id", linked_wo_id);
+              await supabase.from("purchase_requests").update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any).eq("id", req.id);
+              await supabase.from("work_orders").update({ material_status: "comprado" } as any).eq("id", linked_wo_id);
             }
           }
+
           qc.invalidateQueries({ queryKey: ["purchases"] });
+          qc.invalidateQueries({ queryKey: ["purchase-orders"] });
           qc.invalidateQueries({ queryKey: ["financial"] });
+          qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+          qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+          qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
           qc.invalidateQueries({ queryKey: ["purchase-requests"] });
           qc.invalidateQueries({ queryKey: ["work-orders"] });
           qc.invalidateQueries({ queryKey: ["production-orders"] });
-          toast({ title: `${items.length} item(ns) registrado(s) por foto!` });
+          toast({ title: `Pedido ${orderNumber} criado com ${items.length} item(ns)!` });
         }}
+      />
+
+      <NewOrderDialog
+        open={newOrderOpen}
+        onOpenChange={setNewOrderOpen}
+        suppliers={suppliers}
+        clients={clients}
+        workOrders={allWorkOrders}
+        isPending={saveOrder.isPending}
+        onSave={async (payload) => { await saveOrder.mutateAsync(payload); }}
+      />
+
+      <OrderDetailsDialog
+        open={!!orderDetailsId}
+        onOpenChange={(v) => !v && setOrderDetailsId(null)}
+        order={purchaseOrders.find((o: any) => o.id === orderDetailsId) ?? null}
+        items={orderDetailsId ? (itemsByOrder[orderDetailsId] ?? []) : []}
+        supplierName={(() => {
+          const o = purchaseOrders.find((o: any) => o.id === orderDetailsId);
+          return o ? (o as any).suppliers?.name : undefined;
+        })()}
+        getClientLabel={getClientLabel}
       />
     </div>
   );
