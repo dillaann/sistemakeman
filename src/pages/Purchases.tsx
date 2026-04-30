@@ -19,6 +19,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import PhotoPurchaseDialog from "@/components/PhotoPurchaseDialog";
 import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
+import OrderDetailsDialog from "@/components/purchases/OrderDetailsDialog";
+import NewOrderDialog from "@/components/purchases/NewOrderDialog";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 const paymentMethods: Record<string, string> = {
   dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", boleto: "Boleto", transferencia: "Transferência",
