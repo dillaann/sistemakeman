@@ -1247,52 +1247,97 @@ const Purchases = () => {
         workOrders={allWorkOrders}
         onSave={async (data: any) => {
           const { items, linked_wo_id } = data;
-          for (const item of items) {
-            const { data: newPurchase, error } = await supabase.from("purchases").insert(item).select().single();
-            if (error) {
-              toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-              return;
-            }
-            const supplierName = suppliers.find(s => s.id === item.supplier_id)?.name ?? "Fornecedor";
-            const clientName2 = item.client_id ? clients.find(c => c.id === item.client_id)?.name : null;
-            const desc2 = clientName2 ? `Compra: ${item.material} - ${supplierName} (${clientName2})` : `Compra: ${item.material} - ${supplierName}`;
-            await supabase.from("financial_transactions").insert({
-              type: "a_pagar" as any,
-              description: desc2,
-              amount: item.total,
-              due_date: item.due_date || item.purchase_date,
-              paid_date: item.payment_status === "pago" ? item.purchase_date : null,
-              category: "Compras",
-              status: (item.payment_status === "pago" ? "pago" : "pendente") as any,
-              client_id: item.client_id || null,
-              work_order_id: item.work_order_id || null,
-              purchase_id: newPurchase.id,
-            } as any);
-            // Update work order material status if linked
-            if (item.work_order_id) {
-              await supabase.from("work_orders")
-                .update({ material_status: "comprado" } as any)
-                .eq("id", item.work_order_id);
-            }
+          if (!items || items.length === 0) return;
+          // Group all items into ONE purchase_order (foto = nota fiscal única)
+          const first = items[0];
+          const supplierId = first.supplier_id || null;
+          const purchaseDate = first.purchase_date;
+          const paymentMethod = first.payment_method || "pix";
+          const paymentStatus = first.payment_status || "pendente";
+          const dueDate = first.due_date || null;
+          const invoiceNumber = first.invoice_number || null;
+          const orderTotal = items.reduce((s: number, it: any) => s + Number(it.total || 0), 0);
+          const orderClient = first.client_id || null;
+          const orderWO = first.work_order_id || null;
+
+          // Generate order number
+          const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, { _date: purchaseDate });
+          if (numErr) { toast({ title: "Erro", description: numErr.message, variant: "destructive" }); return; }
+          const orderNumber = numData as unknown as string;
+
+          // Insert order header
+          const { data: newOrder, error: oErr } = await supabase.from("purchase_orders" as any).insert({
+            order_number: orderNumber, supplier_id: supplierId, client_id: orderClient, work_order_id: orderWO,
+            purchase_date: purchaseDate, payment_method: paymentMethod, payment_status: paymentStatus,
+            due_date: dueDate, invoice_number: invoiceNumber, total: orderTotal,
+          } as any).select().single();
+          if (oErr) { toast({ title: "Erro", description: oErr.message, variant: "destructive" }); return; }
+
+          // Insert items linked to order
+          const itemsPayload = items.map((it: any) => ({ ...it, order_id: (newOrder as any).id }));
+          const { error: iErr } = await supabase.from("purchases").insert(itemsPayload);
+          if (iErr) { toast({ title: "Erro", description: iErr.message, variant: "destructive" }); return; }
+
+          // Single consolidated financial transaction
+          const supplierName = suppliers.find(s => s.id === supplierId)?.name ?? "Fornecedor";
+          await supabase.from("financial_transactions").insert({
+            type: "a_pagar" as any,
+            description: `Compra — ${supplierName} — Pedido ${orderNumber}`,
+            amount: orderTotal,
+            due_date: dueDate || purchaseDate,
+            paid_date: paymentStatus === "pago" ? purchaseDate : null,
+            category: "Compras",
+            status: (paymentStatus === "pago" ? "pago" : "pendente") as any,
+            payment_method: paymentMethod,
+            client_id: orderClient, work_order_id: orderWO,
+            purchase_order_id: (newOrder as any).id, sync_origin: "purchase_order",
+          } as any);
+
+          // Update WO material status
+          if (orderWO) {
+            await supabase.from("work_orders").update({ material_status: "comprado" } as any).eq("id", orderWO);
           }
           if (linked_wo_id && linked_wo_id !== "none") {
             const req = purchaseRequests.find((r: any) => r.work_order_id === linked_wo_id);
             if (req) {
-              await supabase.from("purchase_requests")
-                .update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any)
-                .eq("id", req.id);
-              await supabase.from("work_orders")
-                .update({ material_status: "comprado" } as any)
-                .eq("id", linked_wo_id);
+              await supabase.from("purchase_requests").update({ status: "confirmado", confirmed_at: new Date().toISOString(), confirmed_by: user?.id } as any).eq("id", req.id);
+              await supabase.from("work_orders").update({ material_status: "comprado" } as any).eq("id", linked_wo_id);
             }
           }
+
           qc.invalidateQueries({ queryKey: ["purchases"] });
+          qc.invalidateQueries({ queryKey: ["purchase-orders"] });
           qc.invalidateQueries({ queryKey: ["financial"] });
+          qc.invalidateQueries({ queryKey: ["financial-saidas"] });
+          qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
+          qc.invalidateQueries({ queryKey: ["financial-movimentacao"] });
           qc.invalidateQueries({ queryKey: ["purchase-requests"] });
           qc.invalidateQueries({ queryKey: ["work-orders"] });
           qc.invalidateQueries({ queryKey: ["production-orders"] });
-          toast({ title: `${items.length} item(ns) registrado(s) por foto!` });
+          toast({ title: `Pedido ${orderNumber} criado com ${items.length} item(ns)!` });
         }}
+      />
+
+      <NewOrderDialog
+        open={newOrderOpen}
+        onOpenChange={setNewOrderOpen}
+        suppliers={suppliers}
+        clients={clients}
+        workOrders={allWorkOrders}
+        isPending={saveOrder.isPending}
+        onSave={async (payload) => { await saveOrder.mutateAsync(payload); }}
+      />
+
+      <OrderDetailsDialog
+        open={!!orderDetailsId}
+        onOpenChange={(v) => !v && setOrderDetailsId(null)}
+        order={purchaseOrders.find((o: any) => o.id === orderDetailsId) ?? null}
+        items={orderDetailsId ? (itemsByOrder[orderDetailsId] ?? []) : []}
+        supplierName={(() => {
+          const o = purchaseOrders.find((o: any) => o.id === orderDetailsId);
+          return o ? (o as any).suppliers?.name : undefined;
+        })()}
+        getClientLabel={getClientLabel}
       />
     </div>
   );
