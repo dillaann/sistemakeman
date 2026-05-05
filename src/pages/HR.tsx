@@ -673,6 +673,8 @@ const HR = () => {
   const totalSaturdays = useMemo(() => saturdays.reduce((s, sat) => s + Number(sat.calculated_value), 0), [saturdays]);
   const totalHolidays = useMemo(() => holidays.reduce((s: number, h: any) => s + Number(h.calculated_value), 0), [holidays]);
   const totalHolidayDays = useMemo(() => holidays.reduce((s: number, h: any) => s + Number(h.day_quantity), 0), [holidays]);
+  const totalAbsences = useMemo(() => absences.reduce((s: number, a: any) => s + Number(a.calculated_value), 0), [absences]);
+  const totalAbsenceDays = useMemo(() => absences.reduce((s: number, a: any) => s + Number(a.day_quantity), 0), [absences]);
   const total13thProvision = useMemo(() => thirteenths.reduce((s, t) => s + Number(t.monthly_provision) * (new Date().getMonth() + 1), 0), [thirteenths]);
 
   const vacationAlerts = useMemo(() => {
