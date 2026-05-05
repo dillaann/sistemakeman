@@ -968,6 +968,7 @@ const HR = () => {
                     <TableHead>Sábados</TableHead>
                     <TableHead>Feriados</TableHead>
                     <TableHead>Vales/Adiant.</TableHead>
+                    <TableHead>Faltas</TableHead>
                     <TableHead>Líquido</TableHead>
                     <TableHead>Pago</TableHead>
                     <TableHead>Restante</TableHead>
