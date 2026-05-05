@@ -256,6 +256,34 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // ── Absence (Faltas) ──
+  const [absOpen, setAbsOpen] = useState(false);
+  const [absForm, setAbsForm] = useState({ employee_id: "", day_quantity: "1", reason: "", date: localDateString() });
+  const absMutation = useMutation({
+    mutationFn: async () => {
+      const emp = employees.find(e => e.id === absForm.employee_id);
+      if (!emp) throw new Error("Selecione um funcionário");
+      const salary = Number(emp.salary) || 0;
+      if (salary <= 0) throw new Error(`Cadastre o salário base de ${emp.name} antes de registrar`);
+      const days = parseFloat(absForm.day_quantity);
+      if (!days || days <= 0) throw new Error("Informe a quantidade de faltas (decimais permitidos)");
+      const dailyRate = salary / 30;
+      const total = dailyRate * days;
+      const { error } = await supabase.from("employee_absences" as any).insert({
+        employee_id: absForm.employee_id,
+        date: absForm.date,
+        day_quantity: days,
+        reason: absForm.reason || null,
+        daily_rate: Math.round(dailyRate * 100) / 100,
+        calculated_value: Math.round(total * 100) / 100,
+        month_ref: selectedMonth,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-absences"] }); setAbsOpen(false); setAbsForm({ employee_id: "", day_quantity: "1", reason: "", date: localDateString() }); toast({ title: "Falta registrada!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const [vacOpen, setVacOpen] = useState(false);
   const [vacForm, setVacForm] = useState({ employee_id: "", start_date: "", end_date: "", days: "", vacation_value: "", notes: "" });
   const vacMutation = useMutation({
