@@ -984,6 +984,7 @@ const HR = () => {
                       <TableCell className="text-primary">{e.empSaturdays > 0 ? fmt(e.empSaturdays) : "-"}</TableCell>
                       <TableCell className="text-primary">{e.empHolidays > 0 ? fmt(e.empHolidays) : "-"}</TableCell>
                       <TableCell className="text-amber-600">{e.empAdvances > 0 ? fmt(e.empAdvances) : "-"}</TableCell>
+                      <TableCell className="text-destructive">{e.empAbsences > 0 ? fmt(e.empAbsences) : "-"}</TableCell>
                       
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
                       <TableCell className="text-green-600">{e.totalPaid > 0 ? fmt(e.totalPaid) : "-"}</TableCell>
