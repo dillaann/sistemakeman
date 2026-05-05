@@ -1197,6 +1197,117 @@ const HR = () => {
         </TabsContent>
 
         {/* ── Vales ── */}
+        {/* ── Faltas ── */}
+        <TabsContent value="faltas" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={absOpen} onOpenChange={setAbsOpen}>
+                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Falta</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Registrar Falta</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); absMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label>
+                      <select className={selectClass} value={absForm.employee_id} onChange={e => setAbsForm({ ...absForm, employee_id: e.target.value })} required>
+                        <option value="">Selecione</option>
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Data da Falta *</Label><Input type="date" value={absForm.date} onChange={e => setAbsForm({ ...absForm, date: e.target.value })} required /></div>
+                      <div><Label>Quantidade *</Label><Input type="number" step="0.5" min="0.5" value={absForm.day_quantity} onChange={e => setAbsForm({ ...absForm, day_quantity: e.target.value })} required placeholder="0.5, 1, 1.5, 2…" /></div>
+                    </div>
+                    <div><Label>Motivo (opcional)</Label><Input value={absForm.reason} onChange={e => setAbsForm({ ...absForm, reason: e.target.value })} placeholder="Ex: Atestado, falta injustificada" /></div>
+                    {absForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === absForm.employee_id);
+                      const salary = Number(emp?.salary) || 0;
+                      if (salary <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o salário base de {emp?.name} antes de registrar.</div>;
+                      }
+                      const dailyRate = salary / 30;
+                      const days = parseFloat(absForm.day_quantity) || 0;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm space-y-1">
+                          <p>Salário base: <strong>{fmt(salary)}</strong></p>
+                          <p>Valor diária (salário ÷ 30): <strong>{fmt(dailyRate)}</strong></p>
+                          {days > 0 && <p className="font-bold mt-1 text-destructive">Desconto ({days} dia{days !== 1 ? "s" : ""}): {fmt(dailyRate * days)}</p>}
+                        </div>
+                      );
+                    })()}
+                    <Button type="submit" className="w-full" disabled={absMutation.isPending}>Salvar</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Faltas - {monthLabel(selectedMonth)}</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Quantidade</TableHead>
+                    <TableHead>Diária</TableHead>
+                    <TableHead>Desconto</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    {canEdit && <TableHead className="w-12"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {absences.map((a: any) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="font-medium">{a.employees?.name}</TableCell>
+                      <TableCell>{formatDateBR(a.date)}</TableCell>
+                      <TableCell>{Number(a.day_quantity)} dia{Number(a.day_quantity) !== 1 ? "s" : ""}</TableCell>
+                      <TableCell>{fmt(Number(a.daily_rate))}</TableCell>
+                      <TableCell className="font-bold text-destructive">{fmt(Number(a.calculated_value))}</TableCell>
+                      <TableCell>{a.reason || "-"}</TableCell>
+                      {canEdit && <TableCell>
+                        <EditBtn onClick={() => {
+                          const emp = employees.find(e => e.id === a.employee_id);
+                          const salary = Number(emp?.salary) || 0;
+                          const dailyRate = salary / 30;
+                          openEdit({
+                            table: 'employee_absences',
+                            id: a.id,
+                            title: 'Editar Falta',
+                            invalidate: ['employee-absences'],
+                            fields: [
+                              { key: 'date', label: 'Data', type: 'date', value: a.date, required: true },
+                              { key: 'day_quantity', label: 'Quantidade (dias)', type: 'number', step: '0.5', value: String(Number(a.day_quantity)||0), required: true },
+                              { key: 'reason', label: 'Motivo', type: 'text', value: a.reason || '' },
+                              { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: a.month_ref, required: true },
+                            ],
+                            transform: (v) => {
+                              const days = parseFloat(v.day_quantity) || 0;
+                              return {
+                                date: v.date,
+                                day_quantity: days,
+                                reason: v.reason || null,
+                                month_ref: v.month_ref,
+                                daily_rate: Math.round(dailyRate * 100) / 100,
+                                calculated_value: Math.round(dailyRate * days * 100) / 100,
+                              };
+                            },
+                          });
+                        }} />
+                        <DeleteBtn table="employee_absences" id={a.id} label={`Falta de ${a.employees?.name}`} />
+                      </TableCell>}
+                    </TableRow>
+                  ))}
+                  {absences.length === 0 && (
+                    <TableRow><TableCell colSpan={canEdit ? 7 : 6} className="text-center text-muted-foreground py-8">Nenhuma falta registrada neste mês.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {absences.length > 0 && (
+                <div className="mt-4 text-right font-bold text-destructive">Total descontado: {fmt(totalAbsences)} ({totalAbsenceDays} dia{totalAbsenceDays !== 1 ? "s" : ""})</div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="vales" className="space-y-4">
           {canEdit && (
             <div className="flex justify-end">
