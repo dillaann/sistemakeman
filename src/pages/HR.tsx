@@ -164,6 +164,7 @@ const HR = () => {
       queryClient.invalidateQueries({ queryKey: ["employee-overtime"] });
       queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] });
       queryClient.invalidateQueries({ queryKey: ["employee-holidays"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-absences"] });
       queryClient.invalidateQueries({ queryKey: ["employee-vacations"] });
       queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
