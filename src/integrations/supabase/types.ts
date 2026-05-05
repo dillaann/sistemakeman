@@ -177,6 +177,50 @@ export type Database = {
           },
         ]
       }
+      employee_absences: {
+        Row: {
+          calculated_value: number
+          created_at: string
+          daily_rate: number
+          date: string
+          day_quantity: number
+          employee_id: string
+          id: string
+          month_ref: string
+          reason: string | null
+        }
+        Insert: {
+          calculated_value?: number
+          created_at?: string
+          daily_rate?: number
+          date: string
+          day_quantity?: number
+          employee_id: string
+          id?: string
+          month_ref: string
+          reason?: string | null
+        }
+        Update: {
+          calculated_value?: number
+          created_at?: string
+          daily_rate?: number
+          date?: string
+          day_quantity?: number
+          employee_id?: string
+          id?: string
+          month_ref?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_absences_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_advances: {
         Row: {
           amount: number
@@ -847,6 +891,7 @@ export type Database = {
           net_pay: number
           paid: boolean
           paid_date: string | null
+          total_absences: number
           total_advances: number
           total_expenses: number
           total_holidays: number
@@ -862,6 +907,7 @@ export type Database = {
           net_pay?: number
           paid?: boolean
           paid_date?: string | null
+          total_absences?: number
           total_advances?: number
           total_expenses?: number
           total_holidays?: number
@@ -877,6 +923,7 @@ export type Database = {
           net_pay?: number
           paid?: boolean
           paid_date?: string | null
+          total_absences?: number
           total_advances?: number
           total_expenses?: number
           total_holidays?: number

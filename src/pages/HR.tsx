@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
-import { Plus, DollarSign, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote, Trash2, Pencil, PartyPopper } from "lucide-react";
+import { Plus, DollarSign, CheckCircle, BarChart3, Clock, Calendar, Palmtree, Gift, AlertTriangle, Banknote, Trash2, Pencil, PartyPopper, UserMinus } from "lucide-react";
 import DailyRatesTab from "@/components/hr/DailyRatesTab";
 
 const currentMonth = () => {
@@ -63,6 +63,10 @@ const HR = () => {
   const { data: holidays = [] } = useQuery({
     queryKey: ["employee-holidays", selectedMonth],
     queryFn: async () => { const { data } = await supabase.from("employee_holidays" as any).select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return (data as any[]) ?? []; },
+  });
+  const { data: absences = [] } = useQuery({
+    queryKey: ["employee-absences", selectedMonth],
+    queryFn: async () => { const { data } = await supabase.from("employee_absences" as any).select("*, employees(name)").eq("month_ref", selectedMonth).order("date", { ascending: false }); return (data as any[]) ?? []; },
   });
   const { data: closings = [] } = useQuery({
     queryKey: ["monthly-closings", selectedMonth],
@@ -160,6 +164,7 @@ const HR = () => {
       queryClient.invalidateQueries({ queryKey: ["employee-overtime"] });
       queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] });
       queryClient.invalidateQueries({ queryKey: ["employee-holidays"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-absences"] });
       queryClient.invalidateQueries({ queryKey: ["employee-vacations"] });
       queryClient.invalidateQueries({ queryKey: ["thirteenth-salary"] });
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
@@ -251,6 +256,34 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // ── Absence (Faltas) ──
+  const [absOpen, setAbsOpen] = useState(false);
+  const [absForm, setAbsForm] = useState({ employee_id: "", day_quantity: "1", reason: "", date: localDateString() });
+  const absMutation = useMutation({
+    mutationFn: async () => {
+      const emp = employees.find(e => e.id === absForm.employee_id);
+      if (!emp) throw new Error("Selecione um funcionário");
+      const salary = Number(emp.salary) || 0;
+      if (salary <= 0) throw new Error(`Cadastre o salário base de ${emp.name} antes de registrar`);
+      const days = parseFloat(absForm.day_quantity);
+      if (!days || days <= 0) throw new Error("Informe a quantidade de faltas (decimais permitidos)");
+      const dailyRate = salary / 30;
+      const total = dailyRate * days;
+      const { error } = await supabase.from("employee_absences" as any).insert({
+        employee_id: absForm.employee_id,
+        date: absForm.date,
+        day_quantity: days,
+        reason: absForm.reason || null,
+        daily_rate: Math.round(dailyRate * 100) / 100,
+        calculated_value: Math.round(total * 100) / 100,
+        month_ref: selectedMonth,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-absences"] }); setAbsOpen(false); setAbsForm({ employee_id: "", day_quantity: "1", reason: "", date: localDateString() }); toast({ title: "Falta registrada!" }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const [vacOpen, setVacOpen] = useState(false);
   const [vacForm, setVacForm] = useState({ employee_id: "", start_date: "", end_date: "", days: "", vacation_value: "", notes: "" });
   const vacMutation = useMutation({
@@ -314,8 +347,9 @@ const HR = () => {
       const totalOt = overtime.filter(o => o.employee_id === employeeId).reduce((s, o) => s + Number(o.calculated_value), 0);
       const totalSat = saturdays.filter(s => s.employee_id === employeeId).reduce((s, sat) => s + Number(sat.calculated_value), 0);
       const totalHol = holidays.filter((h: any) => h.employee_id === employeeId).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
-      const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp;
-      const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
+      const totalAbs = absences.filter((a: any) => a.employee_id === employeeId).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
+      const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp - totalAbs;
+      const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, total_absences: totalAbs, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
 
       // Cria quinzenas vazias (valor 0) se ainda não existem — admin preenche manualmente.
@@ -639,6 +673,8 @@ const HR = () => {
   const totalSaturdays = useMemo(() => saturdays.reduce((s, sat) => s + Number(sat.calculated_value), 0), [saturdays]);
   const totalHolidays = useMemo(() => holidays.reduce((s: number, h: any) => s + Number(h.calculated_value), 0), [holidays]);
   const totalHolidayDays = useMemo(() => holidays.reduce((s: number, h: any) => s + Number(h.day_quantity), 0), [holidays]);
+  const totalAbsences = useMemo(() => absences.reduce((s: number, a: any) => s + Number(a.calculated_value), 0), [absences]);
+  const totalAbsenceDays = useMemo(() => absences.reduce((s: number, a: any) => s + Number(a.day_quantity), 0), [absences]);
   const total13thProvision = useMemo(() => thirteenths.reduce((s, t) => s + Number(t.monthly_provision) * (new Date().getMonth() + 1), 0), [thirteenths]);
 
   const vacationAlerts = useMemo(() => {
@@ -665,14 +701,15 @@ const HR = () => {
       const empOvertime = overtime.filter(o => o.employee_id === emp.id).reduce((s, o) => s + Number(o.calculated_value), 0);
       const empSaturdays = saturdays.filter(s => s.employee_id === emp.id).reduce((s, sat) => s + Number(sat.calculated_value), 0);
       const empHolidays = holidays.filter((h: any) => h.employee_id === emp.id).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
+      const empAbsences = absences.filter((a: any) => a.employee_id === emp.id).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
-      const netPay = baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses;
+      const netPay = baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences;
       const totalPaid = salaryPayments.filter((p: any) => p.employee_id === emp.id).reduce((s: number, p: any) => s + Number(p.amount), 0);
       const remaining = netPay - totalPaid;
-      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, netPay, closing, totalPaid, remaining };
+      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining };
     });
-  }, [employees, advances, overtime, saturdays, holidays, closings, salaryPayments]);
+  }, [employees, advances, overtime, saturdays, holidays, absences, closings, salaryPayments]);
 
 
   // categories removed — no longer used
@@ -814,6 +851,7 @@ const HR = () => {
           <TabsTrigger value="horas"><Clock className="h-4 w-4 mr-1 hidden sm:inline" />Horas Extras</TabsTrigger>
           <TabsTrigger value="sabados"><Calendar className="h-4 w-4 mr-1 hidden sm:inline" />Sábados</TabsTrigger>
           <TabsTrigger value="feriados"><PartyPopper className="h-4 w-4 mr-1 hidden sm:inline" />Feriados</TabsTrigger>
+          <TabsTrigger value="faltas"><UserMinus className="h-4 w-4 mr-1 hidden sm:inline" />Faltas</TabsTrigger>
           <TabsTrigger value="vales"><Banknote className="h-4 w-4 mr-1 hidden sm:inline" />Vales</TabsTrigger>
           <TabsTrigger value="ferias"><Palmtree className="h-4 w-4 mr-1 hidden sm:inline" />Férias</TabsTrigger>
           <TabsTrigger value="decimo"><Gift className="h-4 w-4 mr-1 hidden sm:inline" />13º</TabsTrigger>
@@ -829,6 +867,7 @@ const HR = () => {
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Feriados</CardTitle><PartyPopper className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalHolidays)}</div><p className="text-xs text-muted-foreground">{holidays.length} feriado(s) trabalhado(s)</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Vales/Adiant.</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{fmt(totalAdvances)}</div></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Vales</CardTitle><Banknote className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalAdvances)}</div><p className="text-xs text-muted-foreground">{advances.length} registros</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Faltas do Mês</CardTitle><UserMinus className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalAbsences)}</div><p className="text-xs text-muted-foreground">{totalAbsenceDays} dia(s) — {absences.length} registro(s)</p></CardContent></Card>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
@@ -929,6 +968,7 @@ const HR = () => {
                     <TableHead>Sábados</TableHead>
                     <TableHead>Feriados</TableHead>
                     <TableHead>Vales/Adiant.</TableHead>
+                    <TableHead>Faltas</TableHead>
                     <TableHead>Líquido</TableHead>
                     <TableHead>Pago</TableHead>
                     <TableHead>Restante</TableHead>
@@ -944,6 +984,7 @@ const HR = () => {
                       <TableCell className="text-primary">{e.empSaturdays > 0 ? fmt(e.empSaturdays) : "-"}</TableCell>
                       <TableCell className="text-primary">{e.empHolidays > 0 ? fmt(e.empHolidays) : "-"}</TableCell>
                       <TableCell className="text-amber-600">{e.empAdvances > 0 ? fmt(e.empAdvances) : "-"}</TableCell>
+                      <TableCell className="text-destructive">{e.empAbsences > 0 ? fmt(e.empAbsences) : "-"}</TableCell>
                       
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
                       <TableCell className="text-green-600">{e.totalPaid > 0 ? fmt(e.totalPaid) : "-"}</TableCell>
@@ -964,7 +1005,7 @@ const HR = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}
+                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -1156,6 +1197,117 @@ const HR = () => {
         </TabsContent>
 
         {/* ── Vales ── */}
+        {/* ── Faltas ── */}
+        <TabsContent value="faltas" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <Dialog open={absOpen} onOpenChange={setAbsOpen}>
+                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Falta</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Registrar Falta</DialogTitle></DialogHeader>
+                  <form onSubmit={e => { e.preventDefault(); absMutation.mutate(); }} className="space-y-3">
+                    <div><Label>Funcionário *</Label>
+                      <select className={selectClass} value={absForm.employee_id} onChange={e => setAbsForm({ ...absForm, employee_id: e.target.value })} required>
+                        <option value="">Selecione</option>
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Data da Falta *</Label><Input type="date" value={absForm.date} onChange={e => setAbsForm({ ...absForm, date: e.target.value })} required /></div>
+                      <div><Label>Quantidade *</Label><Input type="number" step="0.5" min="0.5" value={absForm.day_quantity} onChange={e => setAbsForm({ ...absForm, day_quantity: e.target.value })} required placeholder="0.5, 1, 1.5, 2…" /></div>
+                    </div>
+                    <div><Label>Motivo (opcional)</Label><Input value={absForm.reason} onChange={e => setAbsForm({ ...absForm, reason: e.target.value })} placeholder="Ex: Atestado, falta injustificada" /></div>
+                    {absForm.employee_id && (() => {
+                      const emp = employees.find(e => e.id === absForm.employee_id);
+                      const salary = Number(emp?.salary) || 0;
+                      if (salary <= 0) {
+                        return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o salário base de {emp?.name} antes de registrar.</div>;
+                      }
+                      const dailyRate = salary / 30;
+                      const days = parseFloat(absForm.day_quantity) || 0;
+                      return (
+                        <div className="p-3 rounded-md bg-muted text-sm space-y-1">
+                          <p>Salário base: <strong>{fmt(salary)}</strong></p>
+                          <p>Valor diária (salário ÷ 30): <strong>{fmt(dailyRate)}</strong></p>
+                          {days > 0 && <p className="font-bold mt-1 text-destructive">Desconto ({days} dia{days !== 1 ? "s" : ""}): {fmt(dailyRate * days)}</p>}
+                        </div>
+                      );
+                    })()}
+                    <Button type="submit" className="w-full" disabled={absMutation.isPending}>Salvar</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Faltas - {monthLabel(selectedMonth)}</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Funcionário</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Quantidade</TableHead>
+                    <TableHead>Diária</TableHead>
+                    <TableHead>Desconto</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    {canEdit && <TableHead className="w-12"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {absences.map((a: any) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="font-medium">{a.employees?.name}</TableCell>
+                      <TableCell>{formatDateBR(a.date)}</TableCell>
+                      <TableCell>{Number(a.day_quantity)} dia{Number(a.day_quantity) !== 1 ? "s" : ""}</TableCell>
+                      <TableCell>{fmt(Number(a.daily_rate))}</TableCell>
+                      <TableCell className="font-bold text-destructive">{fmt(Number(a.calculated_value))}</TableCell>
+                      <TableCell>{a.reason || "-"}</TableCell>
+                      {canEdit && <TableCell>
+                        <EditBtn onClick={() => {
+                          const emp = employees.find(e => e.id === a.employee_id);
+                          const salary = Number(emp?.salary) || 0;
+                          const dailyRate = salary / 30;
+                          openEdit({
+                            table: 'employee_absences',
+                            id: a.id,
+                            title: 'Editar Falta',
+                            invalidate: ['employee-absences'],
+                            fields: [
+                              { key: 'date', label: 'Data', type: 'date', value: a.date, required: true },
+                              { key: 'day_quantity', label: 'Quantidade (dias)', type: 'number', step: '0.5', value: String(Number(a.day_quantity)||0), required: true },
+                              { key: 'reason', label: 'Motivo', type: 'text', value: a.reason || '' },
+                              { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: a.month_ref, required: true },
+                            ],
+                            transform: (v) => {
+                              const days = parseFloat(v.day_quantity) || 0;
+                              return {
+                                date: v.date,
+                                day_quantity: days,
+                                reason: v.reason || null,
+                                month_ref: v.month_ref,
+                                daily_rate: Math.round(dailyRate * 100) / 100,
+                                calculated_value: Math.round(dailyRate * days * 100) / 100,
+                              };
+                            },
+                          });
+                        }} />
+                        <DeleteBtn table="employee_absences" id={a.id} label={`Falta de ${a.employees?.name}`} />
+                      </TableCell>}
+                    </TableRow>
+                  ))}
+                  {absences.length === 0 && (
+                    <TableRow><TableCell colSpan={canEdit ? 7 : 6} className="text-center text-muted-foreground py-8">Nenhuma falta registrada neste mês.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {absences.length > 0 && (
+                <div className="mt-4 text-right font-bold text-destructive">Total descontado: {fmt(totalAbsences)} ({totalAbsenceDays} dia{totalAbsenceDays !== 1 ? "s" : ""})</div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="vales" className="space-y-4">
           {canEdit && (
             <div className="flex justify-end">
