@@ -1028,6 +1028,29 @@ const CommissionsPerSeller = ({
   updateCommissionStatus: any;
   setDeleteTarget: (t: { type: string; id: string } | null) => void;
   financialAccounts: any[];
+  sellers,
+  commissions,
+  rates,
+  sellerName,
+  updateCommissionStatus,
+  updateCommissionPercentage,
+  setDeleteTarget,
+  financialAccounts,
+  payDialogOpen,
+  setPayDialogOpen,
+  payCommissionId,
+  setPayCommissionId,
+  payAccountId,
+  setPayAccountId,
+}: {
+  sellers: any[];
+  commissions: any[];
+  rates: any[];
+  sellerName: (id: string | null) => string;
+  updateCommissionStatus: any;
+  updateCommissionPercentage: any;
+  setDeleteTarget: (t: { type: string; id: string } | null) => void;
+  financialAccounts: any[];
   payDialogOpen: boolean;
   setPayDialogOpen: (v: boolean) => void;
   payCommissionId: string;
