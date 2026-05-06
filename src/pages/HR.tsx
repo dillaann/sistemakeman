@@ -352,21 +352,43 @@ const HR = () => {
       const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, total_absences: totalAbs, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
 
-      // Cria quinzenas vazias (valor 0) se ainda não existem — admin preenche manualmente.
-      // Busca direto no DB para evitar cache desatualizado.
+      // Cria quinzenas com datas calculadas se ainda não existem.
+      const [y, mStr] = selectedMonth.split("-");
+      const year = parseInt(y);
+      const month = parseInt(mStr);
+
+      // Q1: 10 a 24 do mês atual
+      const q1Start = `${selectedMonth}-10`;
+      const q1End = `${selectedMonth}-24`;
+      const q1Pay = `${selectedMonth}-24`;
+
+      // Q2: 24 do mês atual a 08 do mês seguinte
+      const nextMonthDate = new Date(year, month, 1);
+      const nextY = nextMonthDate.getFullYear();
+      const nextM = String(nextMonthDate.getMonth() + 1).padStart(2, "0");
+      const q2Start = `${selectedMonth}-24`;
+      const q2End = `${nextY}-${nextM}-08`;
+      const q2Pay = `${nextY}-${nextM}-08`;
+
       const { data: existingDb } = await supabase
         .from("salary_installments" as any)
         .select("installment_number")
         .eq("employee_id", employeeId)
         .eq("month_ref", selectedMonth);
+      
       const existingNums = new Set((existingDb || []).map((i: any) => i.installment_number));
+      
       const toInsert = [1, 2].filter(n => !existingNums.has(n)).map(num => ({
         employee_id: employeeId,
         month_ref: selectedMonth,
         installment_number: num,
         amount: 0,
         status: "pendente",
+        period_start: num === 1 ? q1Start : q2Start,
+        period_end: num === 1 ? q1End : q2End,
+        expected_date: num === 1 ? q1Pay : q2Pay,
       }));
+
       if (toInsert.length > 0) {
         const { error: insErr } = await supabase.from("salary_installments" as any).insert(toInsert);
         if (insErr && !insErr.message?.includes("duplicate")) throw insErr;
@@ -375,7 +397,7 @@ const HR = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
-      toast({ title: "Fechamento gerado!", description: "Preencha o valor de cada quinzena manualmente." });
+      toast({ title: "Fechamento e Quinzenas gerados!", description: "Defina os valores das quinzenas na aba de Fechamento." });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
