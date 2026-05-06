@@ -177,6 +177,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         taxes: vals.taxes || null,
         status: vals.status,
         payment_status: vals.payment_status,
+        work_order_id: vals.work_order_id && vals.work_order_id !== 'none' ? vals.work_order_id : null,
         ...(fileUrl ? { file_url: fileUrl } : {}),
       };
 
@@ -184,12 +185,30 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         const { error } = await supabase.from("fiscal_invoices").update(payload).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("fiscal_invoices").insert(payload);
+        const { data: invData, error } = await supabase.from("fiscal_invoices").insert(payload).select().single();
         if (error) throw error;
+
+        // Automatically create financial transaction
+        if (invData) {
+          const transType = (vals.type === 'nfe_saida' || vals.type === 'nfse_emitida') ? 'a_receber' : 'a_pagar';
+          const wo = workOrders.find(w => w.id === vals.work_order_id);
+          
+          await supabase.from("financial_transactions").insert({
+            type: transType,
+            status: vals.payment_status === 'pago' ? 'pago' : 'pendente',
+            description: `NF ${vals.invoice_number} - ${vals.entity_name}`,
+            amount: Number(vals.amount),
+            due_date: vals.issue_date,
+            client_id: wo?.client_id || null,
+            work_order_id: vals.work_order_id && vals.work_order_id !== 'none' ? vals.work_order_id : null,
+            sync_origin: `fiscal_invoice:${invData.id}`
+          });
+        }
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["fiscal-invoices"] });
+      qc.invalidateQueries({ queryKey: ["financial-transactions"] });
       setOpen(false);
       setEditId(null);
       setForm({ ...emptyForm });
@@ -263,6 +282,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       taxes: inv.taxes || "",
       status: inv.status,
       payment_status: inv.payment_status || "pendente",
+      work_order_id: inv.work_order_id || "",
     });
     setOpen(true);
   };
