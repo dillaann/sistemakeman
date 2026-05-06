@@ -404,13 +404,45 @@ const HR = () => {
 
   // ── Edit installment value ──
   const editInstMutation = useMutation({
-    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
-      const { error } = await supabase.from("salary_installments" as any).update({ amount }).eq("id", id);
+    mutationFn: async ({ id, amount, period_start, period_end, expected_date, month_ref }: { id: string; amount?: number; period_start?: string; period_end?: string; expected_date?: string; month_ref?: string }) => {
+      const payload: any = {};
+      if (amount !== undefined) payload.amount = amount;
+      if (period_start !== undefined) payload.period_start = period_start;
+      if (period_end !== undefined) payload.period_end = period_end;
+      if (expected_date !== undefined) payload.expected_date = expected_date;
+      if (month_ref !== undefined) payload.month_ref = month_ref;
+      
+      const { error } = await supabase.from("salary_installments" as any).update(payload).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Valor atualizado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Quinzena atualizada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
+
+  const deleteInstMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("salary_installments" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Quinzena removida!" }); },
+    onError: (e: any) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
+  });
+
+  const addInstMutation = useMutation({
+    mutationFn: async ({ employeeId, monthRef, installmentNumber }: { employeeId: string; monthRef: string; installmentNumber: number }) => {
+      const { error } = await supabase.from("salary_installments" as any).insert({
+        employee_id: employeeId,
+        month_ref: monthRef,
+        installment_number: installmentNumber,
+        amount: 0,
+        status: "pendente",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Quinzena adicionada!" }); },
+    onError: (e: any) => toast({ title: "Erro ao adicionar", description: e.message, variant: "destructive" }),
+  });
+
 
   // ── Lançar quinzena em Contas a Pagar (status pendente) ──
   const sendToPayableMutation = useMutation({
