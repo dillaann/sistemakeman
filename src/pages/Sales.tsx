@@ -604,6 +604,23 @@ const AdminSalesView = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const updateCommissionPercentageMutation = useMutation({
+    mutationFn: async ({ id, percentage }: { id: string; percentage: number }) => {
+      const c = commissions.find((x: any) => x.id === id);
+      if (!c) throw new Error("Comissão não encontrada");
+      const saleAmount = Number((c.sales as any)?.amount ?? 0);
+      const newAmount = Math.round(saleAmount * (percentage / 100) * 100) / 100;
+      const { error } = await supabase.from("sales_commissions")
+        .update({ percentage, amount: newAmount }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      toast({ title: "Comissão recalculada!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const [vendedorTypeFilter, setVendedorTypeFilter] = useState("all"); // all | com_vendedor | sem_vendedor
 
   const sellerName = (id: string | null) => {
