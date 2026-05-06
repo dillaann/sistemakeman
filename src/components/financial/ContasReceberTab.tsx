@@ -453,7 +453,11 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
           <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-3">
             <div><Label>Descrição *</Label><Input value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} required /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} required /></div>
+              <div>
+                <Label>Valor desta parcela (R$) *</Label>
+                <Input type="number" step="0.01" min="0.01" value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} required />
+                <p className="text-[11px] text-muted-foreground mt-1">Edita apenas esta transação. Não altera o valor total do orçamento.</p>
+              </div>
               <div><Label>Vencimento *</Label><Input type="date" value={editForm.due_date} onChange={e => setEditForm({ ...editForm, due_date: e.target.value })} required /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
