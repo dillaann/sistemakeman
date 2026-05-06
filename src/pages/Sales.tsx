@@ -934,6 +934,23 @@ const AdminSalesView = () => {
       )}
 
       {tab === "commissions" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => {
+                if (confirm("Deseja recalcular todas as comissões com base nos percentuais atuais cadastrados para cada vendedor? Isso sobrescreverá valores manuais.")) {
+                  recalculateAllCommissionsMutation.mutate();
+                }
+              }}
+              disabled={recalculateAllCommissionsMutation.isPending}
+            >
+              <TrendingUp className="h-4 w-4" />
+              {recalculateAllCommissionsMutation.isPending ? "Recalculando..." : "Recalcular Tudo (Baseado no Cadastro)"}
+            </Button>
+          </div>
           <CommissionsPerSeller
             sellers={sellers}
             commissions={commissions}
@@ -950,6 +967,11 @@ const AdminSalesView = () => {
             payAccountId={payAccountId}
             setPayAccountId={setPayAccountId}
           />
+        </div>
+      )}
+
+      {tab === "monthly_commissions" && (
+        <MonthlyCommissionsReport commissions={commissions} sellers={sellers} />
       )}
 
       {tab === "goals" && (
