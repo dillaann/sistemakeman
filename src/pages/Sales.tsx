@@ -1154,7 +1154,23 @@ const CommissionsPerSeller = ({
                           <TableRow key={c.id}>
                             <TableCell className="max-w-[150px] truncate">{(c.sales as any)?.description || "—"}</TableCell>
                             <TableCell>{(c.sales as any)?.clients?.name || "—"}</TableCell>
-                            <TableCell>{Number(c.percentage)}%</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max="100"
+                                defaultValue={Number(c.percentage)}
+                                className="h-7 w-20"
+                                onBlur={(e) => {
+                                  const v = parseFloat(e.target.value);
+                                  if (!isNaN(v) && v !== Number(c.percentage)) {
+                                    updateCommissionPercentage.mutate({ id: c.id, percentage: v });
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
                             <TableCell>
                               <Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge>
