@@ -836,6 +836,7 @@ const AdminSalesView = () => {
       <div className="flex gap-2 overflow-x-auto">
         <Button variant={tab === "vendas" ? "default" : "outline"} size="sm" onClick={() => setTab("vendas")}>Vendas</Button>
         <Button variant={tab === "commissions" ? "default" : "outline"} size="sm" onClick={() => setTab("commissions")}>Comissões</Button>
+        <Button variant={tab === "monthly_commissions" ? "default" : "outline"} size="sm" onClick={() => setTab("monthly_commissions")}>Relatório Mensal</Button>
         <Button variant={tab === "goals" ? "default" : "outline"} size="sm" onClick={() => setTab("goals")}>Metas</Button>
       </div>
 
