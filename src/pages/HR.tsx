@@ -1541,11 +1541,22 @@ const HR = () => {
                               </div>
                             );
                             const isPaid = inst.status === "pago";
+                            const payMonth = inst.expected_date ? inst.expected_date.slice(0, 7) : "";
+                            const isDiffMonth = payMonth && payMonth !== selectedMonth;
+
                             return (
                               <div key={inst.id} className={`p-3 rounded-md border space-y-2 ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
                                 <div className="flex items-center justify-between">
-                                  <p className="font-bold text-sm">{num}ª Quinzena</p>
-                                  {isPaid ? <Badge variant="default">Paga</Badge> : <Badge variant="outline">Pendente</Badge>}
+                                  <div className="space-y-0.5">
+                                    <p className="font-bold text-sm">{num}ª Quinzena</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                      Período: {inst.period_start ? formatDateBR(inst.period_start) : "?"} a {inst.period_end ? formatDateBR(inst.period_end) : "?"}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    {isPaid ? <Badge variant="default">Paga</Badge> : <Badge variant="outline">Pendente</Badge>}
+                                    {isDiffMonth && <Badge variant="secondary" className="text-[10px] py-0">Pagto em outro mês</Badge>}
+                                  </div>
                                 </div>
                                 <form
                                   className="grid gap-1.5"
