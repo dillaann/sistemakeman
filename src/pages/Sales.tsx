@@ -981,7 +981,12 @@ const AdminSalesView = () => {
       )}
 
       {tab === "monthly_commissions" && (
-        <MonthlyCommissionsReport commissions={commissions} sellers={sellers} />
+        <SellerCommissionReport 
+          sellers={sellers} 
+          sales={sales} 
+          commissions={commissions} 
+          rates={rates} 
+        />
       )}
 
       {tab === "goals" && (
