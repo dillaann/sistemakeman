@@ -441,7 +441,7 @@ const AdminSalesView = () => {
   const { data: commissions = [] } = useQuery({
     queryKey: ["all-commissions"],
     queryFn: async () => {
-      const { data } = await supabase.from("sales_commissions").select("*, sales(description, clients(name))").order("created_at", { ascending: false });
+      const { data } = await supabase.from("sales_commissions").select("*, sales(description, amount, clients(name))").order("created_at", { ascending: false });
       return data ?? [];
     },
   });
