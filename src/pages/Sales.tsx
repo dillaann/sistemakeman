@@ -377,7 +377,7 @@ const AdminSalesView = () => {
   const [search, setSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [tab, setTab] = useState<"vendas" | "commissions" | "goals">("vendas");
+  const [tab, setTab] = useState<"vendas" | "commissions" | "monthly_commissions" | "goals">("vendas");
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
 
   const [refDate, setRefDate] = useState(new Date());
