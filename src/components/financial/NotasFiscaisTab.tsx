@@ -233,9 +233,6 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
 
   const filtered = useMemo(() => {
     let list = invoices;
-    if (dateRange) {
-      list = list.filter((i: any) => isInRange(i.issue_date, dateRange));
-    }
     if (typeFilter !== "all") list = list.filter((i: any) => i.type === typeFilter);
     if (statusFilter !== "all") list = list.filter((i: any) => i.status === statusFilter);
     if (search) {
@@ -247,6 +244,10 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
           i.description?.toLowerCase().includes(s) ||
           i.service_description?.toLowerCase().includes(s)
       );
+    }
+    // Filter by date range at the end
+    if (dateRange) {
+      list = list.filter((i: any) => isInRange(i.issue_date, dateRange));
     }
     return list;
   }, [invoices, dateRange, typeFilter, statusFilter, search]);
