@@ -511,6 +511,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
                 {saveMut.isPending ? "Salvando..." : editId ? "Atualizar" : "Cadastrar"}
               </Button>
             </form>
+          </div>
           </DialogContent>
         </Dialog>
       </div>
