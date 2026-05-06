@@ -441,7 +441,7 @@ const AdminSalesView = () => {
   const { data: commissions = [] } = useQuery({
     queryKey: ["all-commissions"],
     queryFn: async () => {
-      const { data } = await supabase.from("sales_commissions").select("*, sales(description, clients(name))").order("created_at", { ascending: false });
+      const { data } = await supabase.from("sales_commissions").select("*, sales(description, amount, clients(name))").order("created_at", { ascending: false });
       return data ?? [];
     },
   });
@@ -600,6 +600,23 @@ const AdminSalesView = () => {
       queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
       setDeleteTarget(null);
       toast({ title: "Comissão removida!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const updateCommissionPercentageMutation = useMutation({
+    mutationFn: async ({ id, percentage }: { id: string; percentage: number }) => {
+      const c = commissions.find((x: any) => x.id === id);
+      if (!c) throw new Error("Comissão não encontrada");
+      const saleAmount = Number((c.sales as any)?.amount ?? 0);
+      const newAmount = Math.round(saleAmount * (percentage / 100) * 100) / 100;
+      const { error } = await supabase.from("sales_commissions")
+        .update({ percentage, amount: newAmount }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      toast({ title: "Comissão recalculada!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -898,6 +915,7 @@ const AdminSalesView = () => {
             rates={rates}
             sellerName={sellerName}
             updateCommissionStatus={updateCommissionStatus}
+            updateCommissionPercentage={updateCommissionPercentageMutation}
             setDeleteTarget={setDeleteTarget}
             financialAccounts={financialAccounts}
             payDialogOpen={payDialogOpen}
@@ -994,6 +1012,7 @@ const CommissionsPerSeller = ({
   rates,
   sellerName,
   updateCommissionStatus,
+  updateCommissionPercentage,
   setDeleteTarget,
   financialAccounts,
   payDialogOpen,
@@ -1008,6 +1027,7 @@ const CommissionsPerSeller = ({
   rates: any[];
   sellerName: (id: string | null) => string;
   updateCommissionStatus: any;
+  updateCommissionPercentage: any;
   setDeleteTarget: (t: { type: string; id: string } | null) => void;
   financialAccounts: any[];
   payDialogOpen: boolean;
@@ -1134,7 +1154,23 @@ const CommissionsPerSeller = ({
                           <TableRow key={c.id}>
                             <TableCell className="max-w-[150px] truncate">{(c.sales as any)?.description || "—"}</TableCell>
                             <TableCell>{(c.sales as any)?.clients?.name || "—"}</TableCell>
-                            <TableCell>{Number(c.percentage)}%</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max="100"
+                                defaultValue={Number(c.percentage)}
+                                className="h-7 w-20"
+                                onBlur={(e) => {
+                                  const v = parseFloat(e.target.value);
+                                  if (!isNaN(v) && v !== Number(c.percentage)) {
+                                    updateCommissionPercentage.mutate({ id: c.id, percentage: v });
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">{fmt(Number(c.amount))}</TableCell>
                             <TableCell>
                               <Badge className={commStatusColors[c.status] || ""}>{commStatusLabels[c.status] || c.status}</Badge>
