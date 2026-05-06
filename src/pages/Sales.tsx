@@ -1020,14 +1020,6 @@ const CommissionsPerSeller = ({
   setPayCommissionId,
   payAccountId,
   setPayAccountId,
-}: {
-  sellers: any[];
-  commissions: any[];
-  rates: any[];
-  sellerName: (id: string | null) => string;
-  updateCommissionStatus: any;
-  setDeleteTarget: (t: { type: string; id: string } | null) => void;
-  financialAccounts: any[];
   sellers,
   commissions,
   rates,
