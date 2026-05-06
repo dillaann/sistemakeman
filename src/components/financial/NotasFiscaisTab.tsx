@@ -55,6 +55,7 @@ const emptyForm = {
   taxes: "",
   status: "ativa",
   payment_status: "pendente",
+  work_order_id: "",
 };
 
 export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
@@ -124,6 +125,15 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       setIsProcessing(false);
     }
   };
+
+  const { data: workOrders = [] } = useQuery({
+    queryKey: ["work-orders-light"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("work_orders").select("id, description, client_id").limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const { data: invoices = [] } = useQuery({
     queryKey: ["fiscal-invoices"],
@@ -266,6 +276,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
             <TableHead>Tipo</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>Serviço</TableHead>
+            <TableHead>Vínculo</TableHead>
             <TableHead className="text-right">Valor da Nota</TableHead>
             <TableHead className="text-right">ICMS</TableHead>
             <TableHead>Data</TableHead>
@@ -291,6 +302,11 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
                 </TableCell>
                 <TableCell>{inv.entity_name}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{inv.service_description || inv.description || "—"}</TableCell>
+                <TableCell>
+                  {inv.work_order_id ? (
+                    <Badge variant="outline" className="text-[10px]">OT</Badge>
+                  ) : "—"}
+                </TableCell>
                 <TableCell className="text-right font-medium">{fmt(Number(inv.amount))}</TableCell>
                 <TableCell className="text-right">{fmt(Number(inv.icms_amount || 0))}</TableCell>
                 <TableCell>{formatDateBR(inv.issue_date)}</TableCell>
@@ -432,6 +448,22 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
               </div>
 
               <form onSubmit={e => { e.preventDefault(); saveMut.mutate(form); }} className="space-y-3">
+              <div>
+                <Label>Ordem de Trabalho Vinculada</Label>
+                <Select value={form.work_order_id} onValueChange={v => setForm(f => ({ ...f, work_order_id: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma OT (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {workOrders.map((wo: any) => (
+                      <SelectItem key={wo.id} value={wo.id}>
+                        OT: {wo.description || wo.id.slice(0, 8)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Tipo</Label>
