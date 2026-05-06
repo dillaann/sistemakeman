@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, Pencil, FileText, Upload, ExternalLink } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, FileText, Upload, ExternalLink, Loader2, FileUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { isInRange } from "@/components/MonthFilter";
@@ -55,6 +55,7 @@ const emptyForm = {
   taxes: "",
   status: "ativa",
   payment_status: "pendente",
+  work_order_id: "",
 };
 
 export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
@@ -70,6 +71,69 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
   const [deleteReason, setDeleteReason] = useState("");
   const [form, setForm] = useState({ ...emptyForm });
   const [file, setFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const processFile = async (selectedFile: File) => {
+    setIsProcessing(true);
+    try {
+      // 1. Convert file to base64 for processing
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(selectedFile);
+      });
+      const fileBase64 = await base64Promise;
+
+      // 2. Call Edge Function
+      const { data, error } = await supabase.functions.invoke("process-fiscal-invoice", {
+        body: { 
+          fileBase64,
+          fileName: selectedFile.name 
+        },
+      });
+
+      if (error) throw error;
+
+      const extracted = data.data;
+      
+      // 3. Update form
+      setForm(f => ({
+        ...f,
+        invoice_number: extracted.invoice_number || f.invoice_number,
+        issue_date: extracted.issue_date || f.issue_date,
+        entity_name: extracted.entity_name || f.entity_name,
+        entity_cnpj: extracted.entity_cnpj || f.entity_cnpj,
+        amount: String(extracted.amount || f.amount),
+        icms_amount: String(extracted.icms_amount || f.icms_amount),
+        taxes: extracted.taxes || f.taxes,
+        description: extracted.payment_condition ? `Condição: ${extracted.payment_condition}. ${f.description}` : f.description,
+        service_description: extracted.items?.[0]?.description || f.service_description,
+      }));
+
+      toast({ 
+        title: "Dados extraídos com sucesso", 
+        description: "Revise os campos antes de salvar." 
+      });
+    } catch (e: any) {
+      console.error("OCR Error:", e);
+      toast({ 
+        title: "Erro ao processar arquivo", 
+        description: e.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const { data: workOrders = [] } = useQuery({
+    queryKey: ["work-orders-light"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("work_orders").select("id, description, client_id").limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const { data: invoices = [] } = useQuery({
     queryKey: ["fiscal-invoices"],
@@ -113,6 +177,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         taxes: vals.taxes || null,
         status: vals.status,
         payment_status: vals.payment_status,
+        work_order_id: vals.work_order_id && vals.work_order_id !== 'none' ? vals.work_order_id : null,
         ...(fileUrl ? { file_url: fileUrl } : {}),
       };
 
@@ -120,12 +185,30 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         const { error } = await supabase.from("fiscal_invoices").update(payload).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("fiscal_invoices").insert(payload);
+        const { data: invData, error } = await supabase.from("fiscal_invoices").insert(payload).select().single();
         if (error) throw error;
+
+        // Automatically create financial transaction
+        if (invData) {
+          const transType = (vals.type === 'nfe_saida' || vals.type === 'nfse_emitida') ? 'a_receber' : 'a_pagar';
+          const wo = workOrders.find(w => w.id === vals.work_order_id);
+          
+          await supabase.from("financial_transactions").insert({
+            type: transType,
+            status: vals.payment_status === 'pago' ? 'pago' : 'pendente',
+            description: `NF ${vals.invoice_number} - ${vals.entity_name}`,
+            amount: Number(vals.amount),
+            due_date: vals.issue_date,
+            client_id: wo?.client_id || null,
+            work_order_id: vals.work_order_id && vals.work_order_id !== 'none' ? vals.work_order_id : null,
+            sync_origin: `fiscal_invoice:${invData.id}`
+          });
+        }
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["fiscal-invoices"] });
+      qc.invalidateQueries({ queryKey: ["financial-transactions"] });
       setOpen(false);
       setEditId(null);
       setForm({ ...emptyForm });
@@ -199,6 +282,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       taxes: inv.taxes || "",
       status: inv.status,
       payment_status: inv.payment_status || "pendente",
+      work_order_id: inv.work_order_id || "",
     });
     setOpen(true);
   };
@@ -212,6 +296,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
             <TableHead>Tipo</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>Serviço</TableHead>
+            <TableHead>Vínculo</TableHead>
             <TableHead className="text-right">Valor da Nota</TableHead>
             <TableHead className="text-right">ICMS</TableHead>
             <TableHead>Data</TableHead>
@@ -237,6 +322,11 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
                 </TableCell>
                 <TableCell>{inv.entity_name}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{inv.service_description || inv.description || "—"}</TableCell>
+                <TableCell>
+                  {inv.work_order_id ? (
+                    <Badge variant="outline" className="text-[10px]">OT</Badge>
+                  ) : "—"}
+                </TableCell>
                 <TableCell className="text-right font-medium">{fmt(Number(inv.amount))}</TableCell>
                 <TableCell className="text-right">{fmt(Number(inv.icms_amount || 0))}</TableCell>
                 <TableCell>{formatDateBR(inv.issue_date)}</TableCell>
@@ -330,7 +420,70 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
             <DialogHeader>
               <DialogTitle>{editId ? "Editar Nota Fiscal" : "Nova Nota Fiscal"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={e => { e.preventDefault(); saveMut.mutate(form); }} className="space-y-3">
+            <div className="space-y-4">
+              <div 
+                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${file ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'}`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const droppedFile = e.dataTransfer.files[0];
+                  if (droppedFile) {
+                    setFile(droppedFile);
+                    processFile(droppedFile);
+                  }
+                }}
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
+                <input
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.xml,image/*"
+                  onChange={(e) => {
+                    const selectedFile = e.target.files?.[0];
+                    if (selectedFile) {
+                      setFile(selectedFile);
+                      processFile(selectedFile);
+                    }
+                  }}
+                />
+                {isProcessing ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm font-medium">Lendo documento com IA...</p>
+                  </div>
+                ) : file ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <FileText className="h-8 w-8 text-primary" />
+                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">Clique ou arraste para trocar</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <FileUp className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm font-medium">Anexar PDF ou XML</p>
+                    <p className="text-xs text-muted-foreground">Arraste o arquivo aqui ou clique para selecionar</p>
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={e => { e.preventDefault(); saveMut.mutate(form); }} className="space-y-3">
+              <div>
+                <Label>Ordem de Trabalho Vinculada</Label>
+                <Select value={form.work_order_id} onValueChange={v => setForm(f => ({ ...f, work_order_id: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma OT (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {workOrders.map((wo: any) => (
+                      <SelectItem key={wo.id} value={wo.id}>
+                        OT: {wo.description || wo.id.slice(0, 8)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Tipo</Label>
@@ -406,14 +559,11 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
                 <Label>Descrição / Observações</Label>
                 <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
               </div>
-              <div>
-                <Label>Arquivo (XML ou PDF)</Label>
-                <Input type="file" accept=".xml,.pdf" onChange={e => setFile(e.target.files?.[0] || null)} />
-              </div>
-              <Button type="submit" className="w-full" disabled={saveMut.isPending}>
+              <Button type="submit" className="w-full" disabled={saveMut.isPending || isProcessing}>
                 {saveMut.isPending ? "Salvando..." : editId ? "Atualizar" : "Cadastrar"}
               </Button>
             </form>
+          </div>
           </DialogContent>
         </Dialog>
       </div>
