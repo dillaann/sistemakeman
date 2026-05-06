@@ -1490,8 +1490,11 @@ const HR = () => {
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
-                          <p className="font-bold">{e.name}</p>
-                          <p className="text-xs text-muted-foreground">Líquido total do mês: <span className="font-bold text-foreground">{fmt(e.netPay)}</span> · Vales: {fmt(e.empAdvances)}</p>
+                          <p className="font-bold text-lg">{e.name}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs text-muted-foreground">Líquido total do mês: <span className="font-bold text-foreground">{fmt(e.netPay)}</span></p>
+                            <Badge variant="outline" className="text-[10px] h-4">Ref: {monthLabel(selectedMonth)}</Badge>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {generalStatus}
