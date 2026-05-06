@@ -915,6 +915,7 @@ const AdminSalesView = () => {
             rates={rates}
             sellerName={sellerName}
             updateCommissionStatus={updateCommissionStatus}
+            updateCommissionPercentage={updateCommissionPercentageMutation}
             setDeleteTarget={setDeleteTarget}
             financialAccounts={financialAccounts}
             payDialogOpen={payDialogOpen}
