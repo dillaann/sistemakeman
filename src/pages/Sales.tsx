@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Trophy, DollarSign, Target, TrendingUp, Check, ShoppingBag, Trash2, Megaphone, Building2, HardHat, ChevronDown, ChevronRight, User } from "lucide-react";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { SellerCommissionReport } from "@/components/sales/SellerCommissionReport";
 
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
