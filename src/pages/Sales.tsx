@@ -377,7 +377,7 @@ const AdminSalesView = () => {
   const [search, setSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [tab, setTab] = useState<"vendas" | "commissions" | "goals">("vendas");
+  const [tab, setTab] = useState<"vendas" | "commissions" | "monthly_commissions" | "goals">("vendas");
   const [deleteTarget, setDeleteTarget] = useState<{ type: string; id: string } | null>(null);
 
   const [refDate, setRefDate] = useState(new Date());
@@ -621,6 +621,30 @@ const AdminSalesView = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const recalculateAllCommissionsMutation = useMutation({
+    mutationFn: async () => {
+      const { data: ratesData } = await supabase.from("seller_commission_rates").select("*");
+      if (!ratesData) return;
+      const rateMap = Object.fromEntries(ratesData.map(r => [r.seller_id, Number(r.percentage)]));
+      
+      const { data: comms } = await supabase.from("sales_commissions").select("id, seller_id, sales(amount)");
+      if (!comms) return;
+
+      const updates = comms.map(c => {
+        const currentRate = rateMap[c.seller_id] ?? 4;
+        const saleAmount = Number((c.sales as any)?.amount ?? 0);
+        const newAmount = Math.round(saleAmount * (currentRate / 100) * 100) / 100;
+        return supabase.from("sales_commissions").update({ percentage: currentRate, amount: newAmount }).eq("id", c.id);
+      });
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      toast({ title: "Comissões recalculadas com sucesso!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao recalcular", description: e.message, variant: "destructive" }),
+  });
+
   const [vendedorTypeFilter, setVendedorTypeFilter] = useState("all"); // all | com_vendedor | sem_vendedor
 
   const sellerName = (id: string | null) => {
@@ -812,6 +836,7 @@ const AdminSalesView = () => {
       <div className="flex gap-2 overflow-x-auto">
         <Button variant={tab === "vendas" ? "default" : "outline"} size="sm" onClick={() => setTab("vendas")}>Vendas</Button>
         <Button variant={tab === "commissions" ? "default" : "outline"} size="sm" onClick={() => setTab("commissions")}>Comissões</Button>
+        <Button variant={tab === "monthly_commissions" ? "default" : "outline"} size="sm" onClick={() => setTab("monthly_commissions")}>Relatório Mensal</Button>
         <Button variant={tab === "goals" ? "default" : "outline"} size="sm" onClick={() => setTab("goals")}>Metas</Button>
       </div>
 
@@ -909,6 +934,23 @@ const AdminSalesView = () => {
       )}
 
       {tab === "commissions" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => {
+                if (confirm("Deseja recalcular todas as comissões com base nos percentuais atuais cadastrados para cada vendedor? Isso sobrescreverá valores manuais.")) {
+                  recalculateAllCommissionsMutation.mutate();
+                }
+              }}
+              disabled={recalculateAllCommissionsMutation.isPending}
+            >
+              <TrendingUp className="h-4 w-4" />
+              {recalculateAllCommissionsMutation.isPending ? "Recalculando..." : "Recalcular Tudo (Baseado no Cadastro)"}
+            </Button>
+          </div>
           <CommissionsPerSeller
             sellers={sellers}
             commissions={commissions}
@@ -925,6 +967,11 @@ const AdminSalesView = () => {
             payAccountId={payAccountId}
             setPayAccountId={setPayAccountId}
           />
+        </div>
+      )}
+
+      {tab === "monthly_commissions" && (
+        <MonthlyCommissionsReport commissions={commissions} sellers={sellers} />
       )}
 
       {tab === "goals" && (
@@ -1006,6 +1053,58 @@ const AdminSalesView = () => {
 export default Sales;
 
 // ─── COMMISSIONS PER SELLER ───
+const MonthlyCommissionsReport = ({ commissions, sellers }: { commissions: any[]; sellers: any[] }) => {
+  const monthlyData = useMemo(() => {
+    const months: Record<string, { total: number; sellers: Record<string, number> }> = {};
+    
+    commissions.forEach(c => {
+      const date = new Date(c.created_at);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      
+      if (!months[monthKey]) {
+        months[monthKey] = { total: 0, sellers: {} };
+      }
+      
+      const amount = Number(c.amount);
+      months[monthKey].total += amount;
+      
+      const sName = sellers.find(s => s.id === c.seller_id)?.full_name || "Outros";
+      months[monthKey].sellers[sName] = (months[monthKey].sellers[sName] || 0) + amount;
+    });
+    
+    return Object.entries(months).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [commissions, sellers]);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader><CardTitle>Comissões Totais por Mês</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {monthlyData.map(([month, data]) => (
+              <div key={month} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h3 className="font-bold text-lg">{new Date(month + "-02").toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase()}</h3>
+                  <span className="text-xl font-bold text-green-600">{fmt(data.total)}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {Object.entries(data.sellers).map(([name, total]) => (
+                    <div key={name} className="flex justify-between items-center bg-muted/50 p-2 rounded">
+                      <span className="text-sm font-medium">{name}</span>
+                      <span className="font-bold">{fmt(total)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {monthlyData.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma comissão registrada.</p>}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 const CommissionsPerSeller = ({
   sellers,
   commissions,
