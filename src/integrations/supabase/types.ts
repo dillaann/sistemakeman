@@ -1397,6 +1397,8 @@ export type Database = {
           payable_transaction_id: string | null
           payment_date: string | null
           payment_method: string | null
+          period_end: string | null
+          period_start: string | null
           status: string
           updated_at: string
         }
@@ -1414,6 +1416,8 @@ export type Database = {
           payable_transaction_id?: string | null
           payment_date?: string | null
           payment_method?: string | null
+          period_end?: string | null
+          period_start?: string | null
           status?: string
           updated_at?: string
         }
@@ -1431,6 +1435,8 @@ export type Database = {
           payable_transaction_id?: string | null
           payment_date?: string | null
           payment_method?: string | null
+          period_end?: string | null
+          period_start?: string | null
           status?: string
           updated_at?: string
         }
