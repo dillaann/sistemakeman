@@ -621,6 +621,30 @@ const AdminSalesView = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const recalculateAllCommissionsMutation = useMutation({
+    mutationFn: async () => {
+      const { data: ratesData } = await supabase.from("seller_commission_rates").select("*");
+      if (!ratesData) return;
+      const rateMap = Object.fromEntries(ratesData.map(r => [r.seller_id, Number(r.percentage)]));
+      
+      const { data: comms } = await supabase.from("sales_commissions").select("id, seller_id, sales(amount)");
+      if (!comms) return;
+
+      const updates = comms.map(c => {
+        const currentRate = rateMap[c.seller_id] ?? 4;
+        const saleAmount = Number((c.sales as any)?.amount ?? 0);
+        const newAmount = Math.round(saleAmount * (currentRate / 100) * 100) / 100;
+        return supabase.from("sales_commissions").update({ percentage: currentRate, amount: newAmount }).eq("id", c.id);
+      });
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-commissions"] });
+      toast({ title: "Comissões recalculadas com sucesso!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao recalcular", description: e.message, variant: "destructive" }),
+  });
+
   const [vendedorTypeFilter, setVendedorTypeFilter] = useState("all"); // all | com_vendedor | sem_vendedor
 
   const sellerName = (id: string | null) => {
