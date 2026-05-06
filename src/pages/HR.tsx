@@ -342,11 +342,11 @@ const HR = () => {
       const emp = employees.find(e => e.id === employeeId);
       if (!emp) throw new Error("Funcionário não encontrado");
       const baseSalary = Number(emp.salary) || 0;
-      const totalAdv = advances.filter(a => a.employee_id === employeeId).reduce((s, a) => s + Number(a.amount), 0);
-      const totalExp = 0;
       const totalOt = overtime.filter(o => o.employee_id === employeeId).reduce((s, o) => s + Number(o.calculated_value), 0);
       const totalSat = saturdays.filter(s => s.employee_id === employeeId).reduce((s, sat) => s + Number(sat.calculated_value), 0);
       const totalHol = holidays.filter((h: any) => h.employee_id === employeeId).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
+      const totalAdv = advances.filter(a => a.employee_id === employeeId).reduce((s, a) => s + Number(a.amount), 0);
+      const totalExp = 0;
       const totalAbs = absences.filter((a: any) => a.employee_id === employeeId).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
       const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp - totalAbs;
       const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, total_absences: totalAbs, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
@@ -495,7 +495,7 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  // ── Reabrir quinzena (volta para pendente, remove sa\u00edda do caixa) ──
+  // ── Reabrir quinzena (volta para pendente, remove saída do caixa) ──
   const reopenInstallmentMutation = useMutation({
     mutationFn: async (inst: any) => {
       const ftId = inst.financial_transaction_id || inst.payable_transaction_id;
@@ -521,7 +521,7 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro ao reabrir", description: e.message, variant: "destructive" }),
   });
 
-  // ── Editar mês de referência (compet\u00eancia) do fechamento ──
+  // ── Editar mês de referência (competência) do fechamento ──
   const editClosingMonthMutation = useMutation({
     mutationFn: async ({ closingId, employeeId, newMonthRef }: { closingId: string; employeeId: string; newMonthRef: string }) => {
       if (!/^\d{4}-\d{2}$/.test(newMonthRef)) throw new Error("Formato inválido (use YYYY-MM)");
@@ -1468,7 +1468,7 @@ const HR = () => {
         <TabsContent value="fechamento" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Fechamento - {monthLabel(selectedMonth)} <span className="text-xs font-normal text-muted-foreground">(regime de competência)</span></CardTitle>
+              <CardTitle className="text-base">Fechamento Mensal e Quinzenas</CardTitle>
               <p className="text-xs text-muted-foreground">Cada funcionário é pago em 2 quinzenas. O mês de referência nunca muda — pagamentos podem ocorrer em qualquer data.</p>
             </CardHeader>
             <CardContent className="overflow-auto space-y-4">
@@ -1535,167 +1535,183 @@ const HR = () => {
                       </div>
 
                       {e.closing && (
-                        <div className="grid md:grid-cols-2 gap-3">
-                          {[inst1, inst2].map((inst, idx) => {
-                            const num = (idx + 1) as 1 | 2;
-                            if (!inst) return (
-                              <div key={num} className="p-3 rounded-md border border-dashed text-sm text-muted-foreground">
-                                {num}ª Quinzena ainda não gerada — recalcule.
-                              </div>
-                            );
-                            const isPaid = inst.status === "pago";
-                            const payMonth = inst.expected_date ? inst.expected_date.slice(0, 7) : "";
-                            const isDiffMonth = payMonth && payMonth !== selectedMonth;
-
-                            return (
-                              <div key={inst.id} className={`p-3 rounded-md border space-y-2 ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
-                                <div className="flex items-center justify-between">
-                                  <div className="space-y-0.5">
-                                    <p className="font-bold text-sm">{num}ª Quinzena</p>
-                                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">
-                                      Período: {inst.period_start ? formatDateBR(inst.period_start) : "?"} a {inst.period_end ? formatDateBR(inst.period_end) : "?"}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1">
-                                    {isPaid ? <Badge variant="default">Paga</Badge> : <Badge variant="outline">Pendente</Badge>}
-                                    {isDiffMonth && <Badge variant="secondary" className="text-[10px] py-0">Pagto em outro mês</Badge>}
-                                  </div>
+                        <div className="space-y-3">
+                          {(() => {
+                            const totalInsts = (Number(inst1?.amount) || 0) + (Number(inst2?.amount) || 0);
+                            const isSumCorrect = Math.abs(totalInsts - e.netPay) < 0.05;
+                            if (!isSumCorrect && inst1 && inst2) {
+                              return (
+                                <div className="bg-amber-50 border border-amber-200 p-2 rounded flex items-center gap-2 text-xs text-amber-700">
+                                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                                  <p>A soma das quinzenas ({fmt(totalInsts)}) não coincide com o líquido total do mês ({fmt(e.netPay)}).</p>
                                 </div>
-                                <form
-                                  className="grid gap-1.5"
-                                  onSubmit={(event) => {
-                                    event.preventDefault();
-                                    const form = event.currentTarget;
-                                    const raw = new FormData(form).get("amount")?.toString() ?? "";
-                                    const v = parseFloat(raw.replace(",", "."));
-                                    if (isNaN(v) || v < 0) {
-                                      toast({ title: "Valor inválido", variant: "destructive" });
-                                      return;
-                                    }
-                                    if (isPaid) {
-                                      editPaidInstallmentMutation.mutate({
-                                        inst,
-                                        amount: v,
-                                        payment_date: inst.payment_date,
-                                        payment_method: inst.payment_method || "pix",
-                                        account_id: inst.account_id || null,
-                                        notes: inst.notes || null,
-                                      });
-                                    } else {
-                                      editInstMutation.mutate({ id: inst.id, amount: v });
-                                    }
-                                  }}
-                                >
-                                  <Label className="text-xs">Valor da {num}ª quinzena (R$)</Label>
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      name="amount"
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      defaultValue={Number(inst.amount) || 0}
-                                      disabled={!canEdit}
-                                      className="h-9 font-bold"
-                                    />
-                                    {canEdit && (
-                                      <Button
-                                        type="submit"
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-9 px-3"
-                                        disabled={editInstMutation.isPending || editPaidInstallmentMutation.isPending}
-                                        title="Salvar valor desta quinzena"
-                                      >
-                                        <Pencil className="h-3.5 w-3.5 mr-1" /> Salvar
+                              );
+                            }
+                            return null;
+                          })()}
+                          
+                          <div className="grid md:grid-cols-2 gap-3">
+                            {[inst1, inst2].map((inst, idx) => {
+                              const num = (idx + 1) as 1 | 2;
+                              if (!inst) return (
+                                <div key={num} className="p-3 rounded-md border border-dashed text-sm text-muted-foreground">
+                                  {num}ª Quinzena ainda não gerada — recalcule.
+                                </div>
+                              );
+                              const isPaid = inst.status === "pago";
+                              const payMonth = inst.expected_date ? inst.expected_date.slice(0, 7) : "";
+                              const isDiffMonth = payMonth && payMonth !== selectedMonth;
+
+                              return (
+                                <div key={inst.id} className={`p-3 rounded-md border space-y-2 ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                      <p className="font-bold text-sm">{num}ª Quinzena</p>
+                                      <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                        Período: {inst.period_start ? formatDateBR(inst.period_start) : "?"} a {inst.period_end ? formatDateBR(inst.period_end) : "?"}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                      {isPaid ? <Badge variant="default">Paga</Badge> : <Badge variant="outline">Pendente</Badge>}
+                                      {isDiffMonth && <Badge variant="secondary" className="text-[10px] py-0">Pagto em outro mês</Badge>}
+                                    </div>
+                                  </div>
+                                  <form
+                                    className="grid gap-1.5"
+                                    onSubmit={(event) => {
+                                      event.preventDefault();
+                                      const form = event.currentTarget;
+                                      const raw = new FormData(form).get("amount")?.toString() ?? "";
+                                      const v = parseFloat(raw.replace(",", "."));
+                                      if (isNaN(v) || v < 0) {
+                                        toast({ title: "Valor inválido", variant: "destructive" });
+                                        return;
+                                      }
+                                      if (isPaid) {
+                                        editPaidInstallmentMutation.mutate({
+                                          inst,
+                                          amount: v,
+                                          payment_date: inst.payment_date,
+                                          payment_method: inst.payment_method || "pix",
+                                          account_id: inst.account_id || null,
+                                          notes: inst.notes || null,
+                                        });
+                                      } else {
+                                        editInstMutation.mutate({ id: inst.id, amount: v });
+                                      }
+                                    }}
+                                  >
+                                    <Label className="text-xs">Valor da {num}ª quinzena (R$)</Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        name="amount"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        defaultValue={Number(inst.amount) || 0}
+                                        disabled={!canEdit}
+                                        className="h-9 font-bold"
+                                      />
+                                      {canEdit && (
+                                        <Button
+                                          type="submit"
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-9 px-3"
+                                          disabled={editInstMutation.isPending || editPaidInstallmentMutation.isPending}
+                                          title="Salvar valor desta quinzena"
+                                        >
+                                          <Pencil className="h-3.5 w-3.5 mr-1" /> Salvar
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </form>
+                                  {isPaid ? (
+                                    <div className="text-xs space-y-0.5">
+                                      <p>Pago em: <span className="font-medium">{formatDateBR(inst.payment_date)}</span></p>
+                                      <p>Forma: {inst.payment_method?.toUpperCase() || "—"}</p>
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs space-y-0.5">
+                                      <p className="text-muted-foreground">Data prevista: {inst.expected_date ? formatDateBR(inst.expected_date) : "—"}</p>
+                                    </div>
+                                  )}
+                                  {canEdit && !isPaid && (
+                                    <div className="flex gap-1 flex-wrap">
+                                      <Button size="sm" onClick={() => openPayInstallment(inst)}>
+                                        <Banknote className="h-3 w-3 mr-1" /> Pagar
                                       </Button>
-                                    )}
-                                  </div>
-                                </form>
-                                {isPaid ? (
-                                  <div className="text-xs space-y-0.5">
-                                    <p>Pago em: <span className="font-medium">{formatDateBR(inst.payment_date)}</span></p>
-                                    <p>Forma: {inst.payment_method?.toUpperCase() || "—"}</p>
-                                  </div>
-                                ) : (
-                                  <div className="text-xs space-y-0.5">
-                                    <p className="text-muted-foreground">Data prevista: {inst.expected_date ? formatDateBR(inst.expected_date) : "—"}</p>
-                                  </div>
-                                )}
-                                {canEdit && !isPaid && (
-                                  <div className="flex gap-1 flex-wrap">
-                                    <Button size="sm" onClick={() => openPayInstallment(inst)}>
-                                      <Banknote className="h-3 w-3 mr-1" /> Pagar
-                                    </Button>
-                                    <Button
-                                      size="sm" variant="outline"
-                                      onClick={() => {
-                                        const today = localDateString();
-                                        const expected = inst.expected_date || today;
+                                      <Button
+                                        size="sm" variant="outline"
+                                        onClick={() => {
+                                          const today = localDateString();
+                                          const expected = inst.expected_date || today;
+                                          openInputDialog({
+                                            title: inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar",
+                                            description: `Quinzena de ${e.name} — defina a data prevista de pagamento.`,
+                                            fields: [{ key: "expected", label: "Data prevista (Dia/Mês/Ano)", type: "date", value: expected }],
+                                            submitLabel: "Confirmar",
+                                            onSubmit: (vals) => {
+                                              if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.expected)) {
+                                                toast({ title: "Data inválida", variant: "destructive" });
+                                                return;
+                                              }
+                                              sendToPayableMutation.mutate({ inst, expectedDate: vals.expected });
+                                            },
+                                          });
+                                        }}
+                                      >
+                                        {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {canEdit && isPaid && (
+                                    <div className="flex gap-1 flex-wrap">
+                                      <Button size="sm" variant="outline" onClick={() => {
                                         openInputDialog({
-                                          title: inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar",
-                                          description: `Quinzena de ${e.name} — defina a data prevista de pagamento.`,
-                                          fields: [{ key: "expected", label: "Data prevista (Dia/Mês/Ano)", type: "date", value: expected }],
-                                          submitLabel: "Confirmar",
+                                          title: "Editar Pagamento",
+                                          description: `Quinzena de ${e.name} — atualize data real e forma de pagamento.`,
+                                          fields: [
+                                            { key: "payment_date", label: "Data real (Dia/Mês/Ano)", type: "date", value: inst.payment_date || localDateString() },
+                                            { key: "payment_method", label: "Forma de pagamento", type: "select", value: inst.payment_method || "pix", options: [
+                                              { value: "pix", label: "PIX" },
+                                              { value: "transferencia", label: "Transferência" },
+                                              { value: "dinheiro", label: "Dinheiro" },
+                                              { value: "outro", label: "Outro" },
+                                            ]},
+                                          ],
+                                          submitLabel: "Salvar",
                                           onSubmit: (vals) => {
-                                            if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.expected)) {
+                                            if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.payment_date)) {
                                               toast({ title: "Data inválida", variant: "destructive" });
                                               return;
                                             }
-                                            sendToPayableMutation.mutate({ inst, expectedDate: vals.expected });
+                                            editPaidInstallmentMutation.mutate({
+                                              inst,
+                                              amount: Number(inst.amount),
+                                              payment_date: vals.payment_date,
+                                              payment_method: vals.payment_method,
+                                              account_id: inst.account_id || null,
+                                              notes: inst.notes || null,
+                                            });
                                           },
                                         });
-                                      }}
-                                    >
-                                      {inst.payable_transaction_id ? "Atualizar Conta a Pagar" : "Lançar em Contas a Pagar"}
-                                    </Button>
-                                  </div>
-                                )}
-                                {canEdit && isPaid && (
-                                  <div className="flex gap-1 flex-wrap">
-                                    <Button size="sm" variant="outline" onClick={() => {
-                                      openInputDialog({
-                                        title: "Editar Pagamento",
-                                        description: `Quinzena de ${e.name} — atualize data real e forma de pagamento.`,
-                                        fields: [
-                                          { key: "payment_date", label: "Data real (Dia/Mês/Ano)", type: "date", value: inst.payment_date || localDateString() },
-                                          { key: "payment_method", label: "Forma de pagamento", type: "select", value: inst.payment_method || "pix", options: [
-                                            { value: "pix", label: "PIX" },
-                                            { value: "transferencia", label: "Transferência" },
-                                            { value: "dinheiro", label: "Dinheiro" },
-                                            { value: "outro", label: "Outro" },
-                                          ]},
-                                        ],
-                                        submitLabel: "Salvar",
-                                        onSubmit: (vals) => {
-                                          if (!/^\d{4}-\d{2}-\d{2}$/.test(vals.payment_date)) {
-                                            toast({ title: "Data inválida", variant: "destructive" });
-                                            return;
-                                          }
-                                          editPaidInstallmentMutation.mutate({
-                                            inst,
-                                            amount: Number(inst.amount),
-                                            payment_date: vals.payment_date,
-                                            payment_method: vals.payment_method,
-                                            account_id: inst.account_id || null,
-                                            notes: inst.notes || null,
-                                          });
-                                        },
-                                      });
-                                    }}>
-                                      <Pencil className="h-3 w-3 mr-1" /> Editar Pagamento
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => {
-                                      if (window.confirm(`Reabrir esta quinzena? A saída no Financeiro será REMOVIDA. Você poderá pagar novamente depois.`)) {
-                                        reopenInstallmentMutation.mutate(inst);
-                                      }
-                                    }}>
-                                      Reabrir
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                                      }}>
+                                        <Pencil className="h-3 w-3 mr-1" /> Editar Pagamento
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => {
+                                        if (window.confirm(`Reabrir esta quinzena? A saída no Financeiro será REMOVIDA. Você poderá pagar novamente depois.`)) {
+                                          reopenInstallmentMutation.mutate(inst);
+                                        }
+                                      }}>
+                                        Reabrir
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </CardContent>
