@@ -1068,57 +1068,6 @@ const AdminSalesView = () => {
 export default Sales;
 
 // ─── COMMISSIONS PER SELLER ───
-const MonthlyCommissionsReport = ({ commissions, sellers }: { commissions: any[]; sellers: any[] }) => {
-  const monthlyData = useMemo(() => {
-    const months: Record<string, { total: number; sellers: Record<string, number> }> = {};
-    
-    commissions.forEach(c => {
-      const date = new Date(c.created_at);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      
-      if (!months[monthKey]) {
-        months[monthKey] = { total: 0, sellers: {} };
-      }
-      
-      const amount = Number(c.amount);
-      months[monthKey].total += amount;
-      
-      const sName = sellers.find(s => s.id === c.seller_id)?.full_name || "Outros";
-      months[monthKey].sellers[sName] = (months[monthKey].sellers[sName] || 0) + amount;
-    });
-    
-    return Object.entries(months).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [commissions, sellers]);
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle>Comissões Totais por Mês</CardTitle></CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {monthlyData.map(([month, data]) => (
-              <div key={month} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between border-b pb-2">
-                  <h3 className="font-bold text-lg">{new Date(month + "-02").toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase()}</h3>
-                  <span className="text-xl font-bold text-green-600">{fmt(data.total)}</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {Object.entries(data.sellers).map(([name, total]) => (
-                    <div key={name} className="flex justify-between items-center bg-muted/50 p-2 rounded">
-                      <span className="text-sm font-medium">{name}</span>
-                      <span className="font-bold">{fmt(total)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {monthlyData.length === 0 && <p className="text-center text-muted-foreground py-8">Nenhuma comissão registrada.</p>}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
 
 const CommissionsPerSeller = ({
   sellers,
