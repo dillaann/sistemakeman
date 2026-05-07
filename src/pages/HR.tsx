@@ -1523,21 +1523,44 @@ const HR = () => {
         {/* ── Fechamento (com quinzenas) ── */}
         <TabsContent value="fechamento" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Fechamento Mensal e Quinzenas</CardTitle>
-              <p className="text-xs text-muted-foreground">O fechamento calcula o líquido total. As quinzenas podem ser geradas automaticamente ou criadas/editadas com flexibilidade total.</p>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Fechamento de Quinzenas</CardTitle>
+                <p className="text-xs text-muted-foreground">Ciclos dinâmicos de 15 dias com fechamento na sexta-feira.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSelectedMonth(prev => {
+                  const [y, m] = prev.split("-").map(Number);
+                  const d = new Date(y, m - 2, 1);
+                  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                })}>
+                  Anterior
+                </Button>
+                <Badge variant="secondary" className="px-3 py-1">
+                  {monthLabel(selectedMonth)}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={() => setSelectedMonth(prev => {
+                  const [y, m] = prev.split("-").map(Number);
+                  const d = new Date(y, m, 1);
+                  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                })}>
+                  Próxima
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="overflow-auto space-y-4">
               {employeeSummary.map(e => {
-                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => a.installment_number - b.installment_number);
+                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => a.expected_date.localeCompare(b.expected_date));
+                const nextInstDate = empInsts.length > 0 ? empInsts[empInsts.length - 1].expected_date : getNextFriday(new Date());
+                
                 const paidCount = empInsts.filter((i: any) => i.status === "pago").length;
                 const generalStatus = !e.closing
-                  ? <Badge variant="outline">Sem fechamento</Badge>
+                  ? <Badge variant="outline">Pendente</Badge>
                   : paidCount === empInsts.length && empInsts.length > 0
-                  ? <Badge variant="default">Pago Total</Badge>
+                  ? <Badge variant="default">Quitado</Badge>
                   : paidCount > 0
-                  ? <Badge variant="secondary">Parcialmente Pago</Badge>
-                  : <Badge variant="outline">Pendente</Badge>;
+                  ? <Badge variant="secondary">Parcial</Badge>
+                  : <Badge variant="outline">Em aberto</Badge>;
 
                 return (
                   <Card key={e.id} className="border-l-4 border-l-primary/40">
