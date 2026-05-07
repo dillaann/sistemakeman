@@ -604,6 +604,38 @@ const HR = () => {
   const [payInstForm, setPayInstForm] = useState(payInstFormInitial);
   const [payInstContext, setPayInstContext] = useState<any>(null);
 
+  const [bulkPayInsts, setBulkPayInsts] = useState<any[] | null>(null);
+  const [bulkPayOpen, setBulkPayOpen] = useState(false);
+  const [bulkPayForm, setBulkPayForm] = useState({ payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+
+  const payBulkMutation = useMutation({
+    mutationFn: async () => {
+      if (!bulkPayInsts || bulkPayInsts.length === 0) throw new Error("Nenhuma quinzena selecionada");
+      for (const inst of bulkPayInsts) {
+        const emp = employees.find(e => e.id === inst.employee_id);
+        const empName = emp?.name ?? "Funcionário";
+        const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
+        const amount = Number(inst.amount) || 0;
+        let ftId = inst.payable_transaction_id;
+        if (ftId) {
+          await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: bulkPayForm.payment_date, payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, description: desc }).eq("id", ftId);
+        } else {
+          const { data: ft } = await supabase.from("financial_transactions").insert({ type: "a_pagar" as any, description: desc, amount, due_date: bulkPayForm.payment_date, paid_date: bulkPayForm.payment_date, status: "pago" as any, category: "Folha de Pagamento", payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, sync_origin: "payroll" }).select("id").single();
+          ftId = ft?.id;
+        }
+        await supabase.from("salary_installments" as any).update({ status: "pago", payment_date: bulkPayForm.payment_date, payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, notes: bulkPayForm.notes || null, financial_transaction_id: ftId, payable_transaction_id: ftId }).eq("id", inst.id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      setBulkPayOpen(false); setBulkPayInsts(null);
+      toast({ title: "Pagamentos processados!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao processar", description: e.message, variant: "destructive" }),
+  });
+
   const payInstallmentMutation = useMutation({
     mutationFn: async () => {
       const inst = payInstContext;
