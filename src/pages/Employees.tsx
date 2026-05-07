@@ -177,8 +177,9 @@ const Employees = () => {
                 <TableCell className="font-medium">{e.name}</TableCell>
                 <TableCell className="hidden md:table-cell">{e.role}</TableCell>
                 <TableCell className="hidden md:table-cell">{e.salary ? fmt(Number(e.salary)) : "-"}</TableCell>
-                <TableCell className="hidden lg:table-cell">{fmt(Number((e as any).saturday_value) || 0)}</TableCell>
-                <TableCell className="hidden lg:table-cell">{fmt(Number((e as any).overtime_hourly_rate) || 0)}/h</TableCell>
+                <TableCell className="hidden lg:table-cell">{fmt(Number(e.saturday_value) || 0)}</TableCell>
+                <TableCell className="hidden lg:table-cell">{fmt(Number(e.overtime_hourly_rate) || 0)}/h</TableCell>
+                <TableCell className="hidden xl:table-cell">{fmt(Number(e.daily_rate) || 0)}</TableCell>
                 <TableCell><Badge variant={e.active ? "default" : "secondary"}>{e.active ? "Ativo" : "Inativo"}</Badge></TableCell>
                 <TableCell><Button variant="ghost" size="icon" onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button></TableCell>
               </TableRow>
