@@ -1041,7 +1041,7 @@ const HR = () => {
         </TabsContent>
 
         {/* ── Salários (Quinzenas) ── */}
-        <TabsContent value="salarios" className="space-y-4">
+        <TabsContent value="salarios" className="space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="space-y-1">
