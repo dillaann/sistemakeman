@@ -255,11 +255,16 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       );
     }
     // Filter by date range at the end
-    if (dateRange) {
+    if (dateRange && !ignoreDateFilter) {
       list = list.filter((i: any) => isInRange(i.issue_date, dateRange));
     }
     return list;
-  }, [invoices, dateRange, typeFilter, statusFilter, search]);
+  }, [invoices, dateRange, typeFilter, statusFilter, search, ignoreDateFilter]);
+
+  const hiddenCount = useMemo(() => {
+    if (!dateRange || ignoreDateFilter) return 0;
+    return invoices.filter(i => !isInRange(i.issue_date, dateRange)).length;
+  }, [invoices, dateRange, ignoreDateFilter]);
 
   const nfeItems = filtered.filter((i: any) => i.type === "nfe_entrada" || i.type === "nfe_saida");
   const nfseItems = filtered.filter((i: any) => i.type === "nfse_emitida" || i.type === "nfse_recebida");
