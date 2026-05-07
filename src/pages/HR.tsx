@@ -99,6 +99,18 @@ const HR = () => {
     },
   });
 
+  const { data: weeklyClosings = [] } = useQuery({
+    queryKey: ["weekly-closings", selectedMonth],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("weekly_closings")
+        .select("*, employees(name)")
+        .eq("month_ref", selectedMonth)
+        .order("week_number");
+      return data ?? [];
+    },
+  });
+
   // ── Generic edit dialog state ──
   type EditCtx = {
     table: string;
@@ -828,10 +840,15 @@ const HR = () => {
       const empAbsences = absences.filter((a: any) => a.employee_id === emp.id).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
-      const netPay = baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences;
-      const totalPaid = installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+      const isWeekly = emp.payment_type === "semanal";
+      const weeklyTotal = isWeekly ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id).reduce((s: number, wc: any) => s + Number(wc.net_pay), 0) : 0;
+      
+      const netPay = isWeekly ? weeklyTotal : (baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences);
+      const totalPaid = isWeekly 
+        ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id && wc.status === "pago").reduce((s: number, wc: any) => s + Number(wc.net_pay), 0)
+        : installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
       const remaining = netPay - totalPaid;
-      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining };
+      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining, isWeekly };
     });
   }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
 
@@ -1246,8 +1263,13 @@ const HR = () => {
                 <TableBody>
                   {employeeSummary.map(e => (
                     <TableRow key={e.id}>
-                      <TableCell className="font-medium">{e.name}</TableCell>
-                      <TableCell>{fmt(e.baseSalary)}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {e.name}
+                          {e.isWeekly && <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Semanal</Badge>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{e.isWeekly ? fmt(Number(e.weekly_salary)) + " /sem" : fmt(e.baseSalary)}</TableCell>
                       <TableCell className="text-primary">{fmt(e.empOvertime + e.empSaturdays + e.empHolidays)}</TableCell>
                       <TableCell className="text-destructive">{fmt(e.empAdvances + e.empAbsences)}</TableCell>
                       <TableCell className="font-bold">{fmt(e.closing?.net_pay ?? e.netPay)}</TableCell>
@@ -1316,6 +1338,7 @@ const HR = () => {
                     <div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={otForm.hours} onChange={e => setOtForm({ ...otForm, hours: e.target.value })} required /></div>
                     {otForm.employee_id && (() => {
                       const emp = employees.find(e => e.id === otForm.employee_id);
+                      const isWeekly = emp?.payment_type === "semanal";
                       const fixedRate = Number(emp?.overtime_hourly_rate) || 0;
                       if (fixedRate <= 0) {
                         return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor hora extra de {emp?.name} antes de registrar.</div>;
@@ -1323,7 +1346,7 @@ const HR = () => {
                       const hrs = parseFloat(otForm.hours) || 0;
                       return (
                         <div className="p-3 rounded-md bg-muted text-sm">
-                          <p>Valor hora cadastrado: <strong>{fmt(fixedRate)}</strong></p>
+                          <p>Valor hora {isWeekly ? "semanal" : "mensal"} cadastrado: <strong>{fmt(fixedRate)}</strong></p>
                           {hrs > 0 && <p className="font-bold mt-1">Total ({hrs}h): {fmt(fixedRate * hrs)}</p>}
                         </div>
                       );
@@ -1381,7 +1404,7 @@ const HR = () => {
                     <div><Label>Funcionário *</Label>
                       <select className={selectClass} value={holForm.employee_id} onChange={e => setHolForm({ ...holForm, employee_id: e.target.value })} required>
                         <option value="">Selecione</option>
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.payment_type === "semanal" ? "(Semanal)" : ""}</option>)}
                       </select>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -1515,8 +1538,8 @@ const HR = () => {
                       {canEdit && <TableCell>
                         <EditBtn onClick={() => {
                           const emp = employees.find(e => e.id === a.employee_id);
-                          const salary = Number(emp?.salary) || 0;
-                          const dailyRate = salary / 20;
+                          const isWeekly = emp?.payment_type === "semanal";
+                          const dailyRate = isWeekly ? (Number(emp?.daily_rate) || 0) : (Number(emp?.salary) || 0) / 20;
                           openEdit({
                             table: 'employee_absences',
                             id: a.id,
@@ -1563,7 +1586,7 @@ const HR = () => {
               <Dialog open={advOpen} onOpenChange={setAdvOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Novo Vale</Button></DialogTrigger>
                 <DialogContent><DialogHeader><DialogTitle>Registrar Vale</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); advMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.payment_type === "semanal" ? "(Semanal)" : ""}</option>)}</select></div>
                     <div className="grid grid-cols-2 gap-3">
                       <div><Label>Tipo</Label><select className={selectClass} value={advForm.type} onChange={e => setAdvForm({ ...advForm, type: e.target.value })}><option value="adiantamento">Adiantamento</option><option value="vale">Vale</option></select></div>
                       <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={advForm.amount} onChange={e => setAdvForm({ ...advForm, amount: e.target.value })} required /></div>
