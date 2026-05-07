@@ -84,10 +84,8 @@ const HR = () => {
     queryKey: ["financial-accounts"],
     queryFn: async () => { const { data } = await supabase.from("financial_accounts").select("*").eq("active", true).order("name"); return data ?? []; },
   });
-  const { data: salaryPayments = [] } = useQuery({
-    queryKey: ["salary-payments", selectedMonth],
-    queryFn: async () => { const { data } = await supabase.from("salary_payments").select("*, employees(name)").eq("month_ref", selectedMonth).order("payment_date", { ascending: false }); return data ?? []; },
-  });
+  // salaryPayments query removed — replaced by salary_installments with status pago
+
   // Quinzenas (regime de competência por month_ref)
   const { data: installments = [] } = useQuery({
     queryKey: ["salary-installments", selectedMonth],
