@@ -1221,9 +1221,9 @@ const HR = () => {
                       <TableCell>{fmt(e.baseSalary)}</TableCell>
                       <TableCell className="text-primary">{fmt(e.empOvertime + e.empSaturdays + e.empHolidays)}</TableCell>
                       <TableCell className="text-destructive">{fmt(e.empAdvances + e.empAbsences)}</TableCell>
-                      <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
+                      <TableCell className="font-bold">{fmt(e.closing?.net_pay ?? e.netPay)}</TableCell>
                       <TableCell className="text-green-600">{fmt(e.totalPaid)}</TableCell>
-                      <TableCell className="font-bold text-amber-600">{fmt(e.remaining)}</TableCell>
+                      <TableCell className="font-bold text-amber-600">{fmt((e.closing?.net_pay ?? e.netPay) - e.totalPaid)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
