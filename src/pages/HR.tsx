@@ -181,7 +181,7 @@ const HR = () => {
       const { error } = await supabase.from("employee_advances").insert({ employee_id: advForm.employee_id, amount: parseFloat(advForm.amount), type: advForm.type, description: advForm.description || null, date: advForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-advances"] }); setAdvOpen(false); setAdvForm({ employee_id: "", amount: "", type: "adiantamento", description: "", date: localDateString() }); toast({ title: "Registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-advances"] }); queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); setAdvOpen(false); setAdvForm({ employee_id: "", amount: "", type: "adiantamento", description: "", date: localDateString() }); toast({ title: "Registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -202,7 +202,7 @@ const HR = () => {
       const { error } = await supabase.from("employee_overtime").insert({ employee_id: otForm.employee_id, hours: hrs, percentage: 0, calculated_value: Math.round(value * 100) / 100, description: otForm.description || null, date: otForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Hora extra registrada!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-overtime"] }); queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); setOtOpen(false); setOtForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Hora extra registrada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -222,7 +222,7 @@ const HR = () => {
       const { error } = await supabase.from("employee_saturdays").insert({ employee_id: satForm.employee_id, hours: days, calculated_value: Math.round(total * 100) / 100, description: satForm.description || null, date: satForm.date, month_ref: selectedMonth });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Sábado registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-saturdays"] }); queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); setSatOpen(false); setSatForm({ employee_id: "", hours: "", description: "", date: localDateString() }); toast({ title: "Sábado registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -250,7 +250,7 @@ const HR = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-holidays"] }); queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); setHolOpen(false); setHolForm({ employee_id: "", holiday_name: "", description: "", date: localDateString() }); toast({ title: "Feriado registrado!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -278,7 +278,7 @@ const HR = () => {
       });
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-absences"] }); setAbsOpen(false); setAbsForm({ employee_id: "", day_quantity: "1", reason: "", date: localDateString() }); toast({ title: "Falta registrada!" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employee-absences"] }); queryClient.invalidateQueries({ queryKey: ["monthly-closings"] }); queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); setAbsOpen(false); setAbsForm({ employee_id: "", day_quantity: "1", reason: "", date: localDateString() }); toast({ title: "Falta registrada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
@@ -344,11 +344,12 @@ const HR = () => {
 
   // ── Helpers para cálculo de quinzena dinâmica ──
   const getNextFriday = (date: Date): string => {
-    const d = new Date(date.getTime());
-    const target = new Date(d.getTime());
+    const target = new Date(date.getTime());
     target.setDate(target.getDate() + 15);
-    let day = target.getDay();
-    let diff = (5 - day + 7) % 7;
+    const day = target.getDay();
+    let diff = 5 - day;
+    if (diff > 3) diff -= 7;
+    if (diff < -3) diff += 7;
     target.setDate(target.getDate() + diff);
     return localDateString(target);
   };
@@ -834,7 +835,7 @@ const HR = () => {
     });
   }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
 
-  const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + (e.closing?.net_pay ?? e.netPay), 0), [employeeSummary]);
+  const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + e.netPay, 0), [employeeSummary]);
 
 
   // categories removed — no longer used
