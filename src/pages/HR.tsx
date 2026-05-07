@@ -823,7 +823,7 @@ const HR = () => {
     });
   }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
 
-  const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + e.netPay, 0), [employeeSummary]);
+  const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + (e.closing?.net_pay ?? e.netPay), 0), [employeeSummary]);
 
 
   // categories removed — no longer used
@@ -1041,7 +1041,7 @@ const HR = () => {
         </TabsContent>
 
         {/* ── Salários (Quinzenas) ── */}
-        <TabsContent value="salarios" className="space-y-4">
+        <TabsContent value="salarios" className="space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="space-y-1">
@@ -1095,16 +1095,27 @@ const HR = () => {
                             <TableCell className="hidden md:table-cell text-muted-foreground">{emp?.role || "-"}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2 max-w-[150px]">
-                                <span className="text-xs font-bold text-muted-foreground">R$</span>
+                                <span className="text-muted-foreground text-xs font-bold shrink-0">R$</span>
                                 <Input
                                   defaultValue={Number(inst.amount) || ""}
                                   className="h-8 font-bold"
                                   placeholder="0,00"
                                   disabled={isPaid || editInstMutation.isPending}
                                   onBlur={(e) => {
-                                    const v = parseFloat(e.target.value.replace(",", "."));
+                                    const raw = e.target.value.replace(",", ".");
+                                    const v = parseFloat(raw);
                                     if (!isNaN(v) && v !== Number(inst.amount)) {
                                       editInstMutation.mutate({ id: inst.id, amount: v });
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      const raw = (e.target as HTMLInputElement).value.replace(",", ".");
+                                      const v = parseFloat(raw);
+                                      if (!isNaN(v) && v !== Number(inst.amount)) {
+                                        editInstMutation.mutate({ id: inst.id, amount: v });
+                                      }
+                                      (e.target as HTMLInputElement).blur();
                                     }
                                   }}
                                 />
@@ -1116,11 +1127,11 @@ const HR = () => {
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
                                 {!isPaid && (
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => openPayInstallment(inst)}>
-                                    <CheckCircle className="h-4 w-4" />
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => openPayInstallment(inst)} title="Pagar Agora">
+                                    <Banknote className="h-4 w-4" />
                                   </Button>
                                 )}
-                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" title="Editar Datas" onClick={() => {
                                   openInputDialog({
                                     title: `Editar Quinzena — ${emp?.name}`,
                                     fields: [
@@ -1132,6 +1143,13 @@ const HR = () => {
                                   });
                                 }}>
                                   <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => {
+                                  if (window.confirm("Deseja remover esta quinzena?")) {
+                                    deleteInstMutation.mutate(inst.id);
+                                  }
+                                }} title="Remover">
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1221,9 +1239,9 @@ const HR = () => {
                       <TableCell>{fmt(e.baseSalary)}</TableCell>
                       <TableCell className="text-primary">{fmt(e.empOvertime + e.empSaturdays + e.empHolidays)}</TableCell>
                       <TableCell className="text-destructive">{fmt(e.empAdvances + e.empAbsences)}</TableCell>
-                      <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
+                      <TableCell className="font-bold">{fmt(e.closing?.net_pay ?? e.netPay)}</TableCell>
                       <TableCell className="text-green-600">{fmt(e.totalPaid)}</TableCell>
-                      <TableCell className="font-bold text-amber-600">{fmt(e.remaining)}</TableCell>
+                      <TableCell className="font-bold text-amber-600">{fmt((e.closing?.net_pay ?? e.netPay) - e.totalPaid)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
