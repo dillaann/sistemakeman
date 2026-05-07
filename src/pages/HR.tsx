@@ -336,7 +336,28 @@ const HR = () => {
 
   // Mutation antiga removida — substituída por pay13thInstallmentMutation (mais abaixo)
 
-  // ── Closing (gera fechamento + 2 quinzenas 50/50 se ainda não existirem) ──
+  // ── Helpers para cálculo de quinzena dinâmica ──
+  const getNextFriday = (date: Date): string => {
+    const d = new Date(date.getTime());
+    // Se hoje é sexta, o usuário quer +15 dias e a PRÓXIMA sexta.
+    // Mas a regra diz: 15 dias a partir do último pagamento, e fecha na SEXTA mais próxima.
+    // Interpretando: base + 15 dias. Se cair numa terça, a sexta mais próxima é a daquela mesma semana? 
+    // Ou a regra é "pelo menos 15 dias"? 
+    // "hoje + 15 dias = próxima sexta-feira". Exemplo: Terça + 15 = Quinta -> Próxima Sexta.
+    const target = new Date(d.getTime());
+    target.setDate(target.getDate() + 15);
+    
+    // Encontrar a sexta-feira dessa semana ou da próxima para garantir que seja >= target
+    let day = target.getDay(); // 0=Dom, 5=Sex, 6=Sáb
+    let diff = (5 - day + 7) % 7;
+    target.setDate(target.getDate() + diff);
+    
+    // TODO: Verificar feriados (se necessário implementar lista de feriados nacionais)
+    // Por enquanto, apenas o cálculo base.
+    return localDateString(target);
+  };
+
+  // ── Closing (gera fechamento + quinzenas dinâmicas) ──
   const closingMutation = useMutation({
     mutationFn: async (employeeId: string) => {
       const emp = employees.find(e => e.id === employeeId);
@@ -349,55 +370,58 @@ const HR = () => {
       const totalExp = 0;
       const totalAbs = absences.filter((a: any) => a.employee_id === employeeId).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
       const netPay = baseSalary + totalOt + totalSat + totalHol - totalAdv - totalExp - totalAbs;
-      const { error } = await supabase.from("monthly_closings").upsert({ employee_id: employeeId, month_ref: selectedMonth, base_salary: baseSalary, total_advances: totalAdv, total_expenses: totalExp, total_overtime: totalOt, total_saturdays: totalSat, total_holidays: totalHol, total_absences: totalAbs, net_pay: netPay } as any, { onConflict: "employee_id,month_ref" });
+      
+      const { error } = await supabase.from("monthly_closings").upsert({ 
+        employee_id: employeeId, 
+        month_ref: selectedMonth, 
+        base_salary: baseSalary, 
+        total_advances: totalAdv, 
+        total_expenses: totalExp, 
+        total_overtime: totalOt, 
+        total_saturdays: totalSat, 
+        total_holidays: totalHol, 
+        total_absences: totalAbs, 
+        net_pay: netPay 
+      } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
 
-      // Cria quinzenas com datas calculadas se ainda não existem.
-      const [y, mStr] = selectedMonth.split("-");
-      const year = parseInt(y);
-      const month = parseInt(mStr);
+      // Busca o último pagamento ou usa data atual como base
+      const { data: lastInst } = await supabase
+        .from("salary_installments" as any)
+        .select("period_end, expected_date")
+        .eq("employee_id", employeeId)
+        .order("expected_date", { ascending: false })
+        .limit(1);
 
-      // Q1: 10 a 24 do mês atual
-      const q1Start = `${selectedMonth}-10`;
-      const q1End = `${selectedMonth}-24`;
-      const q1Pay = `${selectedMonth}-24`;
-
-      // Q2: 24 do mês atual a 08 do mês seguinte
-      const nextMonthDate = new Date(year, month, 1);
-      const nextY = nextMonthDate.getFullYear();
-      const nextM = String(nextMonthDate.getMonth() + 1).padStart(2, "0");
-      const q2Start = `${selectedMonth}-24`;
-      const q2End = `${nextY}-${nextM}-08`;
-      const q2Pay = `${nextY}-${nextM}-08`;
+      const baseDate = lastInst?.[0]?.expected_date ? parseLocalDate(lastInst[0].expected_date)! : new Date();
+      const nextClosingDate = getNextFriday(baseDate);
+      const periodStart = lastInst?.[0]?.period_end || localDateString(baseDate);
 
       const { data: existingDb } = await supabase
         .from("salary_installments" as any)
-        .select("installment_number")
+        .select("id")
         .eq("employee_id", employeeId)
-        .eq("month_ref", selectedMonth);
+        .eq("month_ref", selectedMonth)
+        .eq("expected_date", nextClosingDate);
       
-      const existingNums = new Set((existingDb || []).map((i: any) => i.installment_number));
-      
-      const toInsert = [1, 2].filter(n => !existingNums.has(n)).map(num => ({
-        employee_id: employeeId,
-        month_ref: selectedMonth,
-        installment_number: num,
-        amount: 0,
-        status: "pendente",
-        period_start: num === 1 ? q1Start : q2Start,
-        period_end: num === 1 ? q1End : q2End,
-        expected_date: num === 1 ? q1Pay : q2Pay,
-      }));
-
-      if (toInsert.length > 0) {
-        const { error: insErr } = await supabase.from("salary_installments" as any).insert(toInsert);
-        if (insErr && !insErr.message?.includes("duplicate")) throw insErr;
+      if (!existingDb || existingDb.length === 0) {
+        const { error: insErr } = await supabase.from("salary_installments" as any).insert({
+          employee_id: employeeId,
+          month_ref: selectedMonth,
+          installment_number: 1, // Número sequencial será ajustado na UI se necessário
+          amount: 0,
+          status: "pendente",
+          period_start: periodStart,
+          period_end: nextClosingDate,
+          expected_date: nextClosingDate,
+        });
+        if (insErr) throw insErr;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
-      toast({ title: "Fechamento e Quinzenas gerados!", description: "Defina os valores das quinzenas na aba de Fechamento." });
+      toast({ title: "Fechamento atualizado!", description: "Próxima quinzena gerada com base na última data de fechamento." });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
