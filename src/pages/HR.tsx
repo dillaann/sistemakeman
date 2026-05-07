@@ -1102,9 +1102,20 @@ const HR = () => {
                                   placeholder="0,00"
                                   disabled={isPaid || editInstMutation.isPending}
                                   onBlur={(e) => {
-                                    const v = parseFloat(e.target.value.replace(",", "."));
+                                    const raw = e.target.value.replace(",", ".");
+                                    const v = parseFloat(raw);
                                     if (!isNaN(v) && v !== Number(inst.amount)) {
                                       editInstMutation.mutate({ id: inst.id, amount: v });
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      const raw = (e.target as HTMLInputElement).value.replace(",", ".");
+                                      const v = parseFloat(raw);
+                                      if (!isNaN(v) && v !== Number(inst.amount)) {
+                                        editInstMutation.mutate({ id: inst.id, amount: v });
+                                      }
+                                      (e.target as HTMLInputElement).blur();
                                     }
                                   }}
                                 />
