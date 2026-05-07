@@ -393,9 +393,9 @@ const HR = () => {
         .order("expected_date", { ascending: false })
         .limit(1);
 
-      const baseDate = lastInst?.[0]?.expected_date ? parseLocalDate(lastInst[0].expected_date)! : new Date();
+      const baseDate = (lastInst as any)?.[0]?.expected_date ? parseLocalDate((lastInst as any)[0].expected_date)! : new Date();
       const nextClosingDate = getNextFriday(baseDate);
-      const periodStart = lastInst?.[0]?.period_end || localDateString(baseDate);
+      const periodStart = (lastInst as any)?.[0]?.period_end || localDateString(baseDate);
 
       const { data: existingDb } = await supabase
         .from("salary_installments" as any)
