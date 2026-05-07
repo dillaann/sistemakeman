@@ -1550,8 +1550,8 @@ const HR = () => {
             </CardHeader>
             <CardContent className="overflow-auto space-y-4">
               {employeeSummary.map(e => {
-                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => a.expected_date.localeCompare(b.expected_date));
-                const nextInstDate = empInsts.length > 0 ? empInsts[empInsts.length - 1].expected_date : getNextFriday(new Date());
+                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => (a.expected_date || "").localeCompare(b.expected_date || ""));
+                const nextInstDate = empInsts.length > 0 ? (empInsts[empInsts.length - 1].expected_date || getNextFriday(new Date())) : getNextFriday(new Date());
                 
                 const paidCount = empInsts.filter((i: any) => i.status === "pago").length;
                 const generalStatus = !e.closing
