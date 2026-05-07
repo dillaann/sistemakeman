@@ -792,7 +792,7 @@ const HR = () => {
         status: 'pago',
         payment_date,
         payment_method,
-        financial_account_id: account_id
+        financial_account_id: account_id || null
       }).eq("id", wc.id);
       
       if (error) throw error;
