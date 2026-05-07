@@ -594,15 +594,22 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       </div>
 
       {/* NF-e / NFS-e Tabs */}
-      <Tabs defaultValue="nfe" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="nfe" className="flex items-center gap-1">
-            <FileText className="h-4 w-4" /> NF-e (Comércio) ({nfeItems.length})
-          </TabsTrigger>
-          <TabsTrigger value="nfse" className="flex items-center gap-1">
-            <FileText className="h-4 w-4" /> NFS-e (Serviço) ({nfseItems.length})
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeInternalTab} onValueChange={setActiveInternalTab} className="w-full">
+        <div className="flex items-center justify-between mb-2">
+          <TabsList className="grid w-[400px] grid-cols-2">
+            <TabsTrigger value="nfe" className="flex items-center gap-1">
+              <FileText className="h-4 w-4" /> NF-e (Comércio) ({nfeItems.length})
+            </TabsTrigger>
+            <TabsTrigger value="nfse" className="flex items-center gap-1">
+              <FileText className="h-4 w-4" /> NFS-e (Serviço) ({nfseItems.length})
+            </TabsTrigger>
+          </TabsList>
+          {hiddenCount > 0 && !ignoreDateFilter && (
+            <p className="text-xs text-muted-foreground bg-yellow-500/10 text-yellow-700 px-2 py-1 rounded border border-yellow-500/20">
+              {hiddenCount} notas ocultas pelo filtro de data. <button onClick={() => setIgnoreDateFilter(true)} className="underline font-medium">Ver todas</button>
+            </p>
+          )}
+        </div>
         <TabsContent value="nfe">{renderTable(nfeItems)}</TabsContent>
         <TabsContent value="nfse">{renderTable(nfseItems)}</TabsContent>
       </Tabs>
