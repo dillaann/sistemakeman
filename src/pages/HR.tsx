@@ -789,7 +789,7 @@ const HR = () => {
       const remaining = netPay - totalPaid;
       return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining };
     });
-  }, [employees, advances, overtime, saturdays, holidays, absences, closings, salaryPayments, installments]);
+  }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
 
   const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + e.netPay, 0), [employeeSummary]);
 
