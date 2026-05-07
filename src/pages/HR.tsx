@@ -1569,20 +1569,20 @@ const HR = () => {
                         <div>
                           <p className="font-bold text-lg">{e.name}</p>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-muted-foreground">Líquido total do mês: <span className="font-bold text-foreground">{fmt(e.netPay)}</span></p>
-                            <Badge variant="outline" className="text-[10px] h-4">Ref: {monthLabel(selectedMonth)}</Badge>
+                            <p className="text-xs text-muted-foreground font-semibold">Líquido total estimado: <span className="font-bold text-foreground">{fmt(e.netPay)}</span></p>
+                            <p className="text-[10px] text-primary font-bold">Próximo fechamento: {formatDateBR(nextInstDate)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {generalStatus}
-                          {canEdit && !e.closing && (
+                          {canEdit && (
                             <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>
-                              Calcular Fechamento
+                              <Plus className="h-3 w-3 mr-1" /> Gerar Próxima
                             </Button>
                           )}
                           {canEdit && e.closing && (
-                            <Button size="sm" variant="ghost" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending} title="Atualizar líquido total e gerar quinzenas padrão se não existirem">
-                              Recalcular Padrão
+                            <Button size="sm" variant="ghost" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending} title="Recalcular salário base + acréscimos">
+                              Recalcular Salário
                             </Button>
                           )}
                           {canEdit && e.closing && (
