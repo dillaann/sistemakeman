@@ -455,13 +455,14 @@ const HR = () => {
   });
 
   const addInstMutation = useMutation({
-    mutationFn: async ({ employeeId, monthRef, installmentNumber }: { employeeId: string; monthRef: string; installmentNumber: number }) => {
+    mutationFn: async ({ employeeId, monthRef, installmentNumber, expectedDate }: { employeeId: string; monthRef: string; installmentNumber: number; expectedDate?: string }) => {
       const { error } = await supabase.from("salary_installments" as any).insert({
         employee_id: employeeId,
         month_ref: monthRef,
         installment_number: installmentNumber,
         amount: 0,
         status: "pendente",
+        expected_date: expectedDate || localDateString(),
       });
       if (error) throw error;
     },
