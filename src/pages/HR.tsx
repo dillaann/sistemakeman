@@ -788,7 +788,7 @@ const HR = () => {
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
       const netPay = baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences;
-      const totalPaid = salaryPayments.filter((p: any) => p.employee_id === emp.id).reduce((s: number, p: any) => s + Number(p.amount), 0);
+      const totalPaid = installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
       const remaining = netPay - totalPaid;
       return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining };
     });
