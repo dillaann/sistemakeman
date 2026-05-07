@@ -823,7 +823,7 @@ const HR = () => {
     });
   }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
 
-  const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + e.netPay, 0), [employeeSummary]);
+  const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + (e.closing?.net_pay ?? e.netPay), 0), [employeeSummary]);
 
 
   // categories removed — no longer used
