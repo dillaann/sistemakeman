@@ -1120,7 +1120,7 @@ const HR = () => {
                                     <Banknote className="h-4 w-4" />
                                   </Button>
                                 )}
-                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => {
                                   openInputDialog({
                                     title: `Editar Quinzena — ${emp?.name}`,
                                     fields: [
