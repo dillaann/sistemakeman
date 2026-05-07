@@ -927,6 +927,33 @@ const HR = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk Payment Dialog */}
+      <Dialog open={bulkPayOpen} onOpenChange={setBulkPayOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar Pagamento em Lote — {bulkPayInsts?.length} Funcionários</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); payBulkMutation.mutate(); }} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Data Real do Pagamento *</Label><Input type="date" value={bulkPayForm.payment_date} onChange={e => setBulkPayForm({ ...bulkPayForm, payment_date: e.target.value })} required /></div>
+              <div><Label>Forma de Pagamento *</Label>
+                <select className={selectClass} value={bulkPayForm.payment_method} onChange={e => setBulkPayForm({ ...bulkPayForm, payment_method: e.target.value })}>
+                  <option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro</option>
+                </select>
+              </div>
+            </div>
+            <div><Label>Conta de Origem</Label>
+              <select className={selectClass} value={bulkPayForm.account_id} onChange={e => setBulkPayForm({ ...bulkPayForm, account_id: e.target.value })}>
+                <option value="">Selecione (opcional)</option>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div><Label>Observações</Label><Input value={bulkPayForm.notes} onChange={e => setBulkPayForm({ ...bulkPayForm, notes: e.target.value })} /></div>
+            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={payBulkMutation.isPending}>Confirmar Pagamentos</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Generic edit dialog (used by every table row's "Editar" button) */}
       <Dialog open={!!editCtx} onOpenChange={(o) => { if (!o) { setEditCtx(null); setEditValues({}); } }}>
         <DialogContent>
