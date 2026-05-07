@@ -72,6 +72,8 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
   const [form, setForm] = useState({ ...emptyForm });
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeInternalTab, setActiveInternalTab] = useState("nfe");
+  const [ignoreDateFilter, setIgnoreDateFilter] = useState(false);
 
   const processFile = async (selectedFile: File) => {
     setIsProcessing(true);
