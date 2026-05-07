@@ -188,6 +188,7 @@ export type Database = {
           id: string
           month_ref: string
           reason: string | null
+          weekly_closing_id: string | null
         }
         Insert: {
           calculated_value?: number
@@ -199,6 +200,7 @@ export type Database = {
           id?: string
           month_ref: string
           reason?: string | null
+          weekly_closing_id?: string | null
         }
         Update: {
           calculated_value?: number
@@ -210,6 +212,7 @@ export type Database = {
           id?: string
           month_ref?: string
           reason?: string | null
+          weekly_closing_id?: string | null
         }
         Relationships: [
           {
@@ -217,6 +220,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_absences_weekly_closing_id_fkey"
+            columns: ["weekly_closing_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_closings"
             referencedColumns: ["id"]
           },
         ]
@@ -231,6 +241,7 @@ export type Database = {
           id: string
           month_ref: string
           type: string
+          weekly_closing_id: string | null
         }
         Insert: {
           amount: number
@@ -241,6 +252,7 @@ export type Database = {
           id?: string
           month_ref: string
           type?: string
+          weekly_closing_id?: string | null
         }
         Update: {
           amount?: number
@@ -251,6 +263,7 @@ export type Database = {
           id?: string
           month_ref?: string
           type?: string
+          weekly_closing_id?: string | null
         }
         Relationships: [
           {
@@ -258,6 +271,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_advances_weekly_closing_id_fkey"
+            columns: ["weekly_closing_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_closings"
             referencedColumns: ["id"]
           },
         ]
@@ -316,6 +336,7 @@ export type Database = {
           hours: number
           id: string
           month_ref: string
+          weekly_closing_id: string | null
         }
         Insert: {
           calculated_value?: number
@@ -329,6 +350,7 @@ export type Database = {
           hours?: number
           id?: string
           month_ref: string
+          weekly_closing_id?: string | null
         }
         Update: {
           calculated_value?: number
@@ -342,6 +364,7 @@ export type Database = {
           hours?: number
           id?: string
           month_ref?: string
+          weekly_closing_id?: string | null
         }
         Relationships: [
           {
@@ -349,6 +372,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_holidays_weekly_closing_id_fkey"
+            columns: ["weekly_closing_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_closings"
             referencedColumns: ["id"]
           },
         ]
@@ -364,6 +394,7 @@ export type Database = {
           id: string
           month_ref: string
           percentage: number
+          weekly_closing_id: string | null
         }
         Insert: {
           calculated_value?: number
@@ -375,6 +406,7 @@ export type Database = {
           id?: string
           month_ref: string
           percentage?: number
+          weekly_closing_id?: string | null
         }
         Update: {
           calculated_value?: number
@@ -386,6 +418,7 @@ export type Database = {
           id?: string
           month_ref?: string
           percentage?: number
+          weekly_closing_id?: string | null
         }
         Relationships: [
           {
@@ -393,6 +426,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_overtime_weekly_closing_id_fkey"
+            columns: ["weekly_closing_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_closings"
             referencedColumns: ["id"]
           },
         ]
@@ -407,6 +447,7 @@ export type Database = {
           hours: number
           id: string
           month_ref: string
+          weekly_closing_id: string | null
         }
         Insert: {
           calculated_value?: number
@@ -417,6 +458,7 @@ export type Database = {
           hours: number
           id?: string
           month_ref: string
+          weekly_closing_id?: string | null
         }
         Update: {
           calculated_value?: number
@@ -427,6 +469,7 @@ export type Database = {
           hours?: number
           id?: string
           month_ref?: string
+          weekly_closing_id?: string | null
         }
         Relationships: [
           {
@@ -434,6 +477,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_saturdays_weekly_closing_id_fkey"
+            columns: ["weekly_closing_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_closings"
             referencedColumns: ["id"]
           },
         ]
@@ -502,12 +552,14 @@ export type Database = {
           name: string
           overtime_hourly_rate: number | null
           payment_notes: string | null
+          payment_type: string | null
           phone: string | null
           role: string | null
           salary: number | null
           saturday_value: number | null
           updated_at: string
           user_id: string | null
+          weekly_salary: number | null
         }
         Insert: {
           active?: boolean
@@ -519,12 +571,14 @@ export type Database = {
           name: string
           overtime_hourly_rate?: number | null
           payment_notes?: string | null
+          payment_type?: string | null
           phone?: string | null
           role?: string | null
           salary?: number | null
           saturday_value?: number | null
           updated_at?: string
           user_id?: string | null
+          weekly_salary?: number | null
         }
         Update: {
           active?: boolean
@@ -536,12 +590,14 @@ export type Database = {
           name?: string
           overtime_hourly_rate?: number | null
           payment_notes?: string | null
+          payment_type?: string | null
           phone?: string | null
           role?: string | null
           salary?: number | null
           saturday_value?: number | null
           updated_at?: string
           user_id?: string | null
+          weekly_salary?: number | null
         }
         Relationships: []
       }
@@ -1762,6 +1818,90 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      weekly_closings: {
+        Row: {
+          absence_value: number | null
+          advances_value: number | null
+          base_value: number | null
+          created_at: string | null
+          employee_id: string
+          end_date: string
+          financial_account_id: string | null
+          holiday_value: number | null
+          id: string
+          month_ref: string
+          net_pay: number | null
+          overtime_value: number | null
+          payment_date: string | null
+          payment_method: string | null
+          saturday_value: number | null
+          start_date: string
+          status: string | null
+          updated_at: string | null
+          week_number: number
+          weeks_worked: number | null
+        }
+        Insert: {
+          absence_value?: number | null
+          advances_value?: number | null
+          base_value?: number | null
+          created_at?: string | null
+          employee_id: string
+          end_date: string
+          financial_account_id?: string | null
+          holiday_value?: number | null
+          id?: string
+          month_ref: string
+          net_pay?: number | null
+          overtime_value?: number | null
+          payment_date?: string | null
+          payment_method?: string | null
+          saturday_value?: number | null
+          start_date: string
+          status?: string | null
+          updated_at?: string | null
+          week_number: number
+          weeks_worked?: number | null
+        }
+        Update: {
+          absence_value?: number | null
+          advances_value?: number | null
+          base_value?: number | null
+          created_at?: string | null
+          employee_id?: string
+          end_date?: string
+          financial_account_id?: string | null
+          holiday_value?: number | null
+          id?: string
+          month_ref?: string
+          net_pay?: number | null
+          overtime_value?: number | null
+          payment_date?: string | null
+          payment_method?: string | null
+          saturday_value?: number | null
+          start_date?: string
+          status?: string | null
+          updated_at?: string | null
+          week_number?: number
+          weeks_worked?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_closings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_closings_financial_account_id_fkey"
+            columns: ["financial_account_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_order_items: {
         Row: {
