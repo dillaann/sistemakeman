@@ -17,7 +17,7 @@ const Employees = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", payment_notes: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", daily_rate: "", payment_notes: "" });
 
   const { data: employees = [] } = useQuery({
     queryKey: ["employees"],
