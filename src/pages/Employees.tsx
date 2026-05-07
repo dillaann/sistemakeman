@@ -166,6 +166,7 @@ const Employees = () => {
               <TableHead className="hidden md:table-cell">Salário</TableHead>
               <TableHead className="hidden lg:table-cell">Vlr Sábado</TableHead>
               <TableHead className="hidden lg:table-cell">Vlr H.Extra</TableHead>
+              <TableHead className="hidden xl:table-cell">Diária</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-16">Editar</TableHead>
             </TableRow>
