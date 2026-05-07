@@ -845,12 +845,12 @@ const HR = () => {
       
       const netPay = isWeekly ? weeklyTotal : (baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences);
       const totalPaid = isWeekly 
-        ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id && wc.status === "pago").reduce((s: number, wc: any) => s + Number(wc.net_pay), 0)
+        ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id && wc.status === "pago").reduce((s: number, wc: any) => s + (Number(wc.net_pay) || 0), 0)
         : installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
       const remaining = netPay - totalPaid;
       return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining, isWeekly };
     });
-  }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
+  }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments, weeklyClosings]);
 
   const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + e.netPay, 0), [employeeSummary]);
 
@@ -1110,7 +1110,7 @@ const HR = () => {
                   </TableHeader>
                   <TableBody>
                     {(() => {
-                      const filtered = installments.filter((i: any) => i.expected_date === viewQuinzenaDate);
+                      const filtered = installments.filter((i: any) => i.expected_date === viewQuinzenaDate && employees.find(e => e.id === i.employee_id)?.payment_type !== "semanal");
                       if (filtered.length === 0) return <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma quinzena para esta data. Use o botão + Adicionar ou gere pelo Dashboard.</TableCell></TableRow>;
                       
                       return filtered.map((inst: any) => {
@@ -1771,15 +1771,15 @@ const HR = () => {
                         <div>
                           <p className="font-bold text-lg">{e.name}</p>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-muted-foreground font-semibold">Líquido total estimado: <span className="font-bold text-foreground">{fmt(e.netPay)}</span></p>
-                            <p className="text-[10px] text-primary font-bold">Próximo fechamento: {formatDateBR(nextInstDate)}</p>
+                            <p className="text-xs text-muted-foreground font-semibold">Líquido total {isWeekly ? "das semanas" : "estimado"}: <span className="font-bold text-foreground">{fmt(e.netPay)}</span></p>
+                            {!isWeekly && <p className="text-[10px] text-primary font-bold">Próximo fechamento: {formatDateBR(nextInstDate)}</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {generalStatus}
                           {canEdit && (
-                            <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>
-                              <Plus className="h-3 w-3 mr-1" /> Gerar Próxima
+                            <Button size="sm" variant="outline" onClick={() => isWeekly ? console.log("Weekly logic") : closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>
+                              <Plus className="h-3 w-3 mr-1" /> {isWeekly ? "Gerar Semanas" : "Gerar Próxima"}
                             </Button>
                           )}
                           {canEdit && e.closing && (
@@ -1813,7 +1813,7 @@ const HR = () => {
                         </div>
                       </div>
 
-                      {e.closing && (
+                      {(e.closing || isWeekly) && (
                         <div className="space-y-3">
                           {(() => {
                             const totalInsts = empInsts.reduce((sum: number, inst: any) => sum + (Number(inst.amount) || 0), 0);
