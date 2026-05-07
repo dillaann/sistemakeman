@@ -782,7 +782,7 @@ const HR = () => {
         status: "pago" as any,
         category: "Folha de Pagamento",
         payment_method,
-        account_id,
+        account_id: account_id || null,
         sync_origin: "payroll",
       }).select("id").single();
       
