@@ -267,7 +267,7 @@ const HR = () => {
       if (salary <= 0) throw new Error(`Cadastre o salário base de ${emp.name} antes de registrar`);
       const days = parseFloat(absForm.day_quantity);
       if (!days || days <= 0) throw new Error("Informe a quantidade de faltas (decimais permitidos)");
-      const dailyRate = salary / 30;
+      const dailyRate = salary / 20;
       const total = dailyRate * days;
       const { error } = await supabase.from("employee_absences" as any).insert({
         employee_id: absForm.employee_id,
@@ -1277,12 +1277,12 @@ const HR = () => {
                       if (salary <= 0) {
                         return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o salário base de {emp?.name} antes de registrar.</div>;
                       }
-                      const dailyRate = salary / 30;
+                      const dailyRate = salary / 20;
                       const days = parseFloat(absForm.day_quantity) || 0;
                       return (
                         <div className="p-3 rounded-md bg-muted text-sm space-y-1">
                           <p>Salário base: <strong>{fmt(salary)}</strong></p>
-                          <p>Valor diária (salário ÷ 30): <strong>{fmt(dailyRate)}</strong></p>
+                          <p>Valor diária (salário ÷ 20): <strong>{fmt(dailyRate)}</strong></p>
                           {days > 0 && <p className="font-bold mt-1 text-destructive">Desconto ({days} dia{days !== 1 ? "s" : ""}): {fmt(dailyRate * days)}</p>}
                         </div>
                       );
@@ -1321,7 +1321,7 @@ const HR = () => {
                         <EditBtn onClick={() => {
                           const emp = employees.find(e => e.id === a.employee_id);
                           const salary = Number(emp?.salary) || 0;
-                          const dailyRate = salary / 30;
+                          const dailyRate = salary / 20;
                           openEdit({
                             table: 'employee_absences',
                             id: a.id,
