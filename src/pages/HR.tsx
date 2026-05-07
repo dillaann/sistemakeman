@@ -84,10 +84,8 @@ const HR = () => {
     queryKey: ["financial-accounts"],
     queryFn: async () => { const { data } = await supabase.from("financial_accounts").select("*").eq("active", true).order("name"); return data ?? []; },
   });
-  const { data: salaryPayments = [] } = useQuery({
-    queryKey: ["salary-payments", selectedMonth],
-    queryFn: async () => { const { data } = await supabase.from("salary_payments").select("*, employees(name)").eq("month_ref", selectedMonth).order("payment_date", { ascending: false }); return data ?? []; },
-  });
+  // salaryPayments query removed — replaced by salary_installments with status pago
+
   // Quinzenas (regime de competência por month_ref)
   const { data: installments = [] } = useQuery({
     queryKey: ["salary-installments", selectedMonth],
@@ -606,6 +604,38 @@ const HR = () => {
   const [payInstForm, setPayInstForm] = useState(payInstFormInitial);
   const [payInstContext, setPayInstContext] = useState<any>(null);
 
+  const [bulkPayInsts, setBulkPayInsts] = useState<any[] | null>(null);
+  const [bulkPayOpen, setBulkPayOpen] = useState(false);
+  const [bulkPayForm, setBulkPayForm] = useState({ payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+
+  const payBulkMutation = useMutation({
+    mutationFn: async () => {
+      if (!bulkPayInsts || bulkPayInsts.length === 0) throw new Error("Nenhuma quinzena selecionada");
+      for (const inst of bulkPayInsts) {
+        const emp = employees.find(e => e.id === inst.employee_id);
+        const empName = emp?.name ?? "Funcionário";
+        const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
+        const amount = Number(inst.amount) || 0;
+        let ftId = inst.payable_transaction_id;
+        if (ftId) {
+          await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: bulkPayForm.payment_date, payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, description: desc }).eq("id", ftId);
+        } else {
+          const { data: ft } = await supabase.from("financial_transactions").insert({ type: "a_pagar" as any, description: desc, amount, due_date: bulkPayForm.payment_date, paid_date: bulkPayForm.payment_date, status: "pago" as any, category: "Folha de Pagamento", payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, sync_origin: "payroll" }).select("id").single();
+          ftId = ft?.id;
+        }
+        await supabase.from("salary_installments" as any).update({ status: "pago", payment_date: bulkPayForm.payment_date, payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, notes: bulkPayForm.notes || null, financial_transaction_id: ftId, payable_transaction_id: ftId }).eq("id", inst.id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      setBulkPayOpen(false); setBulkPayInsts(null);
+      toast({ title: "Pagamentos processados!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao processar", description: e.message, variant: "destructive" }),
+  });
+
   const payInstallmentMutation = useMutation({
     mutationFn: async () => {
       const inst = payInstContext;
@@ -749,7 +779,6 @@ const HR = () => {
   };
 
   // ── Dashboard calcs ──
-  const totalPayroll = useMemo(() => employees.reduce((s, e) => s + (Number(e.salary) || 0), 0), [employees]);
   const totalAdvances = useMemo(() => advances.reduce((s, a) => s + Number(a.amount), 0), [advances]);
   const totalExpenses = 0;
   const totalOvertime = useMemo(() => overtime.reduce((s, o) => s + Number(o.calculated_value), 0), [overtime]);
@@ -788,11 +817,13 @@ const HR = () => {
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
       const netPay = baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences;
-      const totalPaid = salaryPayments.filter((p: any) => p.employee_id === emp.id).reduce((s: number, p: any) => s + Number(p.amount), 0);
+      const totalPaid = installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
       const remaining = netPay - totalPaid;
       return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining };
     });
-  }, [employees, advances, overtime, saturdays, holidays, absences, closings, salaryPayments]);
+  }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
+
+  const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + e.netPay, 0), [employeeSummary]);
 
 
   // categories removed — no longer used
@@ -892,6 +923,33 @@ const HR = () => {
               <Button type="button" variant="ghost" onClick={closeInputDialog}>Cancelar</Button>
               <Button type="submit">{inputDialog?.submitLabel || "Confirmar"}</Button>
             </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Payment Dialog */}
+      <Dialog open={bulkPayOpen} onOpenChange={setBulkPayOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar Pagamento em Lote — {bulkPayInsts?.length} Funcionários</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); payBulkMutation.mutate(); }} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Data Real do Pagamento *</Label><Input type="date" value={bulkPayForm.payment_date} onChange={e => setBulkPayForm({ ...bulkPayForm, payment_date: e.target.value })} required /></div>
+              <div><Label>Forma de Pagamento *</Label>
+                <select className={selectClass} value={bulkPayForm.payment_method} onChange={e => setBulkPayForm({ ...bulkPayForm, payment_method: e.target.value })}>
+                  <option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro</option>
+                </select>
+              </div>
+            </div>
+            <div><Label>Conta de Origem</Label>
+              <select className={selectClass} value={bulkPayForm.account_id} onChange={e => setBulkPayForm({ ...bulkPayForm, account_id: e.target.value })}>
+                <option value="">Selecione (opcional)</option>
+                {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div><Label>Observações</Label><Input value={bulkPayForm.notes} onChange={e => setBulkPayForm({ ...bulkPayForm, notes: e.target.value })} /></div>
+            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={payBulkMutation.isPending}>Confirmar Pagamentos</Button>
           </form>
         </DialogContent>
       </Dialog>
@@ -1103,10 +1161,13 @@ const HR = () => {
                         const pStart = instsOnDate.length > 0 ? instsOnDate[0].period_start : null;
                         const pEnd = instsOnDate.length > 0 ? instsOnDate[0].period_end : null;
                         
+                        const empInstsForEmp = installments.filter((i: any) => i.employee_id === vals.emp_id);
+                        const nextNum = empInstsForEmp.length > 0 ? Math.max(...empInstsForEmp.map((i: any) => i.installment_number || 0)) + 1 : 1;
+                        
                         addInstMutation.mutate({ 
                           employeeId: vals.emp_id, 
                           monthRef: selectedMonth, 
-                          installmentNumber: 1,
+                          installmentNumber: nextNum,
                           expectedDate: viewQuinzenaDate,
                           periodStart: pStart,
                           periodEnd: pEnd
@@ -1122,10 +1183,9 @@ const HR = () => {
                       toast({ title: "Nada para pagar", description: "Todas as quinzenas desta data já estão pagas ou não existem." });
                       return;
                     }
-                    if (window.confirm(`Deseja confirmar o pagamento de ${toPay.length} funcionários nesta quinzena?`)) {
-                      // Implementation of bulk pay could be added here or just individual
-                      toPay.forEach(inst => openPayInstallment(inst));
-                    }
+                    setBulkPayInsts(toPay);
+                    setBulkPayForm({ payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+                    setBulkPayOpen(true);
                   }}>
                     <CheckCircle className="h-4 w-4 mr-2" /> Confirmar Pagamento
                   </Button>
@@ -1172,40 +1232,39 @@ const HR = () => {
           </Card>
 
 
-          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'employee_advances', id: a.id, title: 'Editar Vale/Adiantamento', invalidate: ['employee-advances'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(a.amount)||0), required: true }, { key: 'type', label: 'Tipo', type: 'select', value: a.type, options: [{value:'adiantamento',label:'Adiantamento'},{value:'vale',label:'Vale'}] }, { key: 'date', label: 'Data', type: 'date', value: a.date }, { key: 'description', label: 'Descrição', type: 'text', value: a.description || '' }, { key: 'month_ref', label: 'Mês de Referência (YYYY-MM)', type: 'text', value: a.month_ref, placeholder: 'AAAA-MM', required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, type: v.type, date: v.date, description: v.description||null, month_ref: v.month_ref }) })} /><DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
-
           <Card>
-            <CardHeader><CardTitle className="text-base">Pagamentos de Salário — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Adiantamentos/Vales do Mês — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Funcionário</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Valor</TableHead>
                     <TableHead>Data</TableHead>
-                    <TableHead>Forma</TableHead>
-                    <TableHead className="hidden md:table-cell">Observações</TableHead>
+                    <TableHead className="hidden md:table-cell">Descrição</TableHead>
                     {canEdit && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {salaryPayments.map((p: any) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.employees?.name}</TableCell>
-                      <TableCell className="text-green-600 font-semibold">{fmt(Number(p.amount))}</TableCell>
-                      <TableCell>{formatDateBR(p.payment_date)}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {p.payment_method === "pix" ? "PIX" : p.payment_method === "transferencia" ? "Transferência" : p.payment_method === "dinheiro" ? "Dinheiro" : "Outro"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{p.notes || "-"}</TableCell>
-                      {canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'salary_payments', id: p.id, title: 'Editar Pagamento', invalidate: ['salary-payments'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(p.amount)||0), required: true }, { key: 'payment_date', label: 'Data', type: 'date', value: p.payment_date, required: true }, { key: 'payment_method', label: 'Forma', type: 'select', value: p.payment_method, options: [{value:'pix',label:'PIX'},{value:'transferencia',label:'Transferência'},{value:'dinheiro',label:'Dinheiro'},{value:'outro',label:'Outro'}] }, { key: 'notes', label: 'Observações', type: 'text', value: p.notes || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: p.month_ref, required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, payment_date: v.payment_date, payment_method: v.payment_method, notes: v.notes||null, month_ref: v.month_ref }) })} /><DeleteBtn table="salary_payments" id={p.id} label={`Pagamento de ${p.employees?.name}`} /></TableCell>}
+                  {advances.map(a => (
+                    <TableRow key={a.id}>
+                      <TableCell className="font-medium">{(a.employees as any)?.name}</TableCell>
+                      <TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell>
+                      <TableCell>{fmt(Number(a.amount))}</TableCell>
+                      <TableCell>{formatDateBR(a.date)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>
+                      {canEdit && (
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <EditBtn onClick={() => openEdit({ table: 'employee_advances', id: a.id, title: 'Editar Vale/Adiantamento', invalidate: ['employee-advances'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(a.amount)||0), required: true }, { key: 'type', label: 'Tipo', type: 'select', value: a.type, options: [{value:'adiantamento',label:'Adiantamento'},{value:'vale',label:'Vale'}] }, { key: 'date', label: 'Data', type: 'date', value: a.date }, { key: 'description', label: 'Descrição', type: 'text', value: a.description || '' }, { key: 'month_ref', label: 'Mês de Referência (YYYY-MM)', type: 'text', value: a.month_ref, placeholder: 'AAAA-MM', required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, type: v.type, date: v.date, description: v.description||null, month_ref: v.month_ref }) })} />
+                            <DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} />
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
-                  {salaryPayments.length === 0 && (
-                    <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum pagamento registrado neste mês.</TableCell></TableRow>
-                  )}
+                  {advances.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum vale ou adiantamento registrado.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
