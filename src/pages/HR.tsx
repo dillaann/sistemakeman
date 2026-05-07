@@ -1973,10 +1973,9 @@ const HR = () => {
                                               title: `Pagar Semana ${wc.week_number}`,
                                               fields: [
                                                 { key: "date", label: "Data Pagamento", type: "date", value: localDateString() },
-                                                { key: "method", label: "Forma", type: "select", value: "pix", options: [{value:'pix',label:'PIX'},{value:'dinheiro',label:'Dinheiro'},{value:'transferencia',label:'Transferência'}] },
-                                                { key: "account", label: "Conta", type: "select", value: accounts[0]?.id || "", options: accounts.map(a => ({value:a.id, label:a.name})) }
+                                                { key: "method", label: "Forma", type: "select", value: "pix", options: [{value:'pix',label:'PIX'},{value:'dinheiro',label:'Dinheiro'},{value:'transferencia',label:'Transferência'}] }
                                               ],
-                                              onSubmit: (vals) => payWeeklyClosingMutation.mutate({ wc, payment_date: vals.date, payment_method: vals.method, account_id: vals.account })
+                                              onSubmit: (vals) => payWeeklyClosingMutation.mutate({ wc, payment_date: vals.date, payment_method: vals.method, account_id: accounts[0]?.id || "" })
                                             });
                                           }}
                                         >
