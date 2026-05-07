@@ -1627,18 +1627,7 @@ const HR = () => {
 
                             return (
                               <div className="space-y-2">
-                                {!isSumCorrect && (
-                                  <div className="bg-amber-50 border border-amber-200 p-2 rounded flex items-center gap-2 text-xs text-amber-700">
-                                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                                    <p>A soma das parcelas ({fmt(totalInsts)}) não coincide com o líquido total ({fmt(e.netPay)}).</p>
-                                  </div>
-                                )}
-                                {overlaps.length > 0 && (
-                                  <div className="bg-amber-50 border border-amber-200 p-2 rounded flex items-center gap-2 text-xs text-amber-700">
-                                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                                    <p>Sobreposição de períodos detectada: {overlaps.join(", ")}.</p>
-                                  </div>
-                                )}
+                                {/* Sem alertas rígidos de soma ou sobreposição para permitir flexibilidade total */}
                               </div>
                             );
                           })()}
@@ -1653,13 +1642,12 @@ const HR = () => {
                                 <div key={inst.id} className={`p-3 rounded-md border space-y-2 relative group ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
                                   <div className="flex items-center justify-between">
                                     <div className="space-y-0.5 text-left">
-                                      <p className="font-bold text-sm">{inst.installment_number}ª Quinzena</p>
+                                      <p className="font-bold text-sm">Quinzena ({formatDateBR(inst.expected_date)})</p>
                                       <p className="text-[10px] text-muted-foreground uppercase font-semibold">
                                         Período: {inst.period_start ? formatDateBR(inst.period_start) : "?"} a {inst.period_end ? formatDateBR(inst.period_end) : "?"}
                                       </p>
                                       <p className="text-[10px] text-muted-foreground font-semibold">
-                                        Pagamento: <span className={isDiffMonth ? "text-amber-600" : ""}>{inst.expected_date ? formatDateBR(inst.expected_date) : "?"}</span>
-                                        {isDiffMonth && <span className="ml-1 text-amber-600">(Mês dif.)</span>}
+                                        Fechamento: <span className={isDiffMonth ? "text-amber-600" : ""}>{inst.expected_date ? formatDateBR(inst.expected_date) : "?"}</span>
                                       </p>
                                       <Badge variant="outline" className="text-[9px] h-3.5 px-1">Ref: {monthLabel(inst.month_ref)}</Badge>
                                     </div>
