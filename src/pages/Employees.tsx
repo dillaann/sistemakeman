@@ -31,7 +31,19 @@ const Employees = () => {
 
   const saveMutation = useMutation({
     mutationFn: async (emp: any) => {
-      const payload = { name: emp.name, email: emp.email || null, phone: emp.phone || null, role: emp.role || null, salary: parseFloat(emp.salary) || null, hire_date: emp.hire_date || null, active: emp.active, saturday_value: parseFloat(emp.saturday_value) || 0, overtime_hourly_rate: parseFloat(emp.overtime_hourly_rate) || 0, payment_notes: emp.payment_notes || null };
+      const payload = {
+        name: emp.name,
+        email: emp.email || null,
+        phone: emp.phone || null,
+        role: emp.role || null,
+        salary: parseFloat(emp.salary) || null,
+        hire_date: emp.hire_date || null,
+        active: emp.active,
+        saturday_value: parseFloat(emp.saturday_value) || 0,
+        overtime_hourly_rate: parseFloat(emp.overtime_hourly_rate) || 0,
+        daily_rate: parseFloat(emp.daily_rate) || 0,
+        payment_notes: emp.payment_notes || null
+      };
       if (emp.id) { const { error } = await supabase.from("employees").update(payload).eq("id", emp.id); if (error) throw error; }
       else { const { error } = await supabase.from("employees").insert(payload); if (error) throw error; }
     },
