@@ -1173,40 +1173,39 @@ const HR = () => {
           </Card>
 
 
-          <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'employee_advances', id: a.id, title: 'Editar Vale/Adiantamento', invalidate: ['employee-advances'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(a.amount)||0), required: true }, { key: 'type', label: 'Tipo', type: 'select', value: a.type, options: [{value:'adiantamento',label:'Adiantamento'},{value:'vale',label:'Vale'}] }, { key: 'date', label: 'Data', type: 'date', value: a.date }, { key: 'description', label: 'Descrição', type: 'text', value: a.description || '' }, { key: 'month_ref', label: 'Mês de Referência (YYYY-MM)', type: 'text', value: a.month_ref, placeholder: 'AAAA-MM', required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, type: v.type, date: v.date, description: v.description||null, month_ref: v.month_ref }) })} /><DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
-
           <Card>
-            <CardHeader><CardTitle className="text-base">Pagamentos de Salário — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Adiantamentos/Vales do Mês — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Funcionário</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Valor</TableHead>
                     <TableHead>Data</TableHead>
-                    <TableHead>Forma</TableHead>
-                    <TableHead className="hidden md:table-cell">Observações</TableHead>
+                    <TableHead className="hidden md:table-cell">Descrição</TableHead>
                     {canEdit && <TableHead className="w-12"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {salaryPayments.map((p: any) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.employees?.name}</TableCell>
-                      <TableCell className="text-green-600 font-semibold">{fmt(Number(p.amount))}</TableCell>
-                      <TableCell>{formatDateBR(p.payment_date)}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {p.payment_method === "pix" ? "PIX" : p.payment_method === "transferencia" ? "Transferência" : p.payment_method === "dinheiro" ? "Dinheiro" : "Outro"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{p.notes || "-"}</TableCell>
-                      {canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'salary_payments', id: p.id, title: 'Editar Pagamento', invalidate: ['salary-payments'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(p.amount)||0), required: true }, { key: 'payment_date', label: 'Data', type: 'date', value: p.payment_date, required: true }, { key: 'payment_method', label: 'Forma', type: 'select', value: p.payment_method, options: [{value:'pix',label:'PIX'},{value:'transferencia',label:'Transferência'},{value:'dinheiro',label:'Dinheiro'},{value:'outro',label:'Outro'}] }, { key: 'notes', label: 'Observações', type: 'text', value: p.notes || '' }, { key: 'month_ref', label: 'Mês Ref. (YYYY-MM)', type: 'text', value: p.month_ref, required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, payment_date: v.payment_date, payment_method: v.payment_method, notes: v.notes||null, month_ref: v.month_ref }) })} /><DeleteBtn table="salary_payments" id={p.id} label={`Pagamento de ${p.employees?.name}`} /></TableCell>}
+                  {advances.map(a => (
+                    <TableRow key={a.id}>
+                      <TableCell className="font-medium">{(a.employees as any)?.name}</TableCell>
+                      <TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell>
+                      <TableCell>{fmt(Number(a.amount))}</TableCell>
+                      <TableCell>{formatDateBR(a.date)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>
+                      {canEdit && (
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <EditBtn onClick={() => openEdit({ table: 'employee_advances', id: a.id, title: 'Editar Vale/Adiantamento', invalidate: ['employee-advances'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(a.amount)||0), required: true }, { key: 'type', label: 'Tipo', type: 'select', value: a.type, options: [{value:'adiantamento',label:'Adiantamento'},{value:'vale',label:'Vale'}] }, { key: 'date', label: 'Data', type: 'date', value: a.date }, { key: 'description', label: 'Descrição', type: 'text', value: a.description || '' }, { key: 'month_ref', label: 'Mês de Referência (YYYY-MM)', type: 'text', value: a.month_ref, placeholder: 'AAAA-MM', required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, type: v.type, date: v.date, description: v.description||null, month_ref: v.month_ref }) })} />
+                            <DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} />
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
-                  {salaryPayments.length === 0 && (
-                    <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum pagamento registrado neste mês.</TableCell></TableRow>
-                  )}
+                  {advances.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum vale ou adiantamento registrado.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
