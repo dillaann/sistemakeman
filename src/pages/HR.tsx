@@ -1001,10 +1001,10 @@ const HR = () => {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => setViewQuinzenaDate(getPreviousFriday(viewQuinzenaDate))}>
-                  <Calendar className="h-4 w-4 mr-1" /> [< Anterior]
+                  <Calendar className="h-4 w-4 mr-1" /> {"< Anterior"}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setViewQuinzenaDate(getNextFriday(parseLocalDate(viewQuinzenaDate)!))}>
-                  Próxima >] <Calendar className="h-4 w-4 ml-1" />
+                  {"Próxima >"} <Calendar className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             </CardHeader>
