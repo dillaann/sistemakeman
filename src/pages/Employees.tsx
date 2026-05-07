@@ -17,7 +17,7 @@ const Employees = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", payment_notes: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", daily_rate: "", payment_notes: "" });
 
   const { data: employees = [] } = useQuery({
     queryKey: ["employees"],
@@ -31,7 +31,19 @@ const Employees = () => {
 
   const saveMutation = useMutation({
     mutationFn: async (emp: any) => {
-      const payload = { name: emp.name, email: emp.email || null, phone: emp.phone || null, role: emp.role || null, salary: parseFloat(emp.salary) || null, hire_date: emp.hire_date || null, active: emp.active, saturday_value: parseFloat(emp.saturday_value) || 0, overtime_hourly_rate: parseFloat(emp.overtime_hourly_rate) || 0, payment_notes: emp.payment_notes || null };
+      const payload = {
+        name: emp.name,
+        email: emp.email || null,
+        phone: emp.phone || null,
+        role: emp.role || null,
+        salary: parseFloat(emp.salary) || null,
+        hire_date: emp.hire_date || null,
+        active: emp.active,
+        saturday_value: parseFloat(emp.saturday_value) || 0,
+        overtime_hourly_rate: parseFloat(emp.overtime_hourly_rate) || 0,
+        daily_rate: parseFloat(emp.daily_rate) || 0,
+        payment_notes: emp.payment_notes || null
+      };
       if (emp.id) { const { error } = await supabase.from("employees").update(payload).eq("id", emp.id); if (error) throw error; }
       else { const { error } = await supabase.from("employees").insert(payload); if (error) throw error; }
     },
@@ -54,8 +66,8 @@ const Employees = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const openNew = () => { setEditing(null); setForm({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", payment_notes: "" }); setOpen(true); };
-  const openEdit = (e: any) => { setEditing(e); setForm({ name: e.name, email: e.email ?? "", phone: e.phone ?? "", role: e.role ?? "", salary: e.salary ? String(e.salary) : "", hire_date: e.hire_date ?? "", active: e.active, saturday_value: e.saturday_value ? String(e.saturday_value) : "", overtime_hourly_rate: e.overtime_hourly_rate ? String(e.overtime_hourly_rate) : "", payment_notes: e.payment_notes ?? "" }); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", daily_rate: "", payment_notes: "" }); setOpen(true); };
+  const openEdit = (e: any) => { setEditing(e); setForm({ name: e.name, email: e.email ?? "", phone: e.phone ?? "", role: e.role ?? "", salary: e.salary ? String(e.salary) : "", hire_date: e.hire_date ?? "", active: e.active, saturday_value: e.saturday_value ? String(e.saturday_value) : "", overtime_hourly_rate: e.overtime_hourly_rate ? String(e.overtime_hourly_rate) : "", daily_rate: e.daily_rate ? String(e.daily_rate) : "", payment_notes: e.payment_notes ?? "" }); setOpen(true); };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -103,22 +115,29 @@ const Employees = () => {
                     setForm(prev => ({
                       ...prev,
                       salary: newSalary,
-                      // Auto-preenche apenas se ainda não foi definido manualmente
-                      saturday_value: (!prev.saturday_value || parseFloat(prev.saturday_value) === 0) && sal > 0 ? (sal / 30).toFixed(2) : prev.saturday_value,
+                      saturday_value: (!prev.saturday_value || parseFloat(prev.saturday_value) === 0) && sal > 0 ? (sal / 10).toFixed(2) : prev.saturday_value,
                       overtime_hourly_rate: (!prev.overtime_hourly_rate || parseFloat(prev.overtime_hourly_rate) === 0) && sal > 0 ? (sal / 220).toFixed(2) : prev.overtime_hourly_rate,
+                      daily_rate: (!prev.daily_rate || parseFloat(prev.daily_rate) === 0) && sal > 0 ? (sal / 30).toFixed(2) : prev.daily_rate,
                     }));
                   }} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Valor Sábado (R$)</Label>
-                    <Input type="number" step="0.01" value={form.saturday_value} onChange={e => setForm({ ...form, saturday_value: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 30).toFixed(2)}` : ""} />
-                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 30 (editável)</p>
+                    <Input type="number" step="0.01" value={form.saturday_value} onChange={e => setForm({ ...form, saturday_value: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 10).toFixed(2)}` : ""} />
+                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 10 (editável)</p>
                   </div>
                   <div>
                     <Label>Valor Hora Extra (R$)</Label>
                     <Input type="number" step="0.01" value={form.overtime_hourly_rate} onChange={e => setForm({ ...form, overtime_hourly_rate: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 220).toFixed(2)}` : ""} />
                     <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 220h (editável)</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <Label>Valor Diária (R$)</Label>
+                    <Input type="number" step="0.01" value={form.daily_rate} onChange={e => setForm({ ...form, daily_rate: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 30).toFixed(2)}` : ""} />
+                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 30 (usado em feriados)</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 items-end">
@@ -147,6 +166,7 @@ const Employees = () => {
               <TableHead className="hidden md:table-cell">Salário</TableHead>
               <TableHead className="hidden lg:table-cell">Vlr Sábado</TableHead>
               <TableHead className="hidden lg:table-cell">Vlr H.Extra</TableHead>
+              <TableHead className="hidden xl:table-cell">Diária</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-16">Editar</TableHead>
             </TableRow>
@@ -157,8 +177,9 @@ const Employees = () => {
                 <TableCell className="font-medium">{e.name}</TableCell>
                 <TableCell className="hidden md:table-cell">{e.role}</TableCell>
                 <TableCell className="hidden md:table-cell">{e.salary ? fmt(Number(e.salary)) : "-"}</TableCell>
-                <TableCell className="hidden lg:table-cell">{fmt(Number((e as any).saturday_value) || 0)}</TableCell>
-                <TableCell className="hidden lg:table-cell">{fmt(Number((e as any).overtime_hourly_rate) || 0)}/h</TableCell>
+                <TableCell className="hidden lg:table-cell">{fmt(Number(e.saturday_value) || 0)}</TableCell>
+                <TableCell className="hidden lg:table-cell">{fmt(Number(e.overtime_hourly_rate) || 0)}/h</TableCell>
+                <TableCell className="hidden xl:table-cell">{fmt(Number(e.daily_rate) || 0)}</TableCell>
                 <TableCell><Badge variant={e.active ? "default" : "secondary"}>{e.active ? "Ativo" : "Inativo"}</Badge></TableCell>
                 <TableCell><Button variant="ghost" size="icon" onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button></TableCell>
               </TableRow>
