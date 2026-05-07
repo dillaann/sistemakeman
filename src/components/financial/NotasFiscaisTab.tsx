@@ -113,6 +113,12 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         service_description: extracted.items?.[0]?.description || f.service_description,
       }));
 
+      if (extracted.type?.startsWith('nfse')) {
+        setActiveInternalTab('nfse');
+      } else if (extracted.type?.startsWith('nfe')) {
+        setActiveInternalTab('nfe');
+      }
+
       toast({ 
         title: "Dados extraídos com sucesso", 
         description: "Revise os campos antes de salvar." 
