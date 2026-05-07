@@ -1099,11 +1099,17 @@ const HR = () => {
                         { key: "emp_id", label: "Funcionário", type: "select", value: "", options: employees.map(e => ({ value: e.id, label: e.name })) }
                       ],
                       onSubmit: (vals) => {
+                        const instsOnDate = installments.filter((i: any) => i.expected_date === viewQuinzenaDate);
+                        const pStart = instsOnDate.length > 0 ? instsOnDate[0].period_start : null;
+                        const pEnd = instsOnDate.length > 0 ? instsOnDate[0].period_end : null;
+                        
                         addInstMutation.mutate({ 
                           employeeId: vals.emp_id, 
                           monthRef: selectedMonth, 
-                          installmentNumber: 1, // Will be set correctly or just be the next one
-                          expectedDate: viewQuinzenaDate 
+                          installmentNumber: 1,
+                          expectedDate: viewQuinzenaDate,
+                          periodStart: pStart,
+                          periodEnd: pEnd
                         } as any);
                       }
                     });
