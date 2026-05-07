@@ -66,8 +66,8 @@ const Employees = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const openNew = () => { setEditing(null); setForm({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", payment_notes: "" }); setOpen(true); };
-  const openEdit = (e: any) => { setEditing(e); setForm({ name: e.name, email: e.email ?? "", phone: e.phone ?? "", role: e.role ?? "", salary: e.salary ? String(e.salary) : "", hire_date: e.hire_date ?? "", active: e.active, saturday_value: e.saturday_value ? String(e.saturday_value) : "", overtime_hourly_rate: e.overtime_hourly_rate ? String(e.overtime_hourly_rate) : "", payment_notes: e.payment_notes ?? "" }); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", daily_rate: "", payment_notes: "" }); setOpen(true); };
+  const openEdit = (e: any) => { setEditing(e); setForm({ name: e.name, email: e.email ?? "", phone: e.phone ?? "", role: e.role ?? "", salary: e.salary ? String(e.salary) : "", hire_date: e.hire_date ?? "", active: e.active, saturday_value: e.saturday_value ? String(e.saturday_value) : "", overtime_hourly_rate: e.overtime_hourly_rate ? String(e.overtime_hourly_rate) : "", daily_rate: e.daily_rate ? String(e.daily_rate) : "", payment_notes: e.payment_notes ?? "" }); setOpen(true); };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
