@@ -1744,17 +1744,25 @@ const HR = () => {
             </CardHeader>
             <CardContent className="overflow-auto space-y-4">
               {employeeSummary.map(e => {
-                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => (a.expected_date || "").localeCompare(b.expected_date || ""));
+                const isWeekly = e.isWeekly;
+                const empInsts = isWeekly ? [] : installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => (a.expected_date || "").localeCompare(b.expected_date || ""));
+                const empWeeklyClosings = isWeekly ? weeklyClosings.filter((wc: any) => wc.employee_id === e.id).sort((a: any, b: any) => a.week_number - b.week_number) : [];
+                
                 const nextInstDate = empInsts.length > 0 ? (empInsts[empInsts.length - 1].expected_date || getNextFriday(new Date())) : getNextFriday(new Date());
                 
-                const paidCount = empInsts.filter((i: any) => i.status === "pago").length;
-                const generalStatus = !e.closing
-                  ? <Badge variant="outline">Pendente</Badge>
-                  : paidCount === empInsts.length && empInsts.length > 0
-                  ? <Badge variant="default">Quitado</Badge>
-                  : paidCount > 0
-                  ? <Badge variant="secondary">Parcial</Badge>
-                  : <Badge variant="outline">Em aberto</Badge>;
+                const paidCount = isWeekly 
+                  ? empWeeklyClosings.filter((wc: any) => wc.status === "pago").length
+                  : empInsts.filter((i: any) => i.status === "pago").length;
+                
+                const generalStatus = isWeekly
+                  ? (empWeeklyClosings.length === 0 ? <Badge variant="outline">Pendente</Badge> : (paidCount === empWeeklyClosings.length ? <Badge variant="default">Quitado</Badge> : <Badge variant="secondary">Parcial</Badge>))
+                  : (!e.closing
+                    ? <Badge variant="outline">Pendente</Badge>
+                    : paidCount === empInsts.length && empInsts.length > 0
+                    ? <Badge variant="default">Quitado</Badge>
+                    : paidCount > 0
+                    ? <Badge variant="secondary">Parcial</Badge>
+                    : <Badge variant="outline">Em aberto</Badge>);
 
                 return (
                   <Card key={e.id} className="border-l-4 border-l-primary/40">
