@@ -99,6 +99,18 @@ const HR = () => {
     },
   });
 
+  const { data: weeklyClosings = [] } = useQuery({
+    queryKey: ["weekly-closings", selectedMonth],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("weekly_closings")
+        .select("*, employees(name)")
+        .eq("month_ref", selectedMonth)
+        .order("week_number");
+      return data ?? [];
+    },
+  });
+
   // ── Generic edit dialog state ──
   type EditCtx = {
     table: string;
@@ -710,6 +722,98 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const generateWeeklyClosingsMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const emp = employees.find(e => e.id === employeeId);
+      if (!emp) throw new Error("Funcionário não encontrado");
+      
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      const weeks = [];
+      let currentDay = 1;
+      let weekNum = 1;
+      
+      while (currentDay <= daysInMonth) {
+        const start = `${selectedMonth}-${String(currentDay).padStart(2, '0')}`;
+        let endDay = currentDay + 6;
+        if (endDay > daysInMonth) endDay = daysInMonth;
+        const end = `${selectedMonth}-${String(endDay).padStart(2, '0')}`;
+        
+        weeks.push({
+          employee_id: employeeId,
+          month_ref: selectedMonth,
+          week_number: weekNum,
+          start_date: start,
+          end_date: end,
+          base_value: Number(emp.weekly_salary) || 0,
+          weeks_worked: 1,
+          status: 'pendente'
+        });
+        
+        currentDay += 7;
+        weekNum++;
+      }
+      
+      // Delete existing weekly closings for this month first
+      await supabase.from("weekly_closings").delete().eq("employee_id", employeeId).eq("month_ref", selectedMonth);
+      
+      const { error } = await supabase.from("weekly_closings").insert(weeks);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-closings"] });
+      toast({ title: "Semanas geradas com sucesso!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const payWeeklyClosingMutation = useMutation({
+    mutationFn: async ({ wc, payment_date, payment_method, account_id }: { wc: any, payment_date: string, payment_method: string, account_id: string }) => {
+      const emp = employees.find(e => e.id === wc.employee_id);
+      const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
+      
+      const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
+        type: "saida" as any,
+        description: desc,
+        amount: Number(wc.net_pay),
+        due_date: payment_date,
+        paid_date: payment_date,
+        status: "pago" as any,
+        category: "Folha de Pagamento",
+        payment_method,
+        account_id,
+        sync_origin: "payroll",
+      }).select("id").single();
+      
+      if (ftErr) throw ftErr;
+      
+      const { error } = await supabase.from("weekly_closings").update({
+        status: 'pago',
+        payment_date,
+        payment_method,
+        financial_account_id: account_id
+      }).eq("id", wc.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      toast({ title: "Semana paga e lançada no financeiro!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const updateWeeklyClosingMutation = useMutation({
+    mutationFn: async (wc: any) => {
+      const { error } = await supabase.from("weekly_closings").update(wc).eq("id", wc.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["weekly-closings"] }),
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   // Helpers para abrir dialog de pagamento de quinzena
   const openPayInstallment = (inst: any) => {
     setPayInstContext(inst);
@@ -828,12 +932,17 @@ const HR = () => {
       const empAbsences = absences.filter((a: any) => a.employee_id === emp.id).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
-      const netPay = baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences;
-      const totalPaid = installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+      const isWeekly = emp.payment_type === "semanal";
+      const weeklyTotal = isWeekly ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id).reduce((s: number, wc: any) => s + Number(wc.net_pay), 0) : 0;
+      
+      const netPay = isWeekly ? weeklyTotal : (baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empExpenses - empAbsences);
+      const totalPaid = isWeekly 
+        ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id && wc.status === "pago").reduce((s: number, wc: any) => s + (Number(wc.net_pay) || 0), 0)
+        : installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
       const remaining = netPay - totalPaid;
-      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining };
+      return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining, isWeekly };
     });
-  }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments]);
+  }, [employees, advances, overtime, saturdays, holidays, absences, closings, installments, weeklyClosings]);
 
   const totalPayroll = useMemo(() => employeeSummary.reduce((s, e) => s + e.netPay, 0), [employeeSummary]);
 
@@ -1093,7 +1202,7 @@ const HR = () => {
                   </TableHeader>
                   <TableBody>
                     {(() => {
-                      const filtered = installments.filter((i: any) => i.expected_date === viewQuinzenaDate);
+                      const filtered = installments.filter((i: any) => i.expected_date === viewQuinzenaDate && employees.find(e => e.id === i.employee_id)?.payment_type !== "semanal");
                       if (filtered.length === 0) return <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma quinzena para esta data. Use o botão + Adicionar ou gere pelo Dashboard.</TableCell></TableRow>;
                       
                       return filtered.map((inst: any) => {
@@ -1246,8 +1355,13 @@ const HR = () => {
                 <TableBody>
                   {employeeSummary.map(e => (
                     <TableRow key={e.id}>
-                      <TableCell className="font-medium">{e.name}</TableCell>
-                      <TableCell>{fmt(e.baseSalary)}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {e.name}
+                          {e.isWeekly && <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Semanal</Badge>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{e.isWeekly ? fmt(Number(e.weekly_salary)) + " /sem" : fmt(e.baseSalary)}</TableCell>
                       <TableCell className="text-primary">{fmt(e.empOvertime + e.empSaturdays + e.empHolidays)}</TableCell>
                       <TableCell className="text-destructive">{fmt(e.empAdvances + e.empAbsences)}</TableCell>
                       <TableCell className="font-bold">{fmt(e.closing?.net_pay ?? e.netPay)}</TableCell>
@@ -1312,10 +1426,11 @@ const HR = () => {
               <Dialog open={otOpen} onOpenChange={setOtOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Hora Extra</Button></DialogTrigger>
                 <DialogContent><DialogHeader><DialogTitle>Registrar Hora Extra</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); otMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label><select className={selectClass} value={otForm.employee_id} onChange={e => setOtForm({ ...otForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={otForm.employee_id} onChange={e => setOtForm({ ...otForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.payment_type === "semanal" ? "(Semanal)" : ""}</option>)}</select></div>
                     <div><Label>Horas *</Label><Input type="number" step="0.5" min="0.5" value={otForm.hours} onChange={e => setOtForm({ ...otForm, hours: e.target.value })} required /></div>
                     {otForm.employee_id && (() => {
                       const emp = employees.find(e => e.id === otForm.employee_id);
+                      const isWeekly = emp?.payment_type === "semanal";
                       const fixedRate = Number(emp?.overtime_hourly_rate) || 0;
                       if (fixedRate <= 0) {
                         return <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">⚠ Cadastre o valor hora extra de {emp?.name} antes de registrar.</div>;
@@ -1323,7 +1438,7 @@ const HR = () => {
                       const hrs = parseFloat(otForm.hours) || 0;
                       return (
                         <div className="p-3 rounded-md bg-muted text-sm">
-                          <p>Valor hora cadastrado: <strong>{fmt(fixedRate)}</strong></p>
+                          <p>Valor hora {isWeekly ? "semanal" : "mensal"} cadastrado: <strong>{fmt(fixedRate)}</strong></p>
                           {hrs > 0 && <p className="font-bold mt-1">Total ({hrs}h): {fmt(fixedRate * hrs)}</p>}
                         </div>
                       );
@@ -1344,7 +1459,7 @@ const HR = () => {
               <Dialog open={satOpen} onOpenChange={setSatOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Registrar Sábado</Button></DialogTrigger>
                 <DialogContent><DialogHeader><DialogTitle>Sábado Trabalhado</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); satMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label><select className={selectClass} value={satForm.employee_id} onChange={e => setSatForm({ ...satForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={satForm.employee_id} onChange={e => setSatForm({ ...satForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.payment_type === "semanal" ? "(Semanal)" : ""}</option>)}</select></div>
                     <div><Label>Quantidade de sábados *</Label><Input type="number" step="0.5" min="0.5" value={satForm.hours} onChange={e => setSatForm({ ...satForm, hours: e.target.value })} required placeholder="Ex: 1, 1.5, 2" /><p className="text-xs text-muted-foreground mt-1">Aceita decimais: 0.5 (meio sábado), 1, 1.5, 2…</p></div>
                     {satForm.employee_id && (() => {
                       const emp = employees.find(e => e.id === satForm.employee_id);
@@ -1381,7 +1496,7 @@ const HR = () => {
                     <div><Label>Funcionário *</Label>
                       <select className={selectClass} value={holForm.employee_id} onChange={e => setHolForm({ ...holForm, employee_id: e.target.value })} required>
                         <option value="">Selecione</option>
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        {employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.payment_type === "semanal" ? "(Semanal)" : ""}</option>)}
                       </select>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -1515,8 +1630,8 @@ const HR = () => {
                       {canEdit && <TableCell>
                         <EditBtn onClick={() => {
                           const emp = employees.find(e => e.id === a.employee_id);
-                          const salary = Number(emp?.salary) || 0;
-                          const dailyRate = salary / 20;
+                          const isWeekly = emp?.payment_type === "semanal";
+                          const dailyRate = isWeekly ? (Number(emp?.daily_rate) || 0) : (Number(emp?.salary) || 0) / 20;
                           openEdit({
                             table: 'employee_absences',
                             id: a.id,
@@ -1563,7 +1678,7 @@ const HR = () => {
               <Dialog open={advOpen} onOpenChange={setAdvOpen}><DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" />Novo Vale</Button></DialogTrigger>
                 <DialogContent><DialogHeader><DialogTitle>Registrar Vale</DialogTitle></DialogHeader>
                   <form onSubmit={e => { e.preventDefault(); advMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+                    <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name} {e.payment_type === "semanal" ? "(Semanal)" : ""}</option>)}</select></div>
                     <div className="grid grid-cols-2 gap-3">
                       <div><Label>Tipo</Label><select className={selectClass} value={advForm.type} onChange={e => setAdvForm({ ...advForm, type: e.target.value })}><option value="adiantamento">Adiantamento</option><option value="vale">Vale</option></select></div>
                       <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={advForm.amount} onChange={e => setAdvForm({ ...advForm, amount: e.target.value })} required /></div>
@@ -1721,17 +1836,25 @@ const HR = () => {
             </CardHeader>
             <CardContent className="overflow-auto space-y-4">
               {employeeSummary.map(e => {
-                const empInsts = installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => (a.expected_date || "").localeCompare(b.expected_date || ""));
+                const isWeekly = e.isWeekly;
+                const empInsts = isWeekly ? [] : installments.filter((i: any) => i.employee_id === e.id).sort((a: any, b: any) => (a.expected_date || "").localeCompare(b.expected_date || ""));
+                const empWeeklyClosings = isWeekly ? weeklyClosings.filter((wc: any) => wc.employee_id === e.id).sort((a: any, b: any) => a.week_number - b.week_number) : [];
+                
                 const nextInstDate = empInsts.length > 0 ? (empInsts[empInsts.length - 1].expected_date || getNextFriday(new Date())) : getNextFriday(new Date());
                 
-                const paidCount = empInsts.filter((i: any) => i.status === "pago").length;
-                const generalStatus = !e.closing
-                  ? <Badge variant="outline">Pendente</Badge>
-                  : paidCount === empInsts.length && empInsts.length > 0
-                  ? <Badge variant="default">Quitado</Badge>
-                  : paidCount > 0
-                  ? <Badge variant="secondary">Parcial</Badge>
-                  : <Badge variant="outline">Em aberto</Badge>;
+                const paidCount = isWeekly 
+                  ? empWeeklyClosings.filter((wc: any) => wc.status === "pago").length
+                  : empInsts.filter((i: any) => i.status === "pago").length;
+                
+                const generalStatus = isWeekly
+                  ? (empWeeklyClosings.length === 0 ? <Badge variant="outline">Pendente</Badge> : (paidCount === empWeeklyClosings.length ? <Badge variant="default">Quitado</Badge> : <Badge variant="secondary">Parcial</Badge>))
+                  : (!e.closing
+                    ? <Badge variant="outline">Pendente</Badge>
+                    : paidCount === empInsts.length && empInsts.length > 0
+                    ? <Badge variant="default">Quitado</Badge>
+                    : paidCount > 0
+                    ? <Badge variant="secondary">Parcial</Badge>
+                    : <Badge variant="outline">Em aberto</Badge>);
 
                 return (
                   <Card key={e.id} className="border-l-4 border-l-primary/40">
@@ -1740,15 +1863,15 @@ const HR = () => {
                         <div>
                           <p className="font-bold text-lg">{e.name}</p>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-muted-foreground font-semibold">Líquido total estimado: <span className="font-bold text-foreground">{fmt(e.netPay)}</span></p>
-                            <p className="text-[10px] text-primary font-bold">Próximo fechamento: {formatDateBR(nextInstDate)}</p>
+                            <p className="text-xs text-muted-foreground font-semibold">Líquido total {isWeekly ? "das semanas" : "estimado"}: <span className="font-bold text-foreground">{fmt(e.netPay)}</span></p>
+                            {!isWeekly && <p className="text-[10px] text-primary font-bold">Próximo fechamento: {formatDateBR(nextInstDate)}</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {generalStatus}
                           {canEdit && (
-                            <Button size="sm" variant="outline" onClick={() => closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>
-                              <Plus className="h-3 w-3 mr-1" /> Gerar Próxima
+                            <Button size="sm" variant="outline" onClick={() => isWeekly ? generateWeeklyClosingsMutation.mutate(e.id) : closingMutation.mutate(e.id)} disabled={closingMutation.isPending || generateWeeklyClosingsMutation.isPending}>
+                              <Plus className="h-3 w-3 mr-1" /> {isWeekly ? "Gerar Semanas" : "Gerar Próxima"}
                             </Button>
                           )}
                           {canEdit && e.closing && (
@@ -1782,7 +1905,7 @@ const HR = () => {
                         </div>
                       </div>
 
-                      {e.closing && (
+                      {(e.closing || isWeekly) && (
                         <div className="space-y-3">
                           {(() => {
                             const totalInsts = empInsts.reduce((sum: number, inst: any) => sum + (Number(inst.amount) || 0), 0);
@@ -1804,8 +1927,69 @@ const HR = () => {
                           })()}
                           
                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {empInsts.map((inst) => {
-                              const isPaid = inst.status === "pago";
+                            {isWeekly ? (
+                              empWeeklyClosings.map((wc: any) => {
+                                const isPaid = wc.status === 'pago';
+                                const wcOvertime = overtime.filter(o => o.employee_id === e.id && o.date >= wc.start_date && o.date <= wc.end_date).reduce((s, o) => s + Number(o.calculated_value), 0);
+                                const wcSaturdays = saturdays.filter(s => s.employee_id === e.id && s.date >= wc.start_date && s.date <= wc.end_date).reduce((s, sat) => s + Number(sat.calculated_value), 0);
+                                const wcHolidays = holidays.filter((h: any) => h.employee_id === e.id && h.date >= wc.start_date && h.date <= wc.end_date).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
+                                const wcAbsences = absences.filter((a: any) => a.employee_id === e.id && a.date >= wc.start_date && a.date <= wc.end_date).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
+                                const wcAdvances = advances.filter(a => a.employee_id === e.id && a.date >= wc.start_date && a.date <= wc.end_date).reduce((s, a) => s + Number(a.amount), 0);
+                                
+                                const baseValue = (Number(wc.base_value) || 0) * (Number(wc.weeks_worked) || 1);
+                                const netPay = baseValue + wcOvertime + wcSaturdays + wcHolidays - wcAbsences - wcAdvances;
+
+                                if (wc.net_pay !== netPay) {
+                                  updateWeeklyClosingMutation.mutate({ id: wc.id, net_pay: netPay, overtime_value: wcOvertime, saturday_value: wcSaturdays, holiday_value: wcHolidays, absence_value: wcAbsences, advances_value: wcAdvances });
+                                }
+
+                                return (
+                                  <div key={wc.id} className={`p-3 rounded-md border space-y-2 relative group ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
+                                    <div className="flex items-center justify-between">
+                                      <div className="space-y-0.5 text-left">
+                                        <p className="font-bold text-sm">Semana {wc.week_number}</p>
+                                        <p className="text-[10px] text-muted-foreground font-semibold">
+                                          {formatDateBR(wc.start_date)} a {formatDateBR(wc.end_date)}
+                                        </p>
+                                        <Badge variant="outline" className="text-[9px] h-3.5 px-1">{isPaid ? `Pago em ${formatDateBR(wc.payment_date)}` : 'Pendente'}</Badge>
+                                      </div>
+                                      <div className="flex flex-col items-end gap-1">
+                                        <div className="text-right">
+                                          <p className="text-xs font-bold">{fmt(netPay)}</p>
+                                          <p className="text-[9px] text-muted-foreground">Base: {fmt(baseValue)}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      {isPaid ? (
+                                        <Badge variant="default" className="w-full justify-center py-1">PAGO</Badge>
+                                      ) : (
+                                        <Button 
+                                          variant="default" 
+                                          size="sm" 
+                                          className="h-7 text-[10px] flex-1"
+                                          onClick={() => {
+                                            openInputDialog({
+                                              title: `Pagar Semana ${wc.week_number}`,
+                                              fields: [
+                                                { key: "date", label: "Data Pagamento", type: "date", value: localDateString() },
+                                                { key: "method", label: "Forma", type: "select", value: "pix", options: [{value:'pix',label:'PIX'},{value:'dinheiro',label:'Dinheiro'},{value:'transferencia',label:'Transferência'}] },
+                                                { key: "account", label: "Conta", type: "select", value: accounts[0]?.id || "", options: accounts.map(a => ({value:a.id, label:a.name})) }
+                                              ],
+                                              onSubmit: (vals) => payWeeklyClosingMutation.mutate({ wc, payment_date: vals.date, payment_method: vals.method, account_id: vals.account })
+                                            });
+                                          }}
+                                        >
+                                          Pagar Semana
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              empInsts.map((inst: any) => {
+                                const isPaid = inst.status === "pago";
                               const payMonth = inst.expected_date ? inst.expected_date.slice(0, 7) : "";
                               const isDiffMonth = payMonth && payMonth !== inst.month_ref;
 
@@ -1931,7 +2115,8 @@ const HR = () => {
                                   </div>
                                 </div>
                               );
-                            })}
+                              })
+                            )}
                             
                             {canEdit && (
                               <Button 

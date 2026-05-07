@@ -17,7 +17,21 @@ const Employees = () => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", daily_rate: "", payment_notes: "" });
+  const [form, setForm] = useState({ 
+    name: "", 
+    email: "", 
+    phone: "", 
+    role: "", 
+    salary: "", 
+    weekly_salary: "",
+    payment_type: "mensal",
+    hire_date: "", 
+    active: true, 
+    saturday_value: "", 
+    overtime_hourly_rate: "", 
+    daily_rate: "", 
+    payment_notes: "" 
+  });
 
   const { data: employees = [] } = useQuery({
     queryKey: ["employees"],
@@ -36,7 +50,9 @@ const Employees = () => {
         email: emp.email || null,
         phone: emp.phone || null,
         role: emp.role || null,
-        salary: parseFloat(emp.salary) || null,
+        salary: emp.payment_type === "mensal" ? (parseFloat(emp.salary) || null) : null,
+        weekly_salary: emp.payment_type === "semanal" ? (parseFloat(emp.weekly_salary) || 0) : 0,
+        payment_type: emp.payment_type,
         hire_date: emp.hire_date || null,
         active: emp.active,
         saturday_value: parseFloat(emp.saturday_value) || 0,
@@ -66,8 +82,44 @@ const Employees = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const openNew = () => { setEditing(null); setForm({ name: "", email: "", phone: "", role: "", salary: "", hire_date: "", active: true, saturday_value: "", overtime_hourly_rate: "", daily_rate: "", payment_notes: "" }); setOpen(true); };
-  const openEdit = (e: any) => { setEditing(e); setForm({ name: e.name, email: e.email ?? "", phone: e.phone ?? "", role: e.role ?? "", salary: e.salary ? String(e.salary) : "", hire_date: e.hire_date ?? "", active: e.active, saturday_value: e.saturday_value ? String(e.saturday_value) : "", overtime_hourly_rate: e.overtime_hourly_rate ? String(e.overtime_hourly_rate) : "", daily_rate: e.daily_rate ? String(e.daily_rate) : "", payment_notes: e.payment_notes ?? "" }); setOpen(true); };
+  const openNew = () => { 
+    setEditing(null); 
+    setForm({ 
+      name: "", 
+      email: "", 
+      phone: "", 
+      role: "", 
+      salary: "", 
+      weekly_salary: "",
+      payment_type: "mensal",
+      hire_date: "", 
+      active: true, 
+      saturday_value: "", 
+      overtime_hourly_rate: "", 
+      daily_rate: "", 
+      payment_notes: "" 
+    }); 
+    setOpen(true); 
+  };
+  const openEdit = (e: any) => { 
+    setEditing(e); 
+    setForm({ 
+      name: e.name, 
+      email: e.email ?? "", 
+      phone: e.phone ?? "", 
+      role: e.role ?? "", 
+      salary: e.salary ? String(e.salary) : "", 
+      weekly_salary: e.weekly_salary ? String(e.weekly_salary) : "",
+      payment_type: e.payment_type ?? "mensal",
+      hire_date: e.hire_date ?? "", 
+      active: e.active, 
+      saturday_value: e.saturday_value ? String(e.saturday_value) : "", 
+      overtime_hourly_rate: e.overtime_hourly_rate ? String(e.overtime_hourly_rate) : "", 
+      daily_rate: e.daily_rate ? String(e.daily_rate) : "", 
+      payment_notes: e.payment_notes ?? "" 
+    }); 
+    setOpen(true); 
+  };
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -108,36 +160,73 @@ const Employees = () => {
                   <div><Label>Telefone</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Função</Label><Input value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} /></div>
-                  <div><Label>Salário (R$)</Label><Input type="number" step="0.01" value={form.salary} onChange={e => {
-                    const newSalary = e.target.value;
-                    const sal = parseFloat(newSalary) || 0;
-                    setForm(prev => ({
-                      ...prev,
-                      salary: newSalary,
-                      saturday_value: (!prev.saturday_value || parseFloat(prev.saturday_value) === 0) && sal > 0 ? (sal / 10).toFixed(2) : prev.saturday_value,
-                      overtime_hourly_rate: (!prev.overtime_hourly_rate || parseFloat(prev.overtime_hourly_rate) === 0) && sal > 0 ? (sal / 220).toFixed(2) : prev.overtime_hourly_rate,
-                      daily_rate: (!prev.daily_rate || parseFloat(prev.daily_rate) === 0) && sal > 0 ? (sal / 30).toFixed(2) : prev.daily_rate,
-                    }));
-                  }} /></div>
+                  <div>
+                    <Label>Tipo de Pagamento</Label>
+                    <select 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={form.payment_type}
+                      onChange={e => setForm({ ...form, payment_type: e.target.value })}
+                    >
+                      <option value="mensal">Mensal (Quinzenal)</option>
+                      <option value="semanal">Semanal</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Função</Label>
+                    <Input value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {form.payment_type === "mensal" ? (
+                    <div>
+                      <Label>Salário Mensal (R$)</Label>
+                      <Input type="number" step="0.01" value={form.salary} onChange={e => {
+                        const newSalary = e.target.value;
+                        const sal = parseFloat(newSalary) || 0;
+                        setForm(prev => ({
+                          ...prev,
+                          salary: newSalary,
+                          saturday_value: (!prev.saturday_value || parseFloat(prev.saturday_value) === 0) && sal > 0 ? (sal / 10).toFixed(2) : prev.saturday_value,
+                          overtime_hourly_rate: (!prev.overtime_hourly_rate || parseFloat(prev.overtime_hourly_rate) === 0) && sal > 0 ? (sal / 220).toFixed(2) : prev.overtime_hourly_rate,
+                          daily_rate: (!prev.daily_rate || parseFloat(prev.daily_rate) === 0) && sal > 0 ? (sal / 30).toFixed(2) : prev.daily_rate,
+                        }));
+                      }} />
+                    </div>
+                  ) : (
+                    <div>
+                      <Label>Valor Semanal Fixo (R$)</Label>
+                      <Input type="number" step="0.01" value={form.weekly_salary} onChange={e => {
+                        const newWeekly = e.target.value;
+                        const val = parseFloat(newWeekly) || 0;
+                        setForm(prev => ({
+                          ...prev,
+                          weekly_salary: newWeekly,
+                          saturday_value: (!prev.saturday_value || parseFloat(prev.saturday_value) === 0) && val > 0 ? ((val / 5) * 2).toFixed(2) : prev.saturday_value,
+                          overtime_hourly_rate: (!prev.overtime_hourly_rate || parseFloat(prev.overtime_hourly_rate) === 0) && val > 0 ? (val / 44).toFixed(2) : prev.overtime_hourly_rate,
+                          daily_rate: (!prev.daily_rate || parseFloat(prev.daily_rate) === 0) && val > 0 ? (val / 5).toFixed(2) : prev.daily_rate,
+                        }));
+                      }} />
+                      <p className="text-xs text-muted-foreground mt-1">Calcula diária (÷5) e valor hora (÷44h)</p>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Valor Sábado (R$)</Label>
-                    <Input type="number" step="0.01" value={form.saturday_value} onChange={e => setForm({ ...form, saturday_value: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 10).toFixed(2)}` : ""} />
-                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 10 (editável)</p>
+                    <Input type="number" step="0.01" value={form.saturday_value} onChange={e => setForm({ ...form, saturday_value: e.target.value })} />
+                    <p className="text-xs text-muted-foreground mt-1">Padrão: {form.payment_type === "mensal" ? "salário ÷ 10" : "diária × 2"}</p>
                   </div>
                   <div>
                     <Label>Valor Hora Extra (R$)</Label>
-                    <Input type="number" step="0.01" value={form.overtime_hourly_rate} onChange={e => setForm({ ...form, overtime_hourly_rate: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 220).toFixed(2)}` : ""} />
-                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 220h (editável)</p>
+                    <Input type="number" step="0.01" value={form.overtime_hourly_rate} onChange={e => setForm({ ...form, overtime_hourly_rate: e.target.value })} />
+                    <p className="text-xs text-muted-foreground mt-1">Padrão: {form.payment_type === "mensal" ? "salário ÷ 220h" : "semanal ÷ 44h"}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
                   <div>
                     <Label>Valor Diária (R$)</Label>
-                    <Input type="number" step="0.01" value={form.daily_rate} onChange={e => setForm({ ...form, daily_rate: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 30).toFixed(2)}` : ""} />
-                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 30 (usado em feriados)</p>
+                    <Input type="number" step="0.01" value={form.daily_rate} onChange={e => setForm({ ...form, daily_rate: e.target.value })} />
+                    <p className="text-xs text-muted-foreground mt-1">Padrão: {form.payment_type === "mensal" ? "salário ÷ 30" : "semanal ÷ 5"}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 items-end">
@@ -174,9 +263,22 @@ const Employees = () => {
           <TableBody>
             {filtered.map(e => (
               <TableRow key={e.id}>
-                <TableCell className="font-medium">{e.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {e.name}
+                    {e.payment_type === "semanal" && <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Semanal</Badge>}
+                  </div>
+                </TableCell>
                 <TableCell className="hidden md:table-cell">{e.role}</TableCell>
-                <TableCell className="hidden md:table-cell">{e.salary ? fmt(Number(e.salary)) : "-"}</TableCell>
+                <TableCell className="hidden md:table-cell">
+                  {e.payment_type === "semanal" ? (
+                    <div className="text-sm">
+                      {fmt(Number(e.weekly_salary))} <span className="text-[10px] text-muted-foreground">/sem</span>
+                    </div>
+                  ) : (
+                    e.salary ? fmt(Number(e.salary)) : "-"
+                  )}
+                </TableCell>
                 <TableCell className="hidden lg:table-cell">{fmt(Number(e.saturday_value) || 0)}</TableCell>
                 <TableCell className="hidden lg:table-cell">{fmt(Number(e.overtime_hourly_rate) || 0)}/h</TableCell>
                 <TableCell className="hidden xl:table-cell">{fmt(Number(e.daily_rate) || 0)}</TableCell>
