@@ -115,22 +115,29 @@ const Employees = () => {
                     setForm(prev => ({
                       ...prev,
                       salary: newSalary,
-                      // Auto-preenche apenas se ainda não foi definido manualmente
-                      saturday_value: (!prev.saturday_value || parseFloat(prev.saturday_value) === 0) && sal > 0 ? (sal / 30).toFixed(2) : prev.saturday_value,
+                      saturday_value: (!prev.saturday_value || parseFloat(prev.saturday_value) === 0) && sal > 0 ? (sal / 10).toFixed(2) : prev.saturday_value,
                       overtime_hourly_rate: (!prev.overtime_hourly_rate || parseFloat(prev.overtime_hourly_rate) === 0) && sal > 0 ? (sal / 220).toFixed(2) : prev.overtime_hourly_rate,
+                      daily_rate: (!prev.daily_rate || parseFloat(prev.daily_rate) === 0) && sal > 0 ? (sal / 30).toFixed(2) : prev.daily_rate,
                     }));
                   }} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Valor Sábado (R$)</Label>
-                    <Input type="number" step="0.01" value={form.saturday_value} onChange={e => setForm({ ...form, saturday_value: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 30).toFixed(2)}` : ""} />
-                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 30 (editável)</p>
+                    <Input type="number" step="0.01" value={form.saturday_value} onChange={e => setForm({ ...form, saturday_value: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 10).toFixed(2)}` : ""} />
+                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 10 (editável)</p>
                   </div>
                   <div>
                     <Label>Valor Hora Extra (R$)</Label>
                     <Input type="number" step="0.01" value={form.overtime_hourly_rate} onChange={e => setForm({ ...form, overtime_hourly_rate: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 220).toFixed(2)}` : ""} />
                     <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 220h (editável)</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <Label>Valor Diária (R$)</Label>
+                    <Input type="number" step="0.01" value={form.daily_rate} onChange={e => setForm({ ...form, daily_rate: e.target.value })} placeholder={form.salary ? `Sugerido: ${(parseFloat(form.salary) / 30).toFixed(2)}` : ""} />
+                    <p className="text-xs text-muted-foreground mt-1">Padrão: salário ÷ 30 (usado em feriados)</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 items-end">
