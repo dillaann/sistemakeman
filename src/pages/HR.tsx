@@ -265,7 +265,7 @@ const HR = () => {
       if (salary <= 0) throw new Error(`Cadastre o salário base de ${emp.name} antes de registrar`);
       const days = parseFloat(absForm.day_quantity);
       if (!days || days <= 0) throw new Error("Informe a quantidade de faltas (decimais permitidos)");
-      const dailyRate = salary / 30;
+      const dailyRate = salary / 20;
       const total = dailyRate * days;
       const { error } = await supabase.from("employee_absences" as any).insert({
         employee_id: absForm.employee_id,
