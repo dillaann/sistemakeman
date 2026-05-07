@@ -72,6 +72,8 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
   const [form, setForm] = useState({ ...emptyForm });
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeInternalTab, setActiveInternalTab] = useState("nfe");
+  const [ignoreDateFilter, setIgnoreDateFilter] = useState(false);
 
   const processFile = async (selectedFile: File) => {
     setIsProcessing(true);
@@ -99,6 +101,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       // 3. Update form
       setForm(f => ({
         ...f,
+        type: extracted.type || f.type,
         invoice_number: extracted.invoice_number || f.invoice_number,
         issue_date: extracted.issue_date || f.issue_date,
         entity_name: extracted.entity_name || f.entity_name,
@@ -109,6 +112,12 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         description: extracted.payment_condition ? `Condição: ${extracted.payment_condition}. ${f.description}` : f.description,
         service_description: extracted.items?.[0]?.description || f.service_description,
       }));
+
+      if (extracted.type?.startsWith('nfse')) {
+        setActiveInternalTab('nfse');
+      } else if (extracted.type?.startsWith('nfe')) {
+        setActiveInternalTab('nfe');
+      }
 
       toast({ 
         title: "Dados extraídos com sucesso", 
@@ -246,11 +255,16 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       );
     }
     // Filter by date range at the end
-    if (dateRange) {
+    if (dateRange && !ignoreDateFilter) {
       list = list.filter((i: any) => isInRange(i.issue_date, dateRange));
     }
     return list;
-  }, [invoices, dateRange, typeFilter, statusFilter, search]);
+  }, [invoices, dateRange, typeFilter, statusFilter, search, ignoreDateFilter]);
+
+  const hiddenCount = useMemo(() => {
+    if (!dateRange || ignoreDateFilter) return 0;
+    return invoices.filter(i => !isInRange(i.issue_date, dateRange)).length;
+  }, [invoices, dateRange, ignoreDateFilter]);
 
   const nfeItems = filtered.filter((i: any) => i.type === "nfe_entrada" || i.type === "nfe_saida");
   const nfseItems = filtered.filter((i: any) => i.type === "nfse_emitida" || i.type === "nfse_recebida");
@@ -413,6 +427,16 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
             <SelectItem value="pendente">Pendente</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-background">
+          <Label htmlFor="ignore-date" className="text-xs cursor-pointer">Ver todas as datas</Label>
+          <input 
+            id="ignore-date"
+            type="checkbox" 
+            checked={ignoreDateFilter} 
+            onChange={e => setIgnoreDateFilter(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+        </div>
         <Dialog open={open} onOpenChange={v => { if (!v) { setEditId(null); setForm({ ...emptyForm }); setFile(null); } setOpen(v); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-1" /> Nova Nota Fiscal</Button>
@@ -570,15 +594,22 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       </div>
 
       {/* NF-e / NFS-e Tabs */}
-      <Tabs defaultValue="nfe" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="nfe" className="flex items-center gap-1">
-            <FileText className="h-4 w-4" /> NF-e (Comércio) ({nfeItems.length})
-          </TabsTrigger>
-          <TabsTrigger value="nfse" className="flex items-center gap-1">
-            <FileText className="h-4 w-4" /> NFS-e (Serviço) ({nfseItems.length})
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeInternalTab} onValueChange={setActiveInternalTab} className="w-full">
+        <div className="flex items-center justify-between mb-2">
+          <TabsList className="grid w-[400px] grid-cols-2">
+            <TabsTrigger value="nfe" className="flex items-center gap-1">
+              <FileText className="h-4 w-4" /> NF-e (Comércio) ({nfeItems.length})
+            </TabsTrigger>
+            <TabsTrigger value="nfse" className="flex items-center gap-1">
+              <FileText className="h-4 w-4" /> NFS-e (Serviço) ({nfseItems.length})
+            </TabsTrigger>
+          </TabsList>
+          {hiddenCount > 0 && !ignoreDateFilter && (
+            <p className="text-xs text-muted-foreground bg-yellow-500/10 text-yellow-700 px-2 py-1 rounded border border-yellow-500/20">
+              {hiddenCount} notas ocultas pelo filtro de data. <button onClick={() => setIgnoreDateFilter(true)} className="underline font-medium">Ver todas</button>
+            </p>
+          )}
+        </div>
         <TabsContent value="nfe">{renderTable(nfeItems)}</TabsContent>
         <TabsContent value="nfse">{renderTable(nfseItems)}</TabsContent>
       </Tabs>
