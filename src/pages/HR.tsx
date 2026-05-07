@@ -774,7 +774,7 @@ const HR = () => {
       const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
       
       const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
-        type: "saida" as any,
+        type: "a_pagar" as any,
         description: desc,
         amount: Number(wc.net_pay),
         due_date: payment_date,
