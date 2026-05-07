@@ -722,6 +722,98 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const generateWeeklyClosingsMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const emp = employees.find(e => e.id === employeeId);
+      if (!emp) throw new Error("Funcionário não encontrado");
+      
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      const weeks = [];
+      let currentDay = 1;
+      let weekNum = 1;
+      
+      while (currentDay <= daysInMonth) {
+        const start = `${selectedMonth}-${String(currentDay).padStart(2, '0')}`;
+        let endDay = currentDay + 6;
+        if (endDay > daysInMonth) endDay = daysInMonth;
+        const end = `${selectedMonth}-${String(endDay).padStart(2, '0')}`;
+        
+        weeks.push({
+          employee_id: employeeId,
+          month_ref: selectedMonth,
+          week_number: weekNum,
+          start_date: start,
+          end_date: end,
+          base_value: Number(emp.weekly_salary) || 0,
+          weeks_worked: 1,
+          status: 'pendente'
+        });
+        
+        currentDay += 7;
+        weekNum++;
+      }
+      
+      // Delete existing weekly closings for this month first
+      await supabase.from("weekly_closings").delete().eq("employee_id", employeeId).eq("month_ref", selectedMonth);
+      
+      const { error } = await supabase.from("weekly_closings").insert(weeks);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-closings"] });
+      toast({ title: "Semanas geradas com sucesso!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const payWeeklyClosingMutation = useMutation({
+    mutationFn: async ({ wc, payment_date, payment_method, account_id }: { wc: any, payment_date: string, payment_method: string, account_id: string }) => {
+      const emp = employees.find(e => e.id === wc.employee_id);
+      const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
+      
+      const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
+        type: "saida",
+        description: desc,
+        amount: Number(wc.net_pay),
+        due_date: payment_date,
+        paid_date: payment_date,
+        status: "pago",
+        category: "Folha de Pagamento",
+        payment_method,
+        account_id,
+        sync_origin: "payroll",
+      }).select("id").single();
+      
+      if (ftErr) throw ftErr;
+      
+      const { error } = await supabase.from("weekly_closings").update({
+        status: 'pago',
+        payment_date,
+        payment_method,
+        financial_account_id: account_id
+      }).eq("id", wc.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      toast({ title: "Semana paga e lançada no financeiro!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const updateWeeklyClosingMutation = useMutation({
+    mutationFn: async (wc: any) => {
+      const { error } = await supabase.from("weekly_closings").update(wc).eq("id", wc.id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["weekly-closings"] }),
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   // Helpers para abrir dialog de pagamento de quinzena
   const openPayInstallment = (inst: any) => {
     setPayInstContext(inst);
@@ -1778,7 +1870,7 @@ const HR = () => {
                         <div className="flex items-center gap-2">
                           {generalStatus}
                           {canEdit && (
-                            <Button size="sm" variant="outline" onClick={() => isWeekly ? console.log("Weekly logic") : closingMutation.mutate(e.id)} disabled={closingMutation.isPending}>
+                            <Button size="sm" variant="outline" onClick={() => isWeekly ? generateWeeklyClosingsMutation.mutate(e.id) : closingMutation.mutate(e.id)} disabled={closingMutation.isPending || generateWeeklyClosingsMutation.isPending}>
                               <Plus className="h-3 w-3 mr-1" /> {isWeekly ? "Gerar Semanas" : "Gerar Próxima"}
                             </Button>
                           )}
@@ -1835,8 +1927,69 @@ const HR = () => {
                           })()}
                           
                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {empInsts.map((inst) => {
-                              const isPaid = inst.status === "pago";
+                            {isWeekly ? (
+                              empWeeklyClosings.map((wc: any) => {
+                                const isPaid = wc.status === 'pago';
+                                const wcOvertime = overtime.filter(o => o.employee_id === e.id && o.date >= wc.start_date && o.date <= wc.end_date).reduce((s, o) => s + Number(o.calculated_value), 0);
+                                const wcSaturdays = saturdays.filter(s => s.employee_id === e.id && s.date >= wc.start_date && s.date <= wc.end_date).reduce((s, sat) => s + Number(sat.calculated_value), 0);
+                                const wcHolidays = holidays.filter((h: any) => h.employee_id === e.id && h.date >= wc.start_date && h.date <= wc.end_date).reduce((s: number, h: any) => s + Number(h.calculated_value), 0);
+                                const wcAbsences = absences.filter((a: any) => a.employee_id === e.id && a.date >= wc.start_date && a.date <= wc.end_date).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
+                                const wcAdvances = advances.filter(a => a.employee_id === e.id && a.date >= wc.start_date && a.date <= wc.end_date).reduce((s, a) => s + Number(a.amount), 0);
+                                
+                                const baseValue = (Number(wc.base_value) || 0) * (Number(wc.weeks_worked) || 1);
+                                const netPay = baseValue + wcOvertime + wcSaturdays + wcHolidays - wcAbsences - wcAdvances;
+
+                                if (wc.net_pay !== netPay) {
+                                  updateWeeklyClosingMutation.mutate({ id: wc.id, net_pay: netPay, overtime_value: wcOvertime, saturday_value: wcSaturdays, holiday_value: wcHolidays, absence_value: wcAbsences, advances_value: wcAdvances });
+                                }
+
+                                return (
+                                  <div key={wc.id} className={`p-3 rounded-md border space-y-2 relative group ${isPaid ? "bg-green-500/5 border-green-500/30" : "bg-muted/30"}`}>
+                                    <div className="flex items-center justify-between">
+                                      <div className="space-y-0.5 text-left">
+                                        <p className="font-bold text-sm">Semana {wc.week_number}</p>
+                                        <p className="text-[10px] text-muted-foreground font-semibold">
+                                          {formatDateBR(wc.start_date)} a {formatDateBR(wc.end_date)}
+                                        </p>
+                                        <Badge variant="outline" className="text-[9px] h-3.5 px-1">{isPaid ? `Pago em ${formatDateBR(wc.payment_date)}` : 'Pendente'}</Badge>
+                                      </div>
+                                      <div className="flex flex-col items-end gap-1">
+                                        <div className="text-right">
+                                          <p className="text-xs font-bold">{fmt(netPay)}</p>
+                                          <p className="text-[9px] text-muted-foreground">Base: {fmt(baseValue)}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      {isPaid ? (
+                                        <Badge variant="default" className="w-full justify-center py-1">PAGO</Badge>
+                                      ) : (
+                                        <Button 
+                                          variant="default" 
+                                          size="sm" 
+                                          className="h-7 text-[10px] flex-1"
+                                          onClick={() => {
+                                            openInputDialog({
+                                              title: `Pagar Semana ${wc.week_number}`,
+                                              fields: [
+                                                { key: "date", label: "Data Pagamento", type: "date", value: localDateString() },
+                                                { key: "method", label: "Forma", type: "select", value: "pix", options: [{value:'pix',label:'PIX'},{value:'dinheiro',label:'Dinheiro'},{value:'transferencia',label:'Transferência'}] },
+                                                { key: "account", label: "Conta", type: "select", value: accounts[0]?.id || "", options: accounts.map(a => ({value:a.id, label:a.name})) }
+                                              ],
+                                              onSubmit: (vals) => payWeeklyClosingMutation.mutate({ wc, payment_date: vals.date, payment_method: vals.method, account_id: vals.account })
+                                            });
+                                          }}
+                                        >
+                                          Pagar Semana
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              empInsts.map((inst) => {
+                                const isPaid = inst.status === "pago";
                               const payMonth = inst.expected_date ? inst.expected_date.slice(0, 7) : "";
                               const isDiffMonth = payMonth && payMonth !== inst.month_ref;
 
