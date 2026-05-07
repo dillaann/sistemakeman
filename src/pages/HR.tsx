@@ -339,23 +339,25 @@ const HR = () => {
   // ── Helpers para cálculo de quinzena dinâmica ──
   const getNextFriday = (date: Date): string => {
     const d = new Date(date.getTime());
-    // Se hoje é sexta, o usuário quer +15 dias e a PRÓXIMA sexta.
-    // Mas a regra diz: 15 dias a partir do último pagamento, e fecha na SEXTA mais próxima.
-    // Interpretando: base + 15 dias. Se cair numa terça, a sexta mais próxima é a daquela mesma semana? 
-    // Ou a regra é "pelo menos 15 dias"? 
-    // "hoje + 15 dias = próxima sexta-feira". Exemplo: Terça + 15 = Quinta -> Próxima Sexta.
     const target = new Date(d.getTime());
     target.setDate(target.getDate() + 15);
-    
-    // Encontrar a sexta-feira dessa semana ou da próxima para garantir que seja >= target
-    let day = target.getDay(); // 0=Dom, 5=Sex, 6=Sáb
+    let day = target.getDay();
     let diff = (5 - day + 7) % 7;
     target.setDate(target.getDate() + diff);
-    
-    // TODO: Verificar feriados (se necessário implementar lista de feriados nacionais)
-    // Por enquanto, apenas o cálculo base.
     return localDateString(target);
   };
+
+  const getPreviousFriday = (dateStr: string): string => {
+    const d = parseLocalDate(dateStr) || new Date();
+    d.setDate(d.getDate() - 14);
+    let day = d.getDay();
+    let diff = (day - 5 + 7) % 7;
+    d.setDate(d.getDate() - diff);
+    return localDateString(d);
+  };
+
+  const [viewQuinzenaDate, setViewQuinzenaDate] = useState(getNextFriday(new Date()));
+
 
   // ── Closing (gera fechamento + quinzenas dinâmicas) ──
   const closingMutation = useMutation({
