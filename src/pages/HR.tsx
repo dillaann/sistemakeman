@@ -339,23 +339,25 @@ const HR = () => {
   // ── Helpers para cálculo de quinzena dinâmica ──
   const getNextFriday = (date: Date): string => {
     const d = new Date(date.getTime());
-    // Se hoje é sexta, o usuário quer +15 dias e a PRÓXIMA sexta.
-    // Mas a regra diz: 15 dias a partir do último pagamento, e fecha na SEXTA mais próxima.
-    // Interpretando: base + 15 dias. Se cair numa terça, a sexta mais próxima é a daquela mesma semana? 
-    // Ou a regra é "pelo menos 15 dias"? 
-    // "hoje + 15 dias = próxima sexta-feira". Exemplo: Terça + 15 = Quinta -> Próxima Sexta.
     const target = new Date(d.getTime());
     target.setDate(target.getDate() + 15);
-    
-    // Encontrar a sexta-feira dessa semana ou da próxima para garantir que seja >= target
-    let day = target.getDay(); // 0=Dom, 5=Sex, 6=Sáb
+    let day = target.getDay();
     let diff = (5 - day + 7) % 7;
     target.setDate(target.getDate() + diff);
-    
-    // TODO: Verificar feriados (se necessário implementar lista de feriados nacionais)
-    // Por enquanto, apenas o cálculo base.
     return localDateString(target);
   };
+
+  const getPreviousFriday = (dateStr: string): string => {
+    const d = parseLocalDate(dateStr) || new Date();
+    d.setDate(d.getDate() - 14);
+    let day = d.getDay();
+    let diff = (day - 5 + 7) % 7;
+    d.setDate(d.getDate() - diff);
+    return localDateString(d);
+  };
+
+  const [viewQuinzenaDate, setViewQuinzenaDate] = useState(getNextFriday(new Date()));
+
 
   // ── Closing (gera fechamento + quinzenas dinâmicas) ──
   const closingMutation = useMutation({
@@ -453,13 +455,16 @@ const HR = () => {
   });
 
   const addInstMutation = useMutation({
-    mutationFn: async ({ employeeId, monthRef, installmentNumber }: { employeeId: string; monthRef: string; installmentNumber: number }) => {
+    mutationFn: async ({ employeeId, monthRef, installmentNumber, expectedDate, periodStart, periodEnd }: { employeeId: string; monthRef: string; installmentNumber: number; expectedDate?: string; periodStart?: string | null; periodEnd?: string | null }) => {
       const { error } = await supabase.from("salary_installments" as any).insert({
         employee_id: employeeId,
         month_ref: monthRef,
         installment_number: installmentNumber,
         amount: 0,
         status: "pendente",
+        expected_date: expectedDate || localDateString(),
+        period_start: periodStart,
+        period_end: periodEnd,
       });
       if (error) throw error;
     },
@@ -977,80 +982,176 @@ const HR = () => {
           </div>
         </TabsContent>
 
-        {/* ── Salários ── */}
+        {/* ── Salários (Quinzenas) ── */}
         <TabsContent value="salarios" className="space-y-4">
-          <div className="flex justify-between flex-wrap gap-2">
-            {canEdit && (
-              <Dialog open={advOpen} onOpenChange={setAdvOpen}><DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-2" />Novo Adiantamento/Vale</Button></DialogTrigger>
-                <DialogContent><DialogHeader><DialogTitle>Registrar Adiantamento/Vale</DialogTitle></DialogHeader>
-                  <form onSubmit={e => { e.preventDefault(); advMutation.mutate(); }} className="space-y-3">
-                    <div><Label>Funcionário *</Label><select className={selectClass} value={advForm.employee_id} onChange={e => setAdvForm({ ...advForm, employee_id: e.target.value })} required><option value="">Selecione</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-                    <div className="grid grid-cols-2 gap-3"><div><Label>Tipo *</Label><select className={selectClass} value={advForm.type} onChange={e => setAdvForm({ ...advForm, type: e.target.value })}><option value="adiantamento">Adiantamento</option><option value="vale">Vale</option></select></div><div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={advForm.amount} onChange={e => setAdvForm({ ...advForm, amount: e.target.value })} required /></div></div>
-                    <div><Label>Descrição</Label><Input value={advForm.description} onChange={e => setAdvForm({ ...advForm, description: e.target.value })} /></div>
-                    <div><Label>Data</Label><Input type="date" value={advForm.date} onChange={e => setAdvForm({ ...advForm, date: e.target.value })} /></div>
-                    <Button type="submit" className="w-full" disabled={advMutation.isPending}>Salvar</Button>
-                  </form></DialogContent></Dialog>
-            )}
-            {canEdit && (
-              <Dialog open={payInstOpen} onOpenChange={(o) => { setPayInstOpen(o); if (!o) setPayInstContext(null); }}>
-                <DialogContent className="max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>
-                      Pagar {payInstContext?.installment_number === 1 ? "1ª" : "2ª"} Quinzena — {selectedPayEmployee?.name}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={e => { e.preventDefault(); payInstallmentMutation.mutate(); }} className="space-y-3">
-                    {selectedPayEmployee && payInstContext && (
-                      <div className="p-3 rounded-md bg-muted text-sm space-y-1">
-                        <p>Mês de Referência: <span className="font-bold">{monthLabel(payInstContext.month_ref)}</span></p>
-                        <p>Líquido total do mês: <span className="font-bold">{fmt(selectedPayEmployee.netPay)}</span></p>
-                        <p className="text-xs text-muted-foreground">A data real do pagamento pode ser em outro mês — o registro permanece em {monthLabel(payInstContext.month_ref)}.</p>
-                      </div>
-                    )}
-                    <div><Label>Valor da Quinzena (R$) *</Label>
-                      <Input type="number" step="0.01" min="0.01" value={payInstForm.amount} onChange={e => setPayInstForm({ ...payInstForm, amount: e.target.value })} required />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><Label>Data Real do Pagamento *</Label><Input type="date" value={payInstForm.payment_date} onChange={e => setPayInstForm({ ...payInstForm, payment_date: e.target.value })} required /></div>
-                      <div><Label>Forma de Pagamento *</Label>
-                        <select className={selectClass} value={payInstForm.payment_method} onChange={e => setPayInstForm({ ...payInstForm, payment_method: e.target.value })}>
-                          <option value="pix">PIX</option><option value="transferencia">Transferência</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div><Label>Conta de Origem</Label>
-                      <select className={selectClass} value={payInstForm.account_id} onChange={e => setPayInstForm({ ...payInstForm, account_id: e.target.value })}>
-                        <option value="">Selecione (opcional)</option>
-                        {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>
-                    </div>
-                    <div><Label>Observações</Label><Input value={payInstForm.notes} onChange={e => setPayInstForm({ ...payInstForm, notes: e.target.value })} /></div>
-                    <Button type="submit" className="w-full" disabled={payInstallmentMutation.isPending || !payInstForm.amount}>
-                      Confirmar Pagamento
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="space-y-1">
+                <CardTitle className="text-lg">Gestão de Quinzenas</CardTitle>
+                <div className="text-sm font-medium text-primary">
+                  {(() => {
+                    const instsOnDate = installments.filter((i: any) => i.expected_date === viewQuinzenaDate);
+                    if (instsOnDate.length === 0) return "Nenhuma quinzena programada para esta data.";
+                    const start = instsOnDate[0].period_start ? formatDateBR(instsOnDate[0].period_start) : "?";
+                    const end = instsOnDate[0].period_end ? formatDateBR(instsOnDate[0].period_end) : "?";
+                    return `Período: ${start} a ${end}`;
+                  })()}
+                </div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider font-bold">
+                  Fechamento: Sexta-feira {formatDateBR(viewQuinzenaDate)}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setViewQuinzenaDate(getPreviousFriday(viewQuinzenaDate))}>
+                  <Calendar className="h-4 w-4 mr-1" /> {"< Anterior"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setViewQuinzenaDate(getNextFriday(parseLocalDate(viewQuinzenaDate)!))}>
+                  {"Próxima >"} <Calendar className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Funcionário</TableHead>
+                      <TableHead className="hidden md:table-cell">Cargo</TableHead>
+                      <TableHead>Valor para essa quinzena</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-24 text-right">Ação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const filtered = installments.filter((i: any) => i.expected_date === viewQuinzenaDate);
+                      if (filtered.length === 0) return <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma quinzena para esta data. Use o botão + Adicionar ou gere pelo Dashboard.</TableCell></TableRow>;
+                      
+                      return filtered.map((inst: any) => {
+                        const isPaid = inst.status === "pago";
+                        const emp = employees.find(e => e.id === inst.employee_id);
+                        
+                        return (
+                          <TableRow key={inst.id} className={isPaid ? "bg-green-500/5" : ""}>
+                            <TableCell className="font-medium">{emp?.name || "Funcionário"}</TableCell>
+                            <TableCell className="hidden md:table-cell text-muted-foreground">{emp?.role || "-"}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 max-w-[150px]">
+                                <span className="text-xs font-bold text-muted-foreground">R$</span>
+                                <Input
+                                  defaultValue={Number(inst.amount) || ""}
+                                  className="h-8 font-bold"
+                                  placeholder="0,00"
+                                  disabled={isPaid || editInstMutation.isPending}
+                                  onBlur={(e) => {
+                                    const v = parseFloat(e.target.value.replace(",", "."));
+                                    if (!isNaN(v) && v !== Number(inst.amount)) {
+                                      editInstMutation.mutate({ id: inst.id, amount: v });
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {isPaid ? <Badge variant="default">PAGO</Badge> : <Badge variant="outline">PENDENTE</Badge>}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                {!isPaid && (
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => openPayInstallment(inst)}>
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => {
+                                  openInputDialog({
+                                    title: `Editar Quinzena — ${emp?.name}`,
+                                    fields: [
+                                      { key: "start", label: "Início Período", type: "date", value: inst.period_start || "" },
+                                      { key: "end", label: "Fim Período", type: "date", value: inst.period_end || "" },
+                                      { key: "pay", label: "Data Fechamento", type: "date", value: inst.expected_date || "" },
+                                    ],
+                                    onSubmit: (vals) => editInstMutation.mutate({ id: inst.id, period_start: vals.start, period_end: vals.end, expected_date: vals.pay })
+                                  });
+                                }}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                <div className="text-lg font-bold flex items-center gap-2">
+                  <span className="text-muted-foreground text-sm uppercase">Total da Quinzena:</span>
+                  {fmt(installments.filter((i: any) => i.expected_date === viewQuinzenaDate).reduce((s, i) => s + (Number(i.amount) || 0), 0))}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => {
+                    openInputDialog({
+                      title: "Adicionar Funcionário nesta Quinzena",
+                      description: "Escolha o funcionário para adicionar à data " + formatDateBR(viewQuinzenaDate),
+                      fields: [
+                        { key: "emp_id", label: "Funcionário", type: "select", value: "", options: employees.map(e => ({ value: e.id, label: e.name })) }
+                      ],
+                      onSubmit: (vals) => {
+                        const instsOnDate = installments.filter((i: any) => i.expected_date === viewQuinzenaDate);
+                        const pStart = instsOnDate.length > 0 ? instsOnDate[0].period_start : null;
+                        const pEnd = instsOnDate.length > 0 ? instsOnDate[0].period_end : null;
+                        
+                        addInstMutation.mutate({ 
+                          employeeId: vals.emp_id, 
+                          monthRef: selectedMonth, 
+                          installmentNumber: 1,
+                          expectedDate: viewQuinzenaDate,
+                          periodStart: pStart,
+                          periodEnd: pEnd
+                        } as any);
+                      }
+                    });
+                  }}>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar Funcionário
+                  </Button>
+                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => {
+                    const toPay = installments.filter((i: any) => i.expected_date === viewQuinzenaDate && i.status !== "pago");
+                    if (toPay.length === 0) {
+                      toast({ title: "Nada para pagar", description: "Todas as quinzenas desta data já estão pagas ou não existem." });
+                      return;
+                    }
+                    if (window.confirm(`Deseja confirmar o pagamento de ${toPay.length} funcionários nesta quinzena?`)) {
+                      // Implementation of bulk pay could be added here or just individual
+                      toPay.forEach(inst => openPayInstallment(inst));
+                    }
+                  }}>
+                    <CheckCircle className="h-4 w-4 mr-2" /> Confirmar Pagamento
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Painel de Salários — {monthLabel(selectedMonth)}</CardTitle></CardHeader>
-            <CardContent className="overflow-auto">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center justify-between">
+                Resumo Mensal do Mês — {monthLabel(selectedMonth)}
+                <Badge variant="outline">{selectedMonth}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-auto pt-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Funcionário</TableHead>
                     <TableHead>Salário Base</TableHead>
-                    <TableHead>H. Extras</TableHead>
-                    <TableHead>Sábados</TableHead>
-                    <TableHead>Feriados</TableHead>
-                    <TableHead>Vales/Adiant.</TableHead>
-                    <TableHead>Faltas</TableHead>
+                    <TableHead>Acréscimos</TableHead>
+                    <TableHead>Descontos</TableHead>
                     <TableHead>Líquido</TableHead>
                     <TableHead>Pago</TableHead>
                     <TableHead>Restante</TableHead>
-                    <TableHead className="w-40">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1058,36 +1159,18 @@ const HR = () => {
                     <TableRow key={e.id}>
                       <TableCell className="font-medium">{e.name}</TableCell>
                       <TableCell>{fmt(e.baseSalary)}</TableCell>
-                      <TableCell className="text-primary">{e.empOvertime > 0 ? fmt(e.empOvertime) : "-"}</TableCell>
-                      <TableCell className="text-primary">{e.empSaturdays > 0 ? fmt(e.empSaturdays) : "-"}</TableCell>
-                      <TableCell className="text-primary">{e.empHolidays > 0 ? fmt(e.empHolidays) : "-"}</TableCell>
-                      <TableCell className="text-amber-600">{e.empAdvances > 0 ? fmt(e.empAdvances) : "-"}</TableCell>
-                      <TableCell className="text-destructive">{e.empAbsences > 0 ? fmt(e.empAbsences) : "-"}</TableCell>
-                      
+                      <TableCell className="text-primary">{fmt(e.empOvertime + e.empSaturdays + e.empHolidays)}</TableCell>
+                      <TableCell className="text-destructive">{fmt(e.empAdvances + e.empAbsences)}</TableCell>
                       <TableCell className="font-bold">{fmt(e.netPay)}</TableCell>
-                      <TableCell className="text-green-600">{e.totalPaid > 0 ? fmt(e.totalPaid) : "-"}</TableCell>
-                      <TableCell className="font-bold">
-                        {e.remaining <= 0
-                          ? <Badge variant="default">Quitado</Badge>
-                          : <span className="text-amber-600">{fmt(e.remaining)}</span>}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {canEdit && (
-                            <Button size="sm" variant="ghost" onClick={() => openEditEmp(e)} title="Editar salário">
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
-                          {/* Pagamento agora é feito por quinzena na aba Fechamento */}
-                        </div>
-                      </TableCell>
+                      <TableCell className="text-green-600">{fmt(e.totalPaid)}</TableCell>
+                      <TableCell className="font-bold text-amber-600">{fmt(e.remaining)}</TableCell>
                     </TableRow>
                   ))}
-                  {employeeSummary.length === 0 && <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">Nenhum funcionário ativo.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
+
 
           <Card><CardHeader><CardTitle className="text-base">Adiantamentos/Vales — {monthLabel(selectedMonth)}</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Tipo</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="hidden md:table-cell">Descrição</TableHead>{canEdit && <TableHead className="w-12"></TableHead>}</TableRow></TableHeader><TableBody>{advances.map(a => (<TableRow key={a.id}><TableCell className="font-medium">{(a.employees as any)?.name}</TableCell><TableCell><Badge variant={a.type === "vale" ? "destructive" : "secondary"}>{a.type === "vale" ? "Vale" : "Adiantamento"}</Badge></TableCell><TableCell>{fmt(Number(a.amount))}</TableCell><TableCell>{formatDateBR(a.date)}</TableCell><TableCell className="hidden md:table-cell">{a.description || "-"}</TableCell>{canEdit && <TableCell><EditBtn onClick={() => openEdit({ table: 'employee_advances', id: a.id, title: 'Editar Vale/Adiantamento', invalidate: ['employee-advances'], fields: [{ key: 'amount', label: 'Valor (R$)', type: 'number', step: '0.01', value: String(Number(a.amount)||0), required: true }, { key: 'type', label: 'Tipo', type: 'select', value: a.type, options: [{value:'adiantamento',label:'Adiantamento'},{value:'vale',label:'Vale'}] }, { key: 'date', label: 'Data', type: 'date', value: a.date }, { key: 'description', label: 'Descrição', type: 'text', value: a.description || '' }, { key: 'month_ref', label: 'Mês de Referência (YYYY-MM)', type: 'text', value: a.month_ref, placeholder: 'AAAA-MM', required: true }], transform: (v) => ({ amount: parseFloat(v.amount)||0, type: v.type, date: v.date, description: v.description||null, month_ref: v.month_ref }) })} /><DeleteBtn table="employee_advances" id={a.id} label={`${a.type} de ${(a.employees as any)?.name}`} /></TableCell>}</TableRow>))}{advances.length === 0 && <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
 
