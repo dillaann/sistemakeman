@@ -1153,10 +1153,9 @@ const HR = () => {
                       toast({ title: "Nada para pagar", description: "Todas as quinzenas desta data já estão pagas ou não existem." });
                       return;
                     }
-                    if (window.confirm(`Deseja confirmar o pagamento de ${toPay.length} funcionários nesta quinzena?`)) {
-                      // Implementation of bulk pay could be added here or just individual
-                      toPay.forEach(inst => openPayInstallment(inst));
-                    }
+                    setBulkPayInsts(toPay);
+                    setBulkPayForm({ payment_date: localDateString(), payment_method: "pix", account_id: "", notes: "" });
+                    setBulkPayOpen(true);
                   }}>
                     <CheckCircle className="h-4 w-4 mr-2" /> Confirmar Pagamento
                   </Button>
