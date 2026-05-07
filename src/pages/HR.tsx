@@ -1095,7 +1095,7 @@ const HR = () => {
                             <TableCell className="hidden md:table-cell text-muted-foreground">{emp?.role || "-"}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2 max-w-[150px]">
-                                <span className="text-xs font-bold text-muted-foreground">R$</span>
+                                <span className="text-muted-foreground text-xs font-bold shrink-0">R$</span>
                                 <Input
                                   defaultValue={Number(inst.amount) || ""}
                                   className="h-8 font-bold"
