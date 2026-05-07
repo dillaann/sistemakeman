@@ -265,7 +265,7 @@ const HR = () => {
       if (salary <= 0) throw new Error(`Cadastre o salário base de ${emp.name} antes de registrar`);
       const days = parseFloat(absForm.day_quantity);
       if (!days || days <= 0) throw new Error("Informe a quantidade de faltas (decimais permitidos)");
-      const dailyRate = salary / 20;
+      const dailyRate = salary / 30;
       const total = dailyRate * days;
       const { error } = await supabase.from("employee_absences" as any).insert({
         employee_id: absForm.employee_id,
@@ -311,14 +311,22 @@ const HR = () => {
       const emp = employees.find(e => e.id === employeeId);
       const salary = Number(emp?.salary) || 0;
       const hireDate = parseLocalDate(emp?.hire_date);
-      const now = new Date();
+      const targetYear = selectedYear;
       let monthsWorked = 12;
-      if (hireDate && hireDate.getFullYear() === selectedYear) {
-        monthsWorked = now.getMonth() - hireDate.getMonth() + 1;
-        if (monthsWorked < 1) monthsWorked = 1;
+      
+      if (hireDate && hireDate.getFullYear() === targetYear) {
+        // Regra: o mês de admissão só conta se trabalhou 15 dias ou mais no mês
+        const admissionMonthCounts = hireDate.getDate() <= 15;
+        const startMonth = admissionMonthCounts ? hireDate.getMonth() : hireDate.getMonth() + 1;
+        // Calcula meses até dezembro (mês 11)
+        monthsWorked = 12 - startMonth;
+        if (monthsWorked < 0) monthsWorked = 0;
+      } else if (hireDate && hireDate.getFullYear() > targetYear) {
+        monthsWorked = 0;
       }
+      
       const provision = salary / 12;
-      const total = (salary / 12) * monthsWorked;
+      const total = provision * monthsWorked;
       const firstInstallment = Math.round((total / 2) * 100) / 100;
       const secondInstallment = Math.round((total - firstInstallment) * 100) / 100;
 
@@ -787,7 +795,10 @@ const HR = () => {
   const totalHolidayDays = useMemo(() => holidays.reduce((s: number, h: any) => s + Number(h.day_quantity), 0), [holidays]);
   const totalAbsences = useMemo(() => absences.reduce((s: number, a: any) => s + Number(a.calculated_value), 0), [absences]);
   const totalAbsenceDays = useMemo(() => absences.reduce((s: number, a: any) => s + Number(a.day_quantity), 0), [absences]);
-  const total13thProvision = useMemo(() => thirteenths.reduce((s, t) => s + Number(t.monthly_provision) * (new Date().getMonth() + 1), 0), [thirteenths]);
+  const total13thProvision = useMemo(() => {
+    const currentMonthNum = parseInt(selectedMonth.split("-")[1]) || 1;
+    return thirteenths.reduce((s, t) => s + (Number(t.monthly_provision) * currentMonthNum), 0);
+  }, [thirteenths, selectedMonth]);
 
   const vacationAlerts = useMemo(() => {
     const today = new Date();
@@ -1006,8 +1017,7 @@ const HR = () => {
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Horas Extras</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalOvertime)}</div><p className="text-xs text-muted-foreground">{overtime.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Sábados</CardTitle><Calendar className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalSaturdays)}</div><p className="text-xs text-muted-foreground">{saturdays.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Feriados</CardTitle><PartyPopper className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-primary">{fmt(totalHolidays)}</div><p className="text-xs text-muted-foreground">{holidays.length} feriado(s) trabalhado(s)</p></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Vales/Adiant.</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{fmt(totalAdvances)}</div></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Vales</CardTitle><Banknote className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalAdvances)}</div><p className="text-xs text-muted-foreground">{advances.length} registros</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Vales/Adiant.</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-amber-600">{fmt(totalAdvances)}</div><p className="text-xs text-muted-foreground">{advances.length} registros</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Faltas do Mês</CardTitle><UserMinus className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{fmt(totalAbsences)}</div><p className="text-xs text-muted-foreground">{totalAbsenceDays} dia(s) — {absences.length} registro(s)</p></CardContent></Card>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
