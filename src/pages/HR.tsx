@@ -1988,7 +1988,7 @@ const HR = () => {
                                 );
                               })
                             ) : (
-                              empInsts.map((inst) => {
+                              empInsts.map((inst: any) => {
                                 const isPaid = inst.status === "pago";
                               const payMonth = inst.expected_date ? inst.expected_date.slice(0, 7) : "";
                               const isDiffMonth = payMonth && payMonth !== inst.month_ref;
