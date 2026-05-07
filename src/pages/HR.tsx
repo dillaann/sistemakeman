@@ -1134,10 +1134,13 @@ const HR = () => {
                         const pStart = instsOnDate.length > 0 ? instsOnDate[0].period_start : null;
                         const pEnd = instsOnDate.length > 0 ? instsOnDate[0].period_end : null;
                         
+                        const empInstsForEmp = installments.filter((i: any) => i.employee_id === vals.emp_id);
+                        const nextNum = empInstsForEmp.length > 0 ? Math.max(...empInstsForEmp.map((i: any) => i.installment_number || 0)) + 1 : 1;
+                        
                         addInstMutation.mutate({ 
                           employeeId: vals.emp_id, 
                           monthRef: selectedMonth, 
-                          installmentNumber: 1,
+                          installmentNumber: nextNum,
                           expectedDate: viewQuinzenaDate,
                           periodStart: pStart,
                           periodEnd: pEnd
