@@ -41,6 +41,7 @@ Campos obrigatórios:
 - net_amount (valor líquido, número decimal)
 - entity_name (razão social do cliente/destinatário)
 - entity_cnpj (CNPJ do cliente/destinatário)
+- type (identifique se é: "nfe_saida" (venda de produto), "nfe_entrada" (compra), "nfse_emitida" (serviço prestado) ou "nfse_recebida" (serviço tomado))
 - items (array de objetos com: description, quantity, unit_price, total_price)
 - payment_condition (ex: "30 dias", "à vista", "pix")
 - due_date (data de vencimento, YYYY-MM-DD ou null)
