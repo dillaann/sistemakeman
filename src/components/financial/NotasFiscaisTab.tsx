@@ -99,6 +99,7 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
       // 3. Update form
       setForm(f => ({
         ...f,
+        type: extracted.type || f.type,
         invoice_number: extracted.invoice_number || f.invoice_number,
         issue_date: extracted.issue_date || f.issue_date,
         entity_name: extracted.entity_name || f.entity_name,
