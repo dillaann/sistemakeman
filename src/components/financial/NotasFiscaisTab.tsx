@@ -427,6 +427,16 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
             <SelectItem value="pendente">Pendente</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-background">
+          <Label htmlFor="ignore-date" className="text-xs cursor-pointer">Ver todas as datas</Label>
+          <input 
+            id="ignore-date"
+            type="checkbox" 
+            checked={ignoreDateFilter} 
+            onChange={e => setIgnoreDateFilter(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+        </div>
         <Dialog open={open} onOpenChange={v => { if (!v) { setEditId(null); setForm({ ...emptyForm }); setFile(null); } setOpen(v); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-1" /> Nova Nota Fiscal</Button>
