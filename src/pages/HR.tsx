@@ -41,6 +41,8 @@ const HR = () => {
 
   // ── Delete state ──
   const [deleteTarget, setDeleteTarget] = useState<{ table: string; id: string; label: string } | null>(null);
+  const [deleteWeekTarget, setDeleteWeekTarget] = useState<{ wc: any; employeeName: string } | null>(null);
+  const isAdmin = userRole === "admin";
 
   // ── Queries ──
   const { data: employees = [] } = useQuery({
@@ -814,6 +816,31 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const deleteWeeklyClosingMutation = useMutation({
+    mutationFn: async ({ wc }: { wc: any }) => {
+      // If paid, remove linked financial transaction (matched by exact description created at payment time)
+      if (wc.status === 'pago') {
+        const emp = employees.find(e => e.id === wc.employee_id);
+        const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
+        await supabase
+          .from("financial_transactions")
+          .delete()
+          .eq("description", desc)
+          .eq("sync_origin", "payroll");
+      }
+      const { error } = await supabase.from("weekly_closings").delete().eq("id", wc.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
+      setDeleteWeekTarget(null);
+      toast({ title: "Semana excluída!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
+  });
+
   // Helpers para abrir dialog de pagamento de quinzena
   const openPayInstallment = (inst: any) => {
     setPayInstContext(inst);
@@ -989,6 +1016,19 @@ const HR = () => {
         description={`Tem certeza que deseja excluir "${deleteTarget?.label}"? Esta ação não pode ser desfeita.`}
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate({ table: deleteTarget.table, id: deleteTarget.id }); }}
         isPending={deleteMutation.isPending}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!deleteWeekTarget}
+        onOpenChange={(open) => { if (!open) setDeleteWeekTarget(null); }}
+        title="Excluir Semana"
+        description={
+          deleteWeekTarget
+            ? `Tem certeza que deseja excluir a Semana ${deleteWeekTarget.wc.week_number} de ${deleteWeekTarget.employeeName}? Esta ação não pode ser desfeita.${deleteWeekTarget.wc.status === 'pago' ? ' ⚠️ Esta semana já foi paga. Excluir irá remover o lançamento correspondente no Financeiro. Confirmar?' : ''}`
+            : ''
+        }
+        onConfirm={() => { if (deleteWeekTarget) deleteWeeklyClosingMutation.mutate({ wc: deleteWeekTarget.wc }); }}
+        isPending={deleteWeeklyClosingMutation.isPending}
       />
 
       {/* Edit Employee Salary Dialog */}
@@ -1958,6 +1998,17 @@ const HR = () => {
                                           <p className="text-xs font-bold">{fmt(netPay)}</p>
                                           <p className="text-[9px] text-muted-foreground">Base: {fmt(baseValue)}</p>
                                         </div>
+                                        {isAdmin && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-destructive hover:text-destructive"
+                                            title="Excluir semana"
+                                            onClick={() => setDeleteWeekTarget({ wc, employeeName: e.name })}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="flex gap-1">
