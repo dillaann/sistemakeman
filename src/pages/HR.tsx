@@ -41,6 +41,8 @@ const HR = () => {
 
   // ── Delete state ──
   const [deleteTarget, setDeleteTarget] = useState<{ table: string; id: string; label: string } | null>(null);
+  const [deleteWeekTarget, setDeleteWeekTarget] = useState<{ wc: any; employeeName: string } | null>(null);
+  const isAdmin = userRole === "admin";
 
   // ── Queries ──
   const { data: employees = [] } = useQuery({
