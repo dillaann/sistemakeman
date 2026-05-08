@@ -1018,6 +1018,19 @@ const HR = () => {
         isPending={deleteMutation.isPending}
       />
 
+      <ConfirmDeleteDialog
+        open={!!deleteWeekTarget}
+        onOpenChange={(open) => { if (!open) setDeleteWeekTarget(null); }}
+        title="Excluir Semana"
+        description={
+          deleteWeekTarget
+            ? `Tem certeza que deseja excluir a Semana ${deleteWeekTarget.wc.week_number} de ${deleteWeekTarget.employeeName}? Esta ação não pode ser desfeita.${deleteWeekTarget.wc.status === 'pago' ? ' ⚠️ Esta semana já foi paga. Excluir irá remover o lançamento correspondente no Financeiro. Confirmar?' : ''}`
+            : ''
+        }
+        onConfirm={() => { if (deleteWeekTarget) deleteWeeklyClosingMutation.mutate({ wc: deleteWeekTarget.wc }); }}
+        isPending={deleteWeeklyClosingMutation.isPending}
+      />
+
       {/* Edit Employee Salary Dialog */}
       <Dialog open={editEmpOpen} onOpenChange={setEditEmpOpen}>
         <DialogContent>
