@@ -62,9 +62,12 @@ export function fmt(v: number): string {
 }
 
 export function monthLabel(m: string): string {
+  if (!m || typeof m !== "string" || !m.includes("-")) return m || "";
   const [y, mo] = m.split("-");
+  const monthIdx = parseInt(mo) - 1;
   const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-  return `${months[parseInt(mo) - 1]}/${y}`;
+  if (monthIdx < 0 || monthIdx > 11) return m;
+  return `${months[monthIdx]}/${y}`;
 }
 
 export function getNextFriday(date: Date): string {

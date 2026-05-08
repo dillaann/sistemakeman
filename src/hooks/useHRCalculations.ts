@@ -25,8 +25,9 @@ export const useHRCalculations = (
   const totalAbsenceDays = useMemo(() => absences.reduce((s: number, a: any) => s + Number(a.day_quantity), 0), [absences]);
   
   const total13thProvision = useMemo(() => {
-    const currentMonthNum = parseInt(selectedMonth.split("-")[1]) || 1;
-    return thirteenths.reduce((s, t) => s + (Number(t.monthly_provision) * currentMonthNum), 0);
+    const parts = selectedMonth?.split("-");
+    const currentMonthNum = parts && parts.length > 1 ? parseInt(parts[1]) : 1;
+    return thirteenths.reduce((s, t) => s + (Number(t.monthly_provision) * (currentMonthNum || 1)), 0);
   }, [thirteenths, selectedMonth]);
 
   const vacationAlerts = useMemo(() => {
