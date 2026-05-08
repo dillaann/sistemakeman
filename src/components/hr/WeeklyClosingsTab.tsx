@@ -45,7 +45,7 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
         status: "pago",
         paid_date: wc.closing_date,
         financial_transaction_id: ft!.id
-      }).eq("id", wc.id);
+      } as any).eq("id", wc.id);
       
       if (error) throw error;
     },
