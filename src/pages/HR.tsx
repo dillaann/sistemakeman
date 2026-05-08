@@ -1985,6 +1985,17 @@ const HR = () => {
                                           <p className="text-xs font-bold">{fmt(netPay)}</p>
                                           <p className="text-[9px] text-muted-foreground">Base: {fmt(baseValue)}</p>
                                         </div>
+                                        {isAdmin && (
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-destructive hover:text-destructive"
+                                            title="Excluir semana"
+                                            onClick={() => setDeleteWeekTarget({ wc, employeeName: e.name })}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="flex gap-1">
