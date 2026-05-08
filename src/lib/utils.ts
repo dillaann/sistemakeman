@@ -52,3 +52,18 @@ export function addDaysToLocalDateString(days: number, baseDate: Date = new Date
   next.setDate(next.getDate() + days);
   return localDateString(next);
 }
+
+export function daysBetween(a: Date, b: Date): number {
+  return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function fmt(v: number): string {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function monthLabel(m: string): string {
+  const [y, mo] = m.split("-");
+  const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  return `${months[parseInt(mo) - 1]}/${y}`;
+}
+
