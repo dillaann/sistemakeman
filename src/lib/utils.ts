@@ -52,3 +52,39 @@ export function addDaysToLocalDateString(days: number, baseDate: Date = new Date
   next.setDate(next.getDate() + days);
   return localDateString(next);
 }
+
+export function daysBetween(a: Date, b: Date): number {
+  return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function fmt(v: number): string {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function monthLabel(m: string): string {
+  const [y, mo] = m.split("-");
+  const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  return `${months[parseInt(mo) - 1]}/${y}`;
+}
+
+export function getNextFriday(date: Date): string {
+  const target = new Date(date.getTime());
+  target.setDate(target.getDate() + 15);
+  const day = target.getDay();
+  let diff = 5 - day;
+  if (diff > 3) diff -= 7;
+  if (diff < -3) diff += 7;
+  target.setDate(target.getDate() + diff);
+  return localDateString(target);
+}
+
+export function getPreviousFriday(dateStr: string): string {
+  const d = parseLocalDate(dateStr) || new Date();
+  d.setDate(d.getDate() - 14);
+  let day = d.getDay();
+  let diff = (day - 5 + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return localDateString(d);
+}
+
+
