@@ -67,3 +67,24 @@ export function monthLabel(m: string): string {
   return `${months[parseInt(mo) - 1]}/${y}`;
 }
 
+export function getNextFriday(date: Date): string {
+  const target = new Date(date.getTime());
+  target.setDate(target.getDate() + 15);
+  const day = target.getDay();
+  let diff = 5 - day;
+  if (diff > 3) diff -= 7;
+  if (diff < -3) diff += 7;
+  target.setDate(target.getDate() + diff);
+  return localDateString(target);
+}
+
+export function getPreviousFriday(dateStr: string): string {
+  const d = parseLocalDate(dateStr) || new Date();
+  d.setDate(d.getDate() - 14);
+  let day = d.getDay();
+  let diff = (day - 5 + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return localDateString(d);
+}
+
+
