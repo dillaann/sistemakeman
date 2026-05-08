@@ -816,6 +816,31 @@ const HR = () => {
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const deleteWeeklyClosingMutation = useMutation({
+    mutationFn: async ({ wc }: { wc: any }) => {
+      // If paid, remove linked financial transaction (matched by exact description created at payment time)
+      if (wc.status === 'pago') {
+        const emp = employees.find(e => e.id === wc.employee_id);
+        const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
+        await supabase
+          .from("financial_transactions")
+          .delete()
+          .eq("description", desc)
+          .eq("sync_origin", "payroll");
+      }
+      const { error } = await supabase.from("weekly_closings").delete().eq("id", wc.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["weekly-closings"] });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
+      setDeleteWeekTarget(null);
+      toast({ title: "Semana excluída!" });
+    },
+    onError: (e: any) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
+  });
+
   // Helpers para abrir dialog de pagamento de quinzena
   const openPayInstallment = (inst: any) => {
     setPayInstContext(inst);
