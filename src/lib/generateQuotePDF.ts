@@ -26,6 +26,11 @@ interface QuoteClient {
   city?: string | null;
   state?: string | null;
   cpf_cnpj?: string | null;
+  email?: string | null;
+  cep?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  number?: string | null;
 }
 
 interface QuotePDFData {
@@ -216,15 +221,33 @@ export async function generateQuotePDF(data: QuotePDFData) {
   doc.setFont("helvetica", "bold");
   doc.text("Endereco:", labelX, y);
   doc.setFont("helvetica", "normal");
-  const clientAddr = [data.client.address, data.client.city, data.client.state].filter(Boolean).join(", ");
-  doc.text(clientAddr, valueX, y);
-  y += 5;
+  const addrParts = [
+    data.client.address,
+    data.client.number,
+    data.client.complement,
+    data.client.neighborhood,
+    data.client.city,
+    data.client.state,
+    data.client.cep ? `CEP: ${data.client.cep}` : null
+  ].filter(Boolean).join(", ");
+  const addrLines = doc.splitTextToSize(addrParts || "Não informado", cw - 40);
+  doc.text(addrLines, valueX, y);
+  y += (addrLines.length * 5);
 
   doc.setFont("helvetica", "bold");
   doc.text("Telefone:", labelX, y);
   doc.setFont("helvetica", "normal");
-  doc.text(data.client.phone ?? "", valueX, y);
-  y += 6;
+  doc.text(data.client.phone ?? "Não informado", valueX, y);
+  y += 5;
+
+  if (data.client.email) {
+    doc.setFont("helvetica", "bold");
+    doc.text("E-mail:", labelX, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(data.client.email, valueX, y);
+    y += 5;
+  }
+  y += 1;
 
   // ===== ITENS DO ORÇAMENTO =====
   drawDarkBanner(doc, margin, y, cw, 7, "ITENS DO ORÇAMENTO");
