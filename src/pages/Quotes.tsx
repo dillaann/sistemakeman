@@ -135,7 +135,7 @@ const Quotes = () => {
   const { data: quotes = [] } = useQuery({
     queryKey: ["quotes"],
     queryFn: async () => {
-      const { data } = await supabase.from("quotes").select("*, clients(name, phone, address, city, state, cpf_cnpj), quote_items(*)").order("created_at", { ascending: false });
+      const { data } = await supabase.from("quotes").select("*, clients(*), quote_items(*)").order("created_at", { ascending: false });
       return data ?? [];
     },
   });
@@ -897,7 +897,19 @@ const Quotes = () => {
 
     await generateQuotePDF({
       date: dateStr,
-      client: { name: client?.name ?? "—", phone: client?.phone, address: client?.address, city: client?.city, state: client?.state, cpf_cnpj: client?.cpf_cnpj },
+      client: { 
+        name: client?.name ?? "—", 
+        phone: client?.phone, 
+        address: client?.address, 
+        city: client?.city, 
+        state: client?.state, 
+        cpf_cnpj: client?.cpf_cnpj,
+        email: client?.email,
+        cep: client?.cep,
+        complement: client?.complement,
+        neighborhood: client?.neighborhood,
+        number: client?.number
+      },
       items: pdfItems,
       total: Number(quote.total),
       description: quote.description,
