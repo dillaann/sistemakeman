@@ -155,7 +155,7 @@ export async function generateQuotePDF(data: QuotePDFData) {
   doc.setFont("helvetica", "bold");
   doc.text("CNPJ:", labelX, y);
   doc.setFont("helvetica", "normal");
-  doc.text("", valueX, y);
+  doc.text("38.527.314/0001-10", valueX, y);
   y += 5;
 
   doc.setFont("helvetica", "bold");
