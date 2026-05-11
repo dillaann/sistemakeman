@@ -135,7 +135,7 @@ const Quotes = () => {
   const { data: quotes = [] } = useQuery({
     queryKey: ["quotes"],
     queryFn: async () => {
-      const { data } = await supabase.from("quotes").select("*, clients(name, phone, address, city, state), quote_items(*)").order("created_at", { ascending: false });
+      const { data } = await supabase.from("quotes").select("*, clients(name, phone, address, city, state, cpf_cnpj), quote_items(*)").order("created_at", { ascending: false });
       return data ?? [];
     },
   });
