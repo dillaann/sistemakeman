@@ -25,6 +25,7 @@ import VacationsTab from "@/components/hr/VacationsTab";
 import ThirteenthTab from "@/components/hr/ThirteenthTab";
 import MonthlyClosingsTab from "@/components/hr/MonthlyClosingsTab";
 import WeeklyClosingsTab from "@/components/hr/WeeklyClosingsTab";
+import WeeklyEditDialog from "@/components/hr/WeeklyEditDialog";
 import HREmployeesTab from "@/components/hr/HREmployeesTab";
 import HREmployeeSummaryTable from "@/components/hr/HREmployeeSummaryTable";
 import HREditDialog from "@/components/hr/HREditDialog";
