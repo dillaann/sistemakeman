@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, DollarSign, Trash2, Pencil } from "lucide-react";
+import { CheckCircle, Trash2, Pencil, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fmt, monthLabel, formatDateBR } from "@/lib/utils";
 
@@ -15,9 +13,11 @@ interface WeeklyClosingsTabProps {
   selectedMonth: string;
   canEdit: boolean;
   onDeleteWeek: (wc: any, employeeName: string) => void;
+  onEditWeek: (wc: any, employee: any) => void;
+  onAddWeek: (employee: any) => void;
 }
 
-const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, onDeleteWeek }: WeeklyClosingsTabProps) => {
+const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, onDeleteWeek, onEditWeek, onAddWeek }: WeeklyClosingsTabProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -25,28 +25,26 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
     mutationFn: async ({ wc, accountId }: { wc: any; accountId: string }) => {
       const emp = employees.find(e => e.id === wc.employee_id);
       const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
-      
-      const { data: ft, error: ftErr } = await supabase.from("financial_transactions").insert({
+      const payDate = wc.payment_date || wc.end_date || new Date().toISOString().slice(0, 10);
+
+      const { error: ftErr } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: desc,
         amount: Number(wc.net_pay),
-        due_date: wc.closing_date,
-        paid_date: wc.closing_date,
+        due_date: payDate,
+        paid_date: payDate,
         status: "pago" as any,
         category: "Folha de Pagamento",
         sync_origin: "payroll",
         account_id: accountId || null,
         payment_method: "pix",
-      }).select("id").single();
-      
+      });
       if (ftErr) throw ftErr;
 
       const { error } = await supabase.from("weekly_closings").update({
         status: "pago",
-        paid_date: wc.closing_date,
-        financial_transaction_id: ft!.id
+        payment_date: payDate,
       } as any).eq("id", wc.id);
-      
       if (error) throw error;
     },
     onSuccess: () => {
@@ -62,7 +60,7 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {weeklyEmployees.map(e => {
-        const closings = weeklyClosings.filter(wc => wc.employee_id === e.id);
+        const closings = weeklyClosings.filter(wc => wc.employee_id === e.id).sort((a, b) => a.week_number - b.week_number);
         const totalNet = closings.reduce((s, wc) => s + Number(wc.net_pay), 0);
         const totalPaid = closings.filter(wc => wc.status === "pago").reduce((s, wc) => s + Number(wc.net_pay), 0);
 
@@ -80,29 +78,43 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
                   <div key={wc.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm">
                     <div className="flex flex-col">
                       <span className="font-medium">Semana {wc.week_number}</span>
-                      <span className="text-[10px] text-muted-foreground">{formatDateBR(wc.closing_date)}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {wc.start_date ? formatDateBR(wc.start_date) : "—"} → {wc.end_date ? formatDateBR(wc.end_date) : "—"}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">{fmt(Number(wc.net_pay))}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold mr-1">{fmt(Number(wc.net_pay))}</span>
                       {wc.status === "pago" ? (
                         <Badge variant="default" className="h-5 px-1 bg-green-500 hover:bg-green-600">PAGO</Badge>
                       ) : (
-                        <Button size="icon" variant="outline" className="h-6 w-6 text-green-600" onClick={() => {
-                          const acc = prompt("ID da conta (opcional):");
-                          payWeeklyClosingMutation.mutate({ wc, accountId: acc || "" });
+                        <Button size="icon" variant="outline" className="h-6 w-6 text-green-600" title="Marcar como pago" onClick={() => {
+                          payWeeklyClosingMutation.mutate({ wc, accountId: "" });
                         }}>
                           <CheckCircle className="h-3 w-3" />
                         </Button>
                       )}
                       {canEdit && (
-                        <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => onDeleteWeek(wc, e.name)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" title="Editar" onClick={() => onEditWeek(wc, e)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Excluir" onClick={() => onDeleteWeek(wc, e.name)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
                 ))}
+                {closings.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">Nenhuma semana registrada</p>
+                )}
               </div>
+              {canEdit && (
+                <Button size="sm" variant="outline" className="w-full" onClick={() => onAddWeek(e)}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar Semana
+                </Button>
+              )}
               <div className="pt-2 border-t flex justify-between text-xs font-bold">
                 <span>TOTAL PAGO:</span>
                 <span className="text-green-600">{fmt(totalPaid)}</span>

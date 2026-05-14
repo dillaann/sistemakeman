@@ -25,6 +25,7 @@ import VacationsTab from "@/components/hr/VacationsTab";
 import ThirteenthTab from "@/components/hr/ThirteenthTab";
 import MonthlyClosingsTab from "@/components/hr/MonthlyClosingsTab";
 import WeeklyClosingsTab from "@/components/hr/WeeklyClosingsTab";
+import WeeklyEditDialog from "@/components/hr/WeeklyEditDialog";
 import HREmployeesTab from "@/components/hr/HREmployeesTab";
 import HREmployeeSummaryTable from "@/components/hr/HREmployeeSummaryTable";
 import HREditDialog from "@/components/hr/HREditDialog";
@@ -62,6 +63,7 @@ const HR = () => {
   // ── States for Dialogs ──
   const [deleteTarget, setDeleteTarget] = useState<{ table: string; id: string; label: string } | null>(null);
   const [deleteWeekTarget, setDeleteWeekTarget] = useState<{ wc: any; employeeName: string } | null>(null);
+  const [weekEdit, setWeekEdit] = useState<{ open: boolean; mode: "edit" | "create"; wc: any | null; employee: any | null }>({ open: false, mode: "create", wc: null, employee: null });
   const [editCtx, setEditCtx] = useState<any | null>(null);
   const [editEmpOpen, setEditEmpOpen] = useState(false);
   const [editEmpForm, setEditEmpForm] = useState({ id: "", name: "", salary: "", saturday_value: "", overtime_hourly_rate: "" });
@@ -264,7 +266,15 @@ const HR = () => {
         
         <TabsContent value="fechamento" className="space-y-6">
           <div className="space-y-6">
-            <WeeklyClosingsTab weeklyClosings={hrData.weeklyClosings} employees={hrData.employees} selectedMonth={selectedMonth} canEdit={isAdmin} onDeleteWeek={(wc, employeeName) => setDeleteWeekTarget({ wc, employeeName })} />
+            <WeeklyClosingsTab
+              weeklyClosings={hrData.weeklyClosings}
+              employees={hrData.employees}
+              selectedMonth={selectedMonth}
+              canEdit={canEdit}
+              onDeleteWeek={(wc, employeeName) => setDeleteWeekTarget({ wc, employeeName })}
+              onEditWeek={(wc, employee) => setWeekEdit({ open: true, mode: "edit", wc, employee })}
+              onAddWeek={(employee) => setWeekEdit({ open: true, mode: "create", wc: null, employee })}
+            />
             <MonthlyClosingsTab 
               closings={hrData.closings} employees={hrData.employees} employeeSummary={calcs.employeeSummary} 
               selectedMonth={selectedMonth} canEdit={canEdit} onEdit={setEditCtx}
@@ -307,6 +317,15 @@ const HR = () => {
         description={deleteWeekTarget ? `Tem certeza que deseja excluir a Semana ${deleteWeekTarget.wc.week_number} de ${deleteWeekTarget.employeeName}? Esta ação não pode ser desfeita.${deleteWeekTarget.wc.status === 'pago' ? ' ⚠️ Esta semana já foi paga. Excluir irá remover o lançamento correspondente no Financeiro. Confirmar?' : ''}` : ''}
         onConfirm={() => { if (deleteWeekTarget) deleteWeeklyClosingMutation.mutate({ wc: deleteWeekTarget.wc }); }}
         isPending={deleteWeeklyClosingMutation.isPending}
+      />
+      <WeeklyEditDialog
+        open={weekEdit.open}
+        mode={weekEdit.mode}
+        wc={weekEdit.wc}
+        employee={weekEdit.employee}
+        monthRef={selectedMonth}
+        accounts={hrData.accounts}
+        onClose={() => setWeekEdit({ open: false, mode: "create", wc: null, employee: null })}
       />
     </div>
   );
