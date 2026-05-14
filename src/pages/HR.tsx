@@ -318,6 +318,15 @@ const HR = () => {
         onConfirm={() => { if (deleteWeekTarget) deleteWeeklyClosingMutation.mutate({ wc: deleteWeekTarget.wc }); }}
         isPending={deleteWeeklyClosingMutation.isPending}
       />
+      <WeeklyEditDialog
+        open={weekEdit.open}
+        mode={weekEdit.mode}
+        wc={weekEdit.wc}
+        employee={weekEdit.employee}
+        monthRef={selectedMonth}
+        accounts={hrData.accounts}
+        onClose={() => setWeekEdit({ open: false, mode: "create", wc: null, employee: null })}
+      />
     </div>
   );
 };
