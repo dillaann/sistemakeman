@@ -62,6 +62,7 @@ const HR = () => {
   // ── States for Dialogs ──
   const [deleteTarget, setDeleteTarget] = useState<{ table: string; id: string; label: string } | null>(null);
   const [deleteWeekTarget, setDeleteWeekTarget] = useState<{ wc: any; employeeName: string } | null>(null);
+  const [weekEdit, setWeekEdit] = useState<{ open: boolean; mode: "edit" | "create"; wc: any | null; employee: any | null }>({ open: false, mode: "create", wc: null, employee: null });
   const [editCtx, setEditCtx] = useState<any | null>(null);
   const [editEmpOpen, setEditEmpOpen] = useState(false);
   const [editEmpForm, setEditEmpForm] = useState({ id: "", name: "", salary: "", saturday_value: "", overtime_hourly_rate: "" });
