@@ -265,7 +265,15 @@ const HR = () => {
         
         <TabsContent value="fechamento" className="space-y-6">
           <div className="space-y-6">
-            <WeeklyClosingsTab weeklyClosings={hrData.weeklyClosings} employees={hrData.employees} selectedMonth={selectedMonth} canEdit={isAdmin} onDeleteWeek={(wc, employeeName) => setDeleteWeekTarget({ wc, employeeName })} />
+            <WeeklyClosingsTab
+              weeklyClosings={hrData.weeklyClosings}
+              employees={hrData.employees}
+              selectedMonth={selectedMonth}
+              canEdit={canEdit}
+              onDeleteWeek={(wc, employeeName) => setDeleteWeekTarget({ wc, employeeName })}
+              onEditWeek={(wc, employee) => setWeekEdit({ open: true, mode: "edit", wc, employee })}
+              onAddWeek={(employee) => setWeekEdit({ open: true, mode: "create", wc: null, employee })}
+            />
             <MonthlyClosingsTab 
               closings={hrData.closings} employees={hrData.employees} employeeSummary={calcs.employeeSummary} 
               selectedMonth={selectedMonth} canEdit={canEdit} onEdit={setEditCtx}
