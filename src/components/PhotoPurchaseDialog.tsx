@@ -235,11 +235,19 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setSaving(true);
     try {
       const itemsTotal = calcItemsTotal();
-      // Prioritize the user's manually entered final total over everything else
+      
+      // If the user hasn't touched the final/original total fields, we use the items total.
+      // This ensures that if they typed 7200 in the items, it stays 7200.
       const finalTotalNota = parseFloat(form.final_total) || itemsTotal;
       const originalTotalNota = parseFloat(form.original_total) || itemsTotal;
       
-      const discountFactor = originalTotalNota > 0 ? finalTotalNota / originalTotalNota : 1;
+      // Calculate discount factor ONLY if the totals differ significantly from the items sum
+      // and from each other.
+      const discountFactor = (originalTotalNota > 0 && Math.abs(originalTotalNota - itemsTotal) > 0.01) 
+        ? finalTotalNota / originalTotalNota 
+        : (Math.abs(finalTotalNota - itemsTotal) > 0.01 && itemsTotal > 0)
+          ? finalTotalNota / itemsTotal
+          : 1;
 
       const items = form.items.filter(i => i.material).map(item => {
         const qty = parseFloat(item.quantity) || 1;
