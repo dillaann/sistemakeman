@@ -48,6 +48,7 @@ const UNIT_OPTIONS = [
   { value: "un", label: "un" },
   { value: "m2", label: "m²" },
   { value: "m", label: "m" },
+  { value: "ml", label: "ml" },
   { value: "kg", label: "kg" },
 ];
 
