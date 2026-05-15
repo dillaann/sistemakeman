@@ -13,6 +13,7 @@ const UNIT_LABELS: Record<string, string> = {
   un: "un",
   m2: "m²",
   m: "m",
+  ml: "ml",
   kg: "kg",
 };
 
