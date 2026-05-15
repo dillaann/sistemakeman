@@ -234,19 +234,16 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
     setSaving(true);
     try {
-      // itemsTotal = soma de (qty * unit_price extraído pela IA) — representa o total ORIGINAL (sem desconto da nota)
       const itemsTotal = calcItemsTotal();
-      // original_total da nota: se informado, usa; senão usa a soma dos itens
-      const originalTotalNota = parseFloat(form.original_total) || itemsTotal;
-      // final_total da nota: se informado, é o valor com desconto. Senão = itemsTotal (sem desconto)
+      // Prioritize the user's manually entered final total over everything else
       const finalTotalNota = parseFloat(form.final_total) || itemsTotal;
-      // Fator de desconto global aplicado uniformemente (ratio entre final e original)
+      const originalTotalNota = parseFloat(form.original_total) || itemsTotal;
+      
       const discountFactor = originalTotalNota > 0 ? finalTotalNota / originalTotalNota : 1;
 
       const items = form.items.filter(i => i.material).map(item => {
         const qty = parseFloat(item.quantity) || 1;
-        const originalUnitPrice = parseFloat(item.unit_price) || 0; // preço de tabela extraído da foto
-        // Preço unitário FINAL após aplicar o desconto rateado da nota
+        const originalUnitPrice = parseFloat(item.unit_price) || 0;
         const finalUnitPrice = originalUnitPrice * discountFactor;
         const itemFinalTotal = qty * finalUnitPrice;
         const itemOriginalTotal = qty * originalUnitPrice;
@@ -258,9 +255,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           material: item.material,
           quantity: qty,
           unit: item.unit,
-          // unit_price salvo é o preço final (com desconto). Garante invariante total = qty * unit_price.
           unit_price: finalUnitPrice,
-          // original_price guarda o preço de tabela (sem desconto) para mostrar a economia
           original_price: discountFactor < 1 && originalUnitPrice > 0 ? originalUnitPrice : null,
           total: itemFinalTotal,
           purchase_date: form.purchase_date,
