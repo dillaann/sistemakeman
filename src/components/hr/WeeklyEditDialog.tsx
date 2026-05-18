@@ -102,33 +102,45 @@ const WeeklyEditDialog = ({ open, mode, wc, employee, monthRef, accounts, onClos
       const { error } = await supabase.from("weekly_closings").update(payload).eq("id", wc.id);
       if (error) throw error;
 
-      // Sync Financeiro if paga
-      if (wc.status === "pago" && payload.status === "pago") {
-        await supabase.from("financial_transactions").update({
-          description: newDesc,
-          amount: payload.net_pay,
-          paid_date: payload.payment_date || wc.payment_date,
-          due_date: payload.payment_date || wc.payment_date,
-          payment_method: payload.payment_method || "pix",
-          account_id: payload.financial_account_id || null,
-        }).eq("description", oldDesc).eq("sync_origin", "payroll");
-      } else if (wc.status === "pago" && payload.status !== "pago") {
+      // Sync Financeiro
+      const payDate = payload.payment_date || wc.payment_date || new Date().toISOString().slice(0, 10);
+
+      if (wc.status === "pago" && payload.status !== "pago") {
         // Was paid, now unpaid: remove FT
         await supabase.from("financial_transactions").delete().eq("description", oldDesc).eq("sync_origin", "payroll");
-      } else if (wc.status !== "pago" && payload.status === "pago") {
-        // Now paid: create FT
-        await supabase.from("financial_transactions").insert({
-          type: "a_pagar" as any,
-          description: newDesc,
-          amount: payload.net_pay,
-          due_date: payload.payment_date || new Date().toISOString().slice(0, 10),
-          paid_date: payload.payment_date || new Date().toISOString().slice(0, 10),
-          status: "pago" as any,
-          category: "Folha de Pagamento",
-          sync_origin: "payroll",
-          account_id: payload.financial_account_id || null,
-          payment_method: payload.payment_method || "pix",
-        });
+      } else if (payload.status === "pago") {
+        // Try to update existing FT; if none exists, insert
+        const { data: existing } = await supabase
+          .from("financial_transactions")
+          .select("id")
+          .eq("description", oldDesc)
+          .eq("sync_origin", "payroll")
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          await supabase.from("financial_transactions").update({
+            description: newDesc,
+            amount: payload.net_pay,
+            paid_date: payDate,
+            due_date: payDate,
+            payment_method: payload.payment_method || "pix",
+            account_id: payload.financial_account_id || null,
+            status: "pago" as any,
+          }).eq("id", existing[0].id);
+        } else {
+          await supabase.from("financial_transactions").insert({
+            type: "a_pagar" as any,
+            description: newDesc,
+            amount: payload.net_pay,
+            due_date: payDate,
+            paid_date: payDate,
+            status: "pago" as any,
+            category: "Folha de Pagamento",
+            sync_origin: "payroll",
+            account_id: payload.financial_account_id || null,
+            payment_method: payload.payment_method || "pix",
+          });
+        }
       }
     },
     onSuccess: () => {
