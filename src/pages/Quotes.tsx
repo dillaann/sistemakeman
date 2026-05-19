@@ -28,7 +28,7 @@ const statusLabels: Record<string, string> = { pendente: "Pendente", aprovado: "
 const paymentStatusColors: Record<string, string> = {
   aguardando: "bg-red-500/10 text-red-700 border-red-500/20",
   entrada_pendente: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
-  entrada_recebida: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  entrada_recebida: "bg-orange-500/10 text-orange-700 border-orange-500/20",
   pagamento_parcial: "bg-orange-500/10 text-orange-700 border-orange-500/20",
   pago_total: "bg-green-500/10 text-green-700 border-green-500/20",
   concluido_pago: "bg-emerald-700/10 text-emerald-800 border-emerald-700/20",
@@ -36,7 +36,7 @@ const paymentStatusColors: Record<string, string> = {
 const paymentStatusLabels: Record<string, string> = {
   aguardando: "Aguardando Pagamento",
   entrada_pendente: "Entrada Pendente",
-  entrada_recebida: "Entrada Recebida",
+  entrada_recebida: "Parcialmente Pago",
   pagamento_parcial: "Parcialmente Pago",
   pago_total: "Pago Total",
   concluido_pago: "Concluído e Pago",
@@ -357,7 +357,7 @@ const Quotes = () => {
           down_payment_date: dpDate,
           remaining_amount: Math.max(newTotal - effectivePaidAmount, 0),
           payment_method: editPayment.payment_method,
-          payment_status: paymentStatus,
+          payment_status: paymentStatus === "entrada_recebida" ? "pagamento_parcial" : paymentStatus,
         } : {}),
       } as any).eq("id", quoteId);
       if (quoteError) throw quoteError;
@@ -429,7 +429,7 @@ const Quotes = () => {
             // Update quote payment info
             await supabase.from("quotes").update({
               remaining_amount: newRemaining,
-              payment_status: paidAmount >= newTotal ? "pago_total" : (paidAmount > 0 ? "entrada_recebida" : "aguardando"),
+              payment_status: paidAmount >= newTotal ? "pago_total" : (paidAmount > 0 ? "pagamento_parcial" : "aguardando"),
               down_payment: paidAmount,
             } as any).eq("id", quoteId);
 
@@ -531,7 +531,7 @@ const Quotes = () => {
         } else if (dpAmount >= total) {
           paymentStatus = "pago_total";
         } else {
-          paymentStatus = "entrada_recebida";
+          paymentStatus = "pagamento_parcial";
         }
       }
 
