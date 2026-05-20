@@ -1,18 +1,18 @@
 /**
- * Cálculo de compras com rateio proporcional de desconto.
+ * Cálculo de compras preservando o valor final digitado pelo usuário.
  * 
  * Regras críticas (cobertas por testes de regressão):
  * 1. Invariante: total === quantity * unit_price (sempre, com tolerância de centavos)
- * 2. unit_price salvo é o preço FINAL (com desconto aplicado).
- * 3. original_price guarda o preço de tabela (sem desconto), apenas se houve desconto.
- * 4. discount_amount = (qty * original) - (qty * final). Não aplica desconto duas vezes.
+ * 2. Se houver final_total digitado, ele é o total soberano do pedido.
+ * 3. original_price e discount_amount não são usados para alterar o valor salvo.
+ * 4. Nunca reduzir automaticamente o valor digitado como "desconto".
  */
 
 export interface RawPurchaseItem {
   material: string;
   quantity: number;
   unit?: string;
-  /** Preço unitário ORIGINAL (de tabela, sem desconto) extraído da nota. */
+  /** Preço unitário digitado ou extraído da nota. */
   unit_price: number;
   client_id?: string | null;
   work_order_id?: string | null;
@@ -22,9 +22,9 @@ export interface CalculatedPurchaseItem {
   material: string;
   quantity: number;
   unit: string;
-  /** Preço unitário FINAL (com desconto rateado). */
+  /** Preço unitário final, preservando o total digitado. */
   unit_price: number;
-  /** Preço de tabela (apenas se houve desconto), null caso contrário. */
+  /** Mantido para compatibilidade; não usado para desconto automático. */
   original_price: number | null;
   /** Sempre = quantity * unit_price. */
   total: number;
@@ -36,9 +36,9 @@ export interface CalculatedPurchaseItem {
 
 export interface CalculatePurchaseInput {
   items: RawPurchaseItem[];
-  /** Total ORIGINAL da nota (antes do desconto). Se ausente, usa soma dos itens. */
+  /** Campo legado; não reduz valores automaticamente. */
   original_total?: number | null;
-  /** Total FINAL da nota (após desconto). Se ausente, usa soma dos itens (sem desconto). */
+  /** Total digitado pelo usuário. Se ausente, usa soma dos itens. */
   final_total?: number | null;
 }
 
