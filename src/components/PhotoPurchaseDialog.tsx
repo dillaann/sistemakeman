@@ -38,6 +38,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   const [extractedData, setExtractedData] = useState<any>(null);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [finalTotalTouched, setFinalTotalTouched] = useState(false);
 
   // Form state for review
   const [form, setForm] = useState({
@@ -60,6 +61,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setPhotos([]);
     setExtractedData(null);
     setMissingFields([]);
+    setFinalTotalTouched(false);
     setForm({
       supplier_id: "", supplier_name: "",
       purchase_date: localDateString(),
@@ -186,9 +188,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       return {
         ...prev,
         items: newItems,
-        // Sync summary totals with items total when user edits items
         original_total: String(newItemsTotal),
-        final_total: String(newItemsTotal),
+        final_total: finalTotalTouched ? prev.final_total : String(newItemsTotal),
       };
     });
   };
@@ -223,7 +224,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
         ...prev,
         items: newItems,
         original_total: String(newItemsTotal),
-        final_total: String(newItemsTotal),
+        final_total: finalTotalTouched ? prev.final_total : String(newItemsTotal),
       };
     });
   };
@@ -240,22 +241,23 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
     setSaving(true);
     try {
-      const itemsTotal = calcItemsTotal();
-      const typedTotal = parseFloat(form.final_total) || itemsTotal;
-      const totalFactor = itemsTotal > 0 && typedTotal > 0 ? typedTotal / itemsTotal : 1;
-
       const filteredItems = form.items.filter(i => i.material);
+      const itemsTotal = filteredItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      );
+      const confirmedTotal = Number((parseFloat(form.final_total) || itemsTotal).toFixed(2));
+      const totalFactor = itemsTotal > 0 && confirmedTotal > 0 ? confirmedTotal / itemsTotal : 1;
+
       const items = filteredItems.map((item, index) => {
         const qty = parseFloat(item.quantity) || 1;
         const typedUnitPrice = parseFloat(item.unit_price) || 0;
-        const rawTotal = qty * typedUnitPrice * totalFactor;
         const previousTotals = filteredItems
           .slice(0, index)
-          .reduce((sum, previous) => sum + Number(((parseFloat(previous.quantity) || 1) * (parseFloat(previous.unit_price) || 0) * totalFactor).toFixed(2)), 0);
+          .reduce((sum, previous) => sum + Number((((parseFloat(previous.quantity) || 1) * (parseFloat(previous.unit_price) || 0) * totalFactor).toFixed(2))), 0);
         const itemFinalTotal = index === filteredItems.length - 1
-          ? Number((typedTotal - previousTotals).toFixed(2))
-          : Number(rawTotal.toFixed(2));
-        const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : 0;
+          ? Number((confirmedTotal - previousTotals).toFixed(2))
+          : Number((qty * typedUnitPrice * totalFactor).toFixed(2));
+        const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : typedUnitPrice;
 
         return {
           supplier_id: form.supplier_id || null,
@@ -280,7 +282,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
       onSave({
         items,
-        order_total: typedTotal,
+        order_total: confirmedTotal,
         linked_wo_id: form.linked_wo_id || null,
       });
 
@@ -515,7 +517,10 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                 <Input
                   type="number" step="0.01"
                   value={form.final_total}
-                  onChange={e => setForm({ ...form, final_total: e.target.value })}
+                  onChange={e => {
+                    setFinalTotalTouched(true);
+                    setForm({ ...form, final_total: e.target.value });
+                  }}
                   placeholder={String(calcItemsTotal())}
                 />
               </div>
