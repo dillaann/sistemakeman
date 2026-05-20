@@ -244,11 +244,18 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       const typedTotal = parseFloat(form.final_total) || itemsTotal;
       const totalFactor = itemsTotal > 0 && typedTotal > 0 ? typedTotal / itemsTotal : 1;
 
-      const items = form.items.filter(i => i.material).map(item => {
+      const filteredItems = form.items.filter(i => i.material);
+      const items = filteredItems.map((item, index) => {
         const qty = parseFloat(item.quantity) || 1;
         const typedUnitPrice = parseFloat(item.unit_price) || 0;
-        const finalUnitPrice = typedUnitPrice * totalFactor;
-        const itemFinalTotal = qty * finalUnitPrice;
+        const rawTotal = qty * typedUnitPrice * totalFactor;
+        const previousTotals = filteredItems
+          .slice(0, index)
+          .reduce((sum, previous) => sum + Number(((parseFloat(previous.quantity) || 1) * (parseFloat(previous.unit_price) || 0) * totalFactor).toFixed(2)), 0);
+        const itemFinalTotal = index === filteredItems.length - 1
+          ? Number((typedTotal - previousTotals).toFixed(2))
+          : Number(rawTotal.toFixed(2));
+        const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : 0;
 
         return {
           supplier_id: form.supplier_id || null,
@@ -257,7 +264,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           unit: item.unit,
           unit_price: finalUnitPrice,
           original_price: null,
-          total: Number(itemFinalTotal.toFixed(2)),
+          total: itemFinalTotal,
           purchase_date: form.purchase_date,
           invoice_number: form.invoice_number || null,
           payment_method: form.payment_method,
@@ -273,6 +280,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
       onSave({
         items,
+        order_total: typedTotal,
         linked_wo_id: form.linked_wo_id || null,
       });
 
