@@ -53,39 +53,25 @@ export function calculatePurchaseItems(
     0,
   );
 
-  const originalTotalNota =
-    input.original_total && input.original_total > 0
-      ? input.original_total
-      : itemsTotal;
-
-  const finalTotalNota =
-    input.final_total && input.final_total > 0
-      ? input.final_total
-      : itemsTotal;
-
-  const discountFactor =
-    originalTotalNota > 0 ? finalTotalNota / originalTotalNota : 1;
+  const typedFinalTotal =
+    input.final_total && input.final_total > 0 ? input.final_total : itemsTotal;
+  const totalFactor = itemsTotal > 0 ? typedFinalTotal / itemsTotal : 1;
 
   return items.map((item) => {
     const qty = item.quantity || 1;
-    const originalUnitPrice = item.unit_price || 0;
-    const finalUnitPrice = originalUnitPrice * discountFactor;
+    const typedUnitPrice = item.unit_price || 0;
+    const finalUnitPrice = typedUnitPrice * totalFactor;
     const itemFinalTotal = qty * finalUnitPrice;
-    const itemOriginalTotal = qty * originalUnitPrice;
-    const itemDiscount = itemOriginalTotal - itemFinalTotal;
-    const itemDiscountPct =
-      itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0;
 
     return {
       material: item.material,
       quantity: qty,
       unit: item.unit ?? "un",
       unit_price: finalUnitPrice,
-      original_price:
-        discountFactor < 1 && originalUnitPrice > 0 ? originalUnitPrice : null,
+      original_price: null,
       total: itemFinalTotal,
-      discount_amount: itemDiscount > 0 ? itemDiscount : 0,
-      discount_percentage: itemDiscountPct > 0 ? itemDiscountPct : 0,
+      discount_amount: 0,
+      discount_percentage: 0,
       client_id: item.client_id ?? null,
       work_order_id: item.work_order_id ?? null,
     };
