@@ -461,7 +461,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                       <Select value={item.unit} onValueChange={v => updateItem(i, "unit", v)}>
                         <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          {["un", "kg", "m", "m²", "m³", "ml", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
