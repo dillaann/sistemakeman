@@ -241,29 +241,23 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
     setSaving(true);
     try {
-      const itemsTotal = calcItemsTotal();
-      const typedTotal = parseFloat(form.final_total) || itemsTotal;
-      const totalFactor = itemsTotal > 0 && typedTotal > 0 ? typedTotal / itemsTotal : 1;
-
       const filteredItems = form.items.filter(i => i.material);
-      const items = filteredItems.map((item, index) => {
+      const itemsTotal = filteredItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      );
+      const confirmedTotal = Number((parseFloat(form.final_total) || itemsTotal).toFixed(2));
+
+      const items = filteredItems.map((item) => {
         const qty = parseFloat(item.quantity) || 1;
         const typedUnitPrice = parseFloat(item.unit_price) || 0;
-        const rawTotal = qty * typedUnitPrice * totalFactor;
-        const previousTotals = filteredItems
-          .slice(0, index)
-          .reduce((sum, previous) => sum + Number(((parseFloat(previous.quantity) || 1) * (parseFloat(previous.unit_price) || 0) * totalFactor).toFixed(2)), 0);
-        const itemFinalTotal = index === filteredItems.length - 1
-          ? Number((typedTotal - previousTotals).toFixed(2))
-          : Number(rawTotal.toFixed(2));
-        const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : 0;
+        const itemFinalTotal = Number((qty * typedUnitPrice).toFixed(2));
 
         return {
           supplier_id: form.supplier_id || null,
           material: item.material,
           quantity: qty,
           unit: item.unit,
-          unit_price: finalUnitPrice,
+          unit_price: typedUnitPrice,
           original_price: null,
           total: itemFinalTotal,
           purchase_date: form.purchase_date,
@@ -281,7 +275,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
       onSave({
         items,
-        order_total: typedTotal,
+        order_total: confirmedTotal,
         linked_wo_id: form.linked_wo_id || null,
       });
 
