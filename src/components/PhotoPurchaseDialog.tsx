@@ -76,7 +76,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     const newPhotos = files.map((file, i) => ({
       file,
       preview: URL.createObjectURL(file),
-      label: photos.length + i === 0 ? "Pedido Original" : "Pedido Final",
+      label: `Pedido ${photos.length + i + 1}`,
     }));
     setPhotos(prev => [...prev, ...newPhotos].slice(0, 2));
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -313,7 +313,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
         {step === "upload" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Envie até 2 fotos: o <strong>Pedido Original</strong> (valor sem desconto) e o <strong>Pedido Final</strong> (valor negociado).
+              Envie até 2 fotos do pedido. O sistema manterá exatamente o valor total que você confirmar.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -344,7 +344,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                       <Upload className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <p className="text-sm text-muted-foreground text-center">
-                      {photos.length === 0 ? "Pedido Original" : "Pedido Final"}
+                      {photos.length === 0 ? "Pedido 1" : "Pedido 2"}
                     </p>
                     <p className="text-xs text-muted-foreground">JPG, PNG ou PDF</p>
                   </CardContent>
@@ -502,16 +502,16 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
             {/* Totals */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label>Valor Original Total (R$)</Label>
+                <Label>Total lido dos itens (R$)</Label>
                 <Input
                   type="number" step="0.01"
                   value={form.original_total}
                   onChange={e => setForm({ ...form, original_total: e.target.value })}
-                  placeholder="Sem desconto"
+                  placeholder="Soma dos itens"
                 />
               </div>
               <div className={isFieldMissing("final_total") ? "ring-2 ring-yellow-400 rounded-md p-2" : ""}>
-                <Label>Valor Final Total (R$)</Label>
+                <Label>Valor Total Confirmado (R$)</Label>
                 <Input
                   type="number" step="0.01"
                   value={form.final_total}
@@ -520,21 +520,6 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                 />
               </div>
             </div>
-
-            {/* Savings display */}
-            {parseFloat(form.original_total) > 0 && parseFloat(form.final_total) > 0 && (
-              <div className="flex gap-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <div className="text-sm">
-                  <span className="text-green-700 font-medium">Economizado: </span>
-                  <span className="text-green-600 font-bold">
-                    {fmt(parseFloat(form.original_total) - parseFloat(form.final_total))}
-                  </span>
-                  <span className="text-green-600 ml-2">
-                    ({(((parseFloat(form.original_total) - parseFloat(form.final_total)) / parseFloat(form.original_total)) * 100).toFixed(1)}%)
-                  </span>
-                </div>
-              </div>
-            )}
 
             {/* Payment */}
             <div className="grid grid-cols-2 gap-2">
