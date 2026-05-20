@@ -510,7 +510,10 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                 <Input
                   type="number" step="0.01"
                   value={form.final_total}
-                  onChange={e => setForm({ ...form, final_total: e.target.value })}
+                  onChange={e => {
+                    setFinalTotalTouched(true);
+                    setForm({ ...form, final_total: e.target.value });
+                  }}
                   placeholder={String(calcItemsTotal())}
                 />
               </div>
