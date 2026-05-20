@@ -241,29 +241,14 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setSaving(true);
     try {
       const itemsTotal = calcItemsTotal();
-      
-      // If the user manually edited items, original_total and final_total are now synced to itemsTotal.
-      // If they manually edit final_total after editing items, we apply that factor.
-      
-      let discountFactor = 1;
-      const finalT = parseFloat(form.final_total) || 0;
-      const originalT = parseFloat(form.original_total) || 0;
-
-      if (finalT > 0 && originalT > 0 && Math.abs(finalT - originalT) > 0.01) {
-        discountFactor = finalT / originalT;
-      }
+      const typedTotal = parseFloat(form.final_total) || itemsTotal;
+      const totalFactor = itemsTotal > 0 && typedTotal > 0 ? typedTotal / itemsTotal : 1;
 
       const items = form.items.filter(i => i.material).map(item => {
         const qty = parseFloat(item.quantity) || 1;
-        const originalUnitPrice = parseFloat(item.unit_price) || 0;
-        
-        // Use exact unit price if discountFactor is 1 (no manual summary adjustment)
-        const finalUnitPrice = discountFactor === 1 ? originalUnitPrice : originalUnitPrice * discountFactor;
-        
+        const typedUnitPrice = parseFloat(item.unit_price) || 0;
+        const finalUnitPrice = typedUnitPrice * totalFactor;
         const itemFinalTotal = qty * finalUnitPrice;
-        const itemOriginalTotal = qty * originalUnitPrice;
-        const itemDiscount = itemOriginalTotal - itemFinalTotal;
-        const itemDiscountPct = itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0;
 
         return {
           supplier_id: form.supplier_id || null,
@@ -271,15 +256,15 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           quantity: qty,
           unit: item.unit,
           unit_price: finalUnitPrice,
-          original_price: discountFactor < 1 && originalUnitPrice > 0 ? originalUnitPrice : null,
+          original_price: null,
           total: Number(itemFinalTotal.toFixed(2)),
           purchase_date: form.purchase_date,
           invoice_number: form.invoice_number || null,
           payment_method: form.payment_method,
           payment_status: form.payment_status,
           due_date: form.due_date || null,
-          discount_percentage: itemDiscountPct > 0 ? itemDiscountPct : 0,
-          discount_amount: itemDiscount > 0 ? itemDiscount : 0,
+          discount_percentage: 0,
+          discount_amount: 0,
           notes: form.notes || null,
           client_id: item.client_id || null,
           work_order_id: item.work_order_id || null,
