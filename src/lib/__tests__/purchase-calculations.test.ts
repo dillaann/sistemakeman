@@ -1,8 +1,7 @@
 /**
- * Testes de regressão: bug do duplo desconto em compras via foto/IA.
- * Histórico: anteriormente, unit_price era salvo como preço original e
- * total era calculado com desconto, quebrando a invariante total = qty*unit_price
- * e gerando descontos inflados.
+ * Testes de regressão: compras devem preservar o valor final digitado.
+ * Histórico: o sistema aplicava rateio/desconto automático e reduzia pedidos
+ * digitados pelo usuário, quebrando a confiança no valor confirmado.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -10,7 +9,7 @@ import {
   validatePurchaseConsistency,
 } from "@/lib/purchase-calculations";
 
-describe("regressão: cálculo de compras (duplo desconto)", () => {
+describe("regressão: cálculo de compras (preserva valor digitado)", () => {
   it("invariante total = quantity × unit_price em todos os itens (sem desconto)", () => {
     const items = calculatePurchaseItems({
       items: [
@@ -25,15 +24,14 @@ describe("regressão: cálculo de compras (duplo desconto)", () => {
     });
   });
 
-  it("invariante total = quantity × unit_price com desconto rateado", () => {
-    // Nota original 1000, paga 800 => fator 0.8
+  it("preserva o final_total digitado como valor soberano do pedido", () => {
     const items = calculatePurchaseItems({
       items: [
-        { material: "Chapa", quantity: 10, unit_price: 50 }, // 500 -> 400
-        { material: "Tubo", quantity: 5, unit_price: 100 }, // 500 -> 400
+        { material: "Chapa", quantity: 10, unit_price: 50 },
+        { material: "Tubo", quantity: 5, unit_price: 100 },
       ],
       original_total: 1000,
-      final_total: 800,
+      final_total: 2532,
     });
 
     items.forEach((item) => {
@@ -43,7 +41,12 @@ describe("regressão: cálculo de compras (duplo desconto)", () => {
     });
 
     const totalFinal = items.reduce((s, i) => s + i.total, 0);
-    expect(totalFinal).toBeCloseTo(800, 2);
+    expect(totalFinal).toBeCloseTo(2532, 2);
+    items.forEach((item) => {
+      expect(item.discount_amount).toBe(0);
+      expect(item.discount_percentage).toBe(0);
+      expect(item.original_price).toBeNull();
+    });
   });
 
   it("não aplica desconto duas vezes — discount_amount = original − final", () => {
