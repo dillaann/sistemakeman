@@ -236,25 +236,19 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     try {
       const itemsTotal = calcItemsTotal();
       
-      // We want to honor exactly what's in the items table by default.
-      // If the user manually filled form.final_total, we apply that as the absolute truth.
-      // If form.final_total is empty, we use the sum of items.
-      const finalTotalNota = form.final_total ? parseFloat(form.final_total) : itemsTotal;
-      const originalTotalNota = form.original_total ? parseFloat(form.original_total) : itemsTotal;
-      
       // Calculate discount factor ONLY if the user explicitly provided different totals in the summary fields.
-      // If the sum of items is what they want, discountFactor should be 1.
       let discountFactor = 1;
       if (form.final_total && form.original_total && parseFloat(form.original_total) > 0) {
         discountFactor = parseFloat(form.final_total) / parseFloat(form.original_total);
-      } else if (form.final_total && itemsTotal > 0 && Math.abs(parseFloat(form.final_total) - itemsTotal) > 0.01) {
-        discountFactor = parseFloat(form.final_total) / itemsTotal;
       }
 
       const items = form.items.filter(i => i.material).map(item => {
         const qty = parseFloat(item.quantity) || 1;
         const originalUnitPrice = parseFloat(item.unit_price) || 0;
+        
+        // If discountFactor is 1 (default), finalUnitPrice will be exactly originalUnitPrice
         const finalUnitPrice = originalUnitPrice * discountFactor;
+        
         const itemFinalTotal = qty * finalUnitPrice;
         const itemOriginalTotal = qty * originalUnitPrice;
         const itemDiscount = itemOriginalTotal - itemFinalTotal;
