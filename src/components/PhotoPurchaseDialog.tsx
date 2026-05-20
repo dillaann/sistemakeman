@@ -76,7 +76,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     const newPhotos = files.map((file, i) => ({
       file,
       preview: URL.createObjectURL(file),
-      label: photos.length + i === 0 ? "Pedido Original" : "Pedido Final",
+      label: `Pedido ${photos.length + i + 1}`,
     }));
     setPhotos(prev => [...prev, ...newPhotos].slice(0, 2));
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -241,29 +241,21 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setSaving(true);
     try {
       const itemsTotal = calcItemsTotal();
-      
-      // If the user manually edited items, original_total and final_total are now synced to itemsTotal.
-      // If they manually edit final_total after editing items, we apply that factor.
-      
-      let discountFactor = 1;
-      const finalT = parseFloat(form.final_total) || 0;
-      const originalT = parseFloat(form.original_total) || 0;
+      const typedTotal = parseFloat(form.final_total) || itemsTotal;
+      const totalFactor = itemsTotal > 0 && typedTotal > 0 ? typedTotal / itemsTotal : 1;
 
-      if (finalT > 0 && originalT > 0 && Math.abs(finalT - originalT) > 0.01) {
-        discountFactor = finalT / originalT;
-      }
-
-      const items = form.items.filter(i => i.material).map(item => {
+      const filteredItems = form.items.filter(i => i.material);
+      const items = filteredItems.map((item, index) => {
         const qty = parseFloat(item.quantity) || 1;
-        const originalUnitPrice = parseFloat(item.unit_price) || 0;
-        
-        // Use exact unit price if discountFactor is 1 (no manual summary adjustment)
-        const finalUnitPrice = discountFactor === 1 ? originalUnitPrice : originalUnitPrice * discountFactor;
-        
-        const itemFinalTotal = qty * finalUnitPrice;
-        const itemOriginalTotal = qty * originalUnitPrice;
-        const itemDiscount = itemOriginalTotal - itemFinalTotal;
-        const itemDiscountPct = itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0;
+        const typedUnitPrice = parseFloat(item.unit_price) || 0;
+        const rawTotal = qty * typedUnitPrice * totalFactor;
+        const previousTotals = filteredItems
+          .slice(0, index)
+          .reduce((sum, previous) => sum + Number(((parseFloat(previous.quantity) || 1) * (parseFloat(previous.unit_price) || 0) * totalFactor).toFixed(2)), 0);
+        const itemFinalTotal = index === filteredItems.length - 1
+          ? Number((typedTotal - previousTotals).toFixed(2))
+          : Number(rawTotal.toFixed(2));
+        const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : 0;
 
         return {
           supplier_id: form.supplier_id || null,
@@ -271,15 +263,15 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           quantity: qty,
           unit: item.unit,
           unit_price: finalUnitPrice,
-          original_price: discountFactor < 1 && originalUnitPrice > 0 ? originalUnitPrice : null,
-          total: Number(itemFinalTotal.toFixed(2)),
+          original_price: null,
+          total: itemFinalTotal,
           purchase_date: form.purchase_date,
           invoice_number: form.invoice_number || null,
           payment_method: form.payment_method,
           payment_status: form.payment_status,
           due_date: form.due_date || null,
-          discount_percentage: itemDiscountPct > 0 ? itemDiscountPct : 0,
-          discount_amount: itemDiscount > 0 ? itemDiscount : 0,
+          discount_percentage: 0,
+          discount_amount: 0,
           notes: form.notes || null,
           client_id: item.client_id || null,
           work_order_id: item.work_order_id || null,
@@ -288,6 +280,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
       onSave({
         items,
+        order_total: typedTotal,
         linked_wo_id: form.linked_wo_id || null,
       });
 
@@ -320,7 +313,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
         {step === "upload" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Envie até 2 fotos: o <strong>Pedido Original</strong> (valor sem desconto) e o <strong>Pedido Final</strong> (valor negociado).
+              Envie até 2 fotos do pedido. O sistema manterá exatamente o valor total que você confirmar.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -351,7 +344,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                       <Upload className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <p className="text-sm text-muted-foreground text-center">
-                      {photos.length === 0 ? "Pedido Original" : "Pedido Final"}
+                      {photos.length === 0 ? "Pedido 1" : "Pedido 2"}
                     </p>
                     <p className="text-xs text-muted-foreground">JPG, PNG ou PDF</p>
                   </CardContent>
@@ -509,16 +502,16 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
             {/* Totals */}
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label>Valor Original Total (R$)</Label>
+                <Label>Total lido dos itens (R$)</Label>
                 <Input
                   type="number" step="0.01"
                   value={form.original_total}
                   onChange={e => setForm({ ...form, original_total: e.target.value })}
-                  placeholder="Sem desconto"
+                  placeholder="Soma dos itens"
                 />
               </div>
               <div className={isFieldMissing("final_total") ? "ring-2 ring-yellow-400 rounded-md p-2" : ""}>
-                <Label>Valor Final Total (R$)</Label>
+                <Label>Valor Total Confirmado (R$)</Label>
                 <Input
                   type="number" step="0.01"
                   value={form.final_total}
@@ -527,21 +520,6 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                 />
               </div>
             </div>
-
-            {/* Savings display */}
-            {parseFloat(form.original_total) > 0 && parseFloat(form.final_total) > 0 && (
-              <div className="flex gap-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <div className="text-sm">
-                  <span className="text-green-700 font-medium">Economizado: </span>
-                  <span className="text-green-600 font-bold">
-                    {fmt(parseFloat(form.original_total) - parseFloat(form.final_total))}
-                  </span>
-                  <span className="text-green-600 ml-2">
-                    ({(((parseFloat(form.original_total) - parseFloat(form.final_total)) / parseFloat(form.original_total)) * 100).toFixed(1)}%)
-                  </span>
-                </div>
-              </div>
-            )}
 
             {/* Payment */}
             <div className="grid grid-cols-2 gap-2">

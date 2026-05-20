@@ -1246,7 +1246,7 @@ const Purchases = () => {
         clients={clients}
         workOrders={allWorkOrders}
         onSave={async (data: any) => {
-          const { items, linked_wo_id } = data;
+          const { items, linked_wo_id, order_total } = data;
           if (!items || items.length === 0) return;
           // Group all items into ONE purchase_order (foto = nota fiscal única)
           const first = items[0];
@@ -1256,7 +1256,7 @@ const Purchases = () => {
           const paymentStatus = first.payment_status || "pendente";
           const dueDate = first.due_date || null;
           const invoiceNumber = first.invoice_number || null;
-          const orderTotal = items.reduce((s: number, it: any) => s + Number(it.total || 0), 0);
+          const orderTotal = Number(order_total ?? items.reduce((s: number, it: any) => s + Number(it.total || 0), 0));
           const orderClient = first.client_id || null;
           const orderWO = first.work_order_id || null;
 

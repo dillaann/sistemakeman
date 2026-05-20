@@ -47,11 +47,12 @@ Analise as imagens enviadas e extraia os seguintes dados em formato JSON:
 }
 
 Regras:
-- Se houver duas imagens, a primeira é o pedido original (valor sem desconto) e a segunda é o pedido final (valor negociado)
+- Se houver duas imagens, use-as apenas para melhorar a leitura dos itens e do total; nunca calcule desconto ou reduza valores automaticamente
 - Se houver apenas uma imagem, extraia os dados disponíveis
 - Para unit, use: un, kg, m, m², m³, litro, peça, pacote, cx, rolo
 - Se não conseguir identificar um campo, use null
 - Retorne APENAS o JSON, sem texto adicional
+- final_total deve ser o valor total explícito do pedido/nota que o usuário irá confirmar, sem aplicar desconto automático sobre os itens
 - Valores monetários devem ser números decimais (ex: 1250.50)
 - Datas devem estar no formato YYYY-MM-DD`;
 
