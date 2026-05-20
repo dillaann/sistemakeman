@@ -177,35 +177,33 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   };
 
   const updateItem = (index: number, field: string, value: string) => {
-    setForm(prev => ({
-      ...prev,
-      items: prev.items.map((item, i) => i === index ? { ...item, [field]: value } : item),
-    }));
+    setForm(prev => {
+      const newItems = prev.items.map((item, i) => i === index ? { ...item, [field]: value } : item);
+      const newItemsTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      );
+      
+      return {
+        ...prev,
+        items: newItems,
+        // Sync summary totals with items total when user edits items
+        original_total: String(newItemsTotal),
+        final_total: String(newItemsTotal),
+      };
+    });
   };
 
   const updateItemDestination = (index: number, value: string) => {
-    if (value === "geral") {
-      updateItem(index, "client_id", "");
-      updateItem(index, "work_order_id", "");
-      // Need to set both at once
-      setForm(prev => ({
-        ...prev,
-        items: prev.items.map((item, i) => i === index ? { ...item, client_id: "", work_order_id: "" } : item),
-      }));
-    } else {
-      const wo = workOrders.find((w: any) => w.id === value);
-      if (wo) {
-        setForm(prev => ({
-          ...prev,
-          items: prev.items.map((item, i) => i === index ? { ...item, work_order_id: value, client_id: wo.client_id } : item),
-        }));
-      } else {
-        setForm(prev => ({
-          ...prev,
-          items: prev.items.map((item, i) => i === index ? { ...item, client_id: value, work_order_id: "" } : item),
-        }));
-      }
-    }
+    setForm(prev => {
+      const newItems = prev.items.map((item, i) => {
+        if (i !== index) return item;
+        if (value === "geral") return { ...item, client_id: "", work_order_id: "" };
+        const wo = workOrders.find((w: any) => w.id === value);
+        if (wo) return { ...item, work_order_id: value, client_id: wo.client_id };
+        return { ...item, client_id: value, work_order_id: "" };
+      });
+      return { ...prev, items: newItems };
+    });
   };
 
   const addItem = () => {
@@ -216,10 +214,18 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   };
 
   const removeItem = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }));
+    setForm(prev => {
+      const newItems = prev.items.filter((_, i) => i !== index);
+      const newItemsTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      );
+      return {
+        ...prev,
+        items: newItems,
+        original_total: String(newItemsTotal),
+        final_total: String(newItemsTotal),
+      };
+    });
   };
 
   const calcItemsTotal = () => {
