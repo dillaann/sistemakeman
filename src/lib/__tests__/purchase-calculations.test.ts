@@ -49,7 +49,7 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
     });
   });
 
-  it("não aplica desconto duas vezes — discount_amount = original − final", () => {
+  it("não registra desconto automático quando final_total é menor que original_total", () => {
     const items = calculatePurchaseItems({
       items: [{ material: "Chapa", quantity: 10, unit_price: 100 }],
       original_total: 1000,
@@ -58,10 +58,9 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
 
     expect(items[0].unit_price).toBeCloseTo(90, 2);
     expect(items[0].total).toBeCloseTo(900, 2);
-    expect(items[0].original_price).toBe(100);
-    expect(items[0].discount_amount).toBeCloseTo(100, 2);
-    // Bug antigo: discount era ~100 mas total também era 900 com unit_price=100
-    // (=1000), o que dava desconto duplicado quando recalculado.
+    expect(items[0].original_price).toBeNull();
+    expect(items[0].discount_amount).toBe(0);
+    expect(items[0].discount_percentage).toBe(0);
     expect(items[0].quantity * items[0].unit_price).toBeCloseTo(items[0].total, 2);
   });
 
@@ -79,17 +78,17 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
   });
 
   it("desconto nunca é negativo nem maior que o valor original", () => {
-    // final maior que original (não deve gerar desconto negativo)
     const items = calculatePurchaseItems({
       items: [{ material: "X", quantity: 1, unit_price: 100 }],
       original_total: 100,
-      final_total: 110, // anomalia: pago mais que o original
+      final_total: 110,
     });
+    expect(items[0].total).toBeCloseTo(110, 2);
     expect(items[0].discount_amount).toBe(0);
     expect(items[0].original_price).toBeNull();
   });
 
-  it("um único item com desconto preserva consistência", () => {
+  it("um único item preserva o total informado sem desconto", () => {
     const items = calculatePurchaseItems({
       items: [{ material: "Solda", quantity: 3, unit_price: 200 }],
       original_total: 600,
@@ -97,6 +96,6 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
     });
     expect(items[0].unit_price).toBeCloseTo(180, 2);
     expect(items[0].total).toBeCloseTo(540, 2);
-    expect(items[0].discount_percentage).toBeCloseTo(10, 2);
+    expect(items[0].discount_percentage).toBe(0);
   });
 });
