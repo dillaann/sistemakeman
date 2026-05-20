@@ -252,7 +252,7 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
                           <Select value={it.unit} onValueChange={v => handleItemChange(idx, "unit", v)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                              {["un", "kg", "m", "m²", "m³", "ml", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </TableCell>

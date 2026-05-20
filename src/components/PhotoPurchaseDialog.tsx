@@ -158,7 +158,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
               work_order_id: "",
             }))
           : [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
-        original_total: String(data.original_total || ""),
+        original_total: String(data.final_total || data.original_total || ""),
         final_total: String(data.final_total || ""),
         payment_method: data.payment_method || "pix",
         payment_status: "pendente",
@@ -177,35 +177,33 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   };
 
   const updateItem = (index: number, field: string, value: string) => {
-    setForm(prev => ({
-      ...prev,
-      items: prev.items.map((item, i) => i === index ? { ...item, [field]: value } : item),
-    }));
+    setForm(prev => {
+      const newItems = prev.items.map((item, i) => i === index ? { ...item, [field]: value } : item);
+      const newItemsTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      );
+      
+      return {
+        ...prev,
+        items: newItems,
+        // Sync summary totals with items total when user edits items
+        original_total: String(newItemsTotal),
+        final_total: String(newItemsTotal),
+      };
+    });
   };
 
   const updateItemDestination = (index: number, value: string) => {
-    if (value === "geral") {
-      updateItem(index, "client_id", "");
-      updateItem(index, "work_order_id", "");
-      // Need to set both at once
-      setForm(prev => ({
-        ...prev,
-        items: prev.items.map((item, i) => i === index ? { ...item, client_id: "", work_order_id: "" } : item),
-      }));
-    } else {
-      const wo = workOrders.find((w: any) => w.id === value);
-      if (wo) {
-        setForm(prev => ({
-          ...prev,
-          items: prev.items.map((item, i) => i === index ? { ...item, work_order_id: value, client_id: wo.client_id } : item),
-        }));
-      } else {
-        setForm(prev => ({
-          ...prev,
-          items: prev.items.map((item, i) => i === index ? { ...item, client_id: value, work_order_id: "" } : item),
-        }));
-      }
-    }
+    setForm(prev => {
+      const newItems = prev.items.map((item, i) => {
+        if (i !== index) return item;
+        if (value === "geral") return { ...item, client_id: "", work_order_id: "" };
+        const wo = workOrders.find((w: any) => w.id === value);
+        if (wo) return { ...item, work_order_id: value, client_id: wo.client_id };
+        return { ...item, client_id: value, work_order_id: "" };
+      });
+      return { ...prev, items: newItems };
+    });
   };
 
   const addItem = () => {
@@ -216,10 +214,18 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   };
 
   const removeItem = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }));
+    setForm(prev => {
+      const newItems = prev.items.filter((_, i) => i !== index);
+      const newItemsTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      );
+      return {
+        ...prev,
+        items: newItems,
+        original_total: String(newItemsTotal),
+        final_total: String(newItemsTotal),
+      };
+    });
   };
 
   const calcItemsTotal = () => {
@@ -236,18 +242,23 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     try {
       const itemsTotal = calcItemsTotal();
       
-      // Calculate discount factor ONLY if the user explicitly provided different totals in the summary fields.
+      // If the user manually edited items, original_total and final_total are now synced to itemsTotal.
+      // If they manually edit final_total after editing items, we apply that factor.
+      
       let discountFactor = 1;
-      if (form.final_total && form.original_total && parseFloat(form.original_total) > 0) {
-        discountFactor = parseFloat(form.final_total) / parseFloat(form.original_total);
+      const finalT = parseFloat(form.final_total) || 0;
+      const originalT = parseFloat(form.original_total) || 0;
+
+      if (finalT > 0 && originalT > 0 && Math.abs(finalT - originalT) > 0.01) {
+        discountFactor = finalT / originalT;
       }
 
       const items = form.items.filter(i => i.material).map(item => {
         const qty = parseFloat(item.quantity) || 1;
         const originalUnitPrice = parseFloat(item.unit_price) || 0;
         
-        // If discountFactor is 1 (default), finalUnitPrice will be exactly originalUnitPrice
-        const finalUnitPrice = originalUnitPrice * discountFactor;
+        // Use exact unit price if discountFactor is 1 (no manual summary adjustment)
+        const finalUnitPrice = discountFactor === 1 ? originalUnitPrice : originalUnitPrice * discountFactor;
         
         const itemFinalTotal = qty * finalUnitPrice;
         const itemOriginalTotal = qty * originalUnitPrice;
@@ -261,7 +272,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           unit: item.unit,
           unit_price: finalUnitPrice,
           original_price: discountFactor < 1 && originalUnitPrice > 0 ? originalUnitPrice : null,
-          total: itemFinalTotal,
+          total: Number(itemFinalTotal.toFixed(2)),
           purchase_date: form.purchase_date,
           invoice_number: form.invoice_number || null,
           payment_method: form.payment_method,
@@ -450,7 +461,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                       <Select value={item.unit} onValueChange={v => updateItem(i, "unit", v)}>
                         <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {["un", "kg", "m", "m²", "m³", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          {["un", "kg", "m", "m²", "m³", "ml", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
