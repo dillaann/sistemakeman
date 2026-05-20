@@ -38,6 +38,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   const [extractedData, setExtractedData] = useState<any>(null);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [finalTotalTouched, setFinalTotalTouched] = useState(false);
 
   // Form state for review
   const [form, setForm] = useState({
@@ -60,6 +61,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setPhotos([]);
     setExtractedData(null);
     setMissingFields([]);
+    setFinalTotalTouched(false);
     setForm({
       supplier_id: "", supplier_name: "",
       purchase_date: localDateString(),
@@ -186,9 +188,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       return {
         ...prev,
         items: newItems,
-        // Sync summary totals with items total when user edits items
         original_total: String(newItemsTotal),
-        final_total: String(newItemsTotal),
+        final_total: finalTotalTouched ? prev.final_total : String(newItemsTotal),
       };
     });
   };
@@ -223,7 +224,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
         ...prev,
         items: newItems,
         original_total: String(newItemsTotal),
-        final_total: String(newItemsTotal),
+        final_total: finalTotalTouched ? prev.final_total : String(newItemsTotal),
       };
     });
   };
