@@ -247,11 +247,7 @@ const Purchases = () => {
     mutationFn: async () => {
       const qty = parseFloat(pForm.quantity) || 0;
       const unitP = parseFloat(pForm.unit_price) || 0;
-      const originalP = parseFloat(pForm.original_price) || 0;
       const total = qty * unitP;
-      const originalTotal = qty * originalP;
-      const discountAmt = originalP > 0 ? originalTotal - total : 0;
-      const discPct = originalTotal > 0 ? (discountAmt / originalTotal) * 100 : 0;
 
       const payload: any = {
         supplier_id: pForm.supplier_id || null,
@@ -259,15 +255,15 @@ const Purchases = () => {
         quantity: qty,
         unit: pForm.unit,
         unit_price: unitP,
-        original_price: originalP > 0 ? originalP : null,
+        original_price: null,
         total,
         purchase_date: pForm.purchase_date,
         invoice_number: pForm.invoice_number || null,
         payment_method: pForm.payment_method,
         payment_status: pForm.payment_status,
         due_date: pForm.due_date || null,
-        discount_percentage: discPct,
-        discount_amount: discountAmt > 0 ? discountAmt : 0,
+        discount_percentage: 0,
+        discount_amount: 0,
         notes: pForm.notes || null,
         client_id: pForm.client_id || null,
         work_order_id: pForm.work_order_id || null,
