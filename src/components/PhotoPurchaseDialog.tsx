@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Upload, Loader2, AlertCircle, X, Plus, Trash2 } from "lucide-react";
+import { Camera, Upload, Loader2, AlertCircle, X, Plus, Trash2, TrendingDown } from "lucide-react";
 
 interface PhotoPurchaseDialogProps {
   open: boolean;
