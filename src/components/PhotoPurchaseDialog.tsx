@@ -234,8 +234,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       return {
         ...prev,
         items: newItems,
-        original_total: String(newOriginalTotal),
-        final_total: String(newFinalTotal),
+        original_total: originalTotalTouched ? prev.original_total : String(newOriginalTotal),
+        final_total: finalTotalTouched ? prev.final_total : String(newFinalTotal),
       };
     });
   };
