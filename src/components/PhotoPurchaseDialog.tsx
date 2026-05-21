@@ -245,19 +245,32 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       const itemsTotal = filteredItems.reduce((sum, item) => 
         sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
       );
+      
       const confirmedTotal = Number((parseFloat(form.final_total) || itemsTotal).toFixed(2));
+      const originalTotal = Number((parseFloat(form.original_total) || itemsTotal).toFixed(2));
+      
       const totalFactor = itemsTotal > 0 && confirmedTotal > 0 ? confirmedTotal / itemsTotal : 1;
+      const totalDiscount = Math.max(0, originalTotal - confirmedTotal);
 
       const items = filteredItems.map((item, index) => {
         const qty = parseFloat(item.quantity) || 1;
         const typedUnitPrice = parseFloat(item.unit_price) || 0;
+        const itemOriginalTotal = qty * typedUnitPrice;
+        
         const previousTotals = filteredItems
           .slice(0, index)
           .reduce((sum, previous) => sum + Number((((parseFloat(previous.quantity) || 1) * (parseFloat(previous.unit_price) || 0) * totalFactor).toFixed(2))), 0);
+        
         const itemFinalTotal = index === filteredItems.length - 1
           ? Number((confirmedTotal - previousTotals).toFixed(2))
           : Number((qty * typedUnitPrice * totalFactor).toFixed(2));
+        
         const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : typedUnitPrice;
+        
+        // Proportional discount distribution
+        const itemDiscount = originalTotal > 0 
+          ? (itemOriginalTotal / originalTotal) * totalDiscount 
+          : 0;
 
         return {
           supplier_id: form.supplier_id || null,
@@ -265,15 +278,15 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           quantity: qty,
           unit: item.unit,
           unit_price: finalUnitPrice,
-          original_price: null,
+          original_price: typedUnitPrice,
           total: itemFinalTotal,
           purchase_date: form.purchase_date,
           invoice_number: form.invoice_number || null,
           payment_method: form.payment_method,
           payment_status: form.payment_status,
           due_date: form.due_date || null,
-          discount_percentage: 0,
-          discount_amount: 0,
+          discount_percentage: itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0,
+          discount_amount: itemDiscount,
           notes: form.notes || null,
           client_id: item.client_id || null,
           work_order_id: item.work_order_id || null,
@@ -283,6 +296,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       onSave({
         items,
         order_total: confirmedTotal,
+        original_total: originalTotal,
+        discount_amount: totalDiscount,
         linked_wo_id: form.linked_wo_id || null,
       });
 

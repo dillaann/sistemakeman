@@ -56,22 +56,35 @@ export function calculatePurchaseItems(
   const typedFinalTotal =
     input.final_total && input.final_total > 0 ? input.final_total : itemsTotal;
   const totalFactor = itemsTotal > 0 ? typedFinalTotal / itemsTotal : 1;
+  
+  // Calculate total discount
+  const originalTotal = input.original_total && input.original_total > 0 
+    ? input.original_total 
+    : itemsTotal;
+  
+  const totalDiscount = Math.max(0, originalTotal - typedFinalTotal);
 
-  return items.map((item) => {
+  return items.map((item, index) => {
     const qty = item.quantity || 1;
     const typedUnitPrice = item.unit_price || 0;
     const finalUnitPrice = typedUnitPrice * totalFactor;
     const itemFinalTotal = qty * finalUnitPrice;
+    
+    // Proportional discount distribution
+    const itemOriginalTotal = qty * typedUnitPrice;
+    const itemDiscount = originalTotal > 0 
+      ? (itemOriginalTotal / originalTotal) * totalDiscount 
+      : 0;
 
     return {
       material: item.material,
       quantity: qty,
       unit: item.unit ?? "un",
       unit_price: finalUnitPrice,
-      original_price: null,
+      original_price: typedUnitPrice,
       total: itemFinalTotal,
-      discount_amount: 0,
-      discount_percentage: 0,
+      discount_amount: itemDiscount,
+      discount_percentage: itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0,
       client_id: item.client_id ?? null,
       work_order_id: item.work_order_id ?? null,
     };
