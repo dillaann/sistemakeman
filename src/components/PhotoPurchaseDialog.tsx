@@ -555,19 +555,19 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                       type="number" step="0.01"
                       className="pl-9 bg-background"
                       value={form.original_total}
-                      onChange={e => setForm({ ...form, original_total: e.target.value })}
+                      onChange={e => { setOriginalTotalTouched(true); setForm({ ...form, original_total: e.target.value }); }}
                     />
                   </div>
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-green-700">Valor Negociado</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-green-700">Valor Negociado (Pago)</Label>
                   <div className="relative mt-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-700 font-bold text-sm">R$</span>
                     <Input
                       type="number" step="0.01"
                       className={`pl-9 bg-background border-green-200 focus-visible:ring-green-500 font-bold text-green-700 ${isFieldMissing("final_total") ? "ring-2 ring-yellow-400" : ""}`}
                       value={form.final_total}
-                      onChange={e => setForm({ ...form, final_total: e.target.value })}
+                      onChange={e => { setFinalTotalTouched(true); setForm({ ...form, final_total: e.target.value }); }}
                     />
                   </div>
                 </div>
