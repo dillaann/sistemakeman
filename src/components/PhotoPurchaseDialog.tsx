@@ -46,9 +46,9 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     supplier_name: "",
     purchase_date: localDateString(),
     invoice_number: "",
-    items: [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
-    original_total: "",
-    final_total: "",
+    items: [{ material: "", quantity: "1", unit: "un", original_unit_price: "0", final_unit_price: "0", client_id: "", work_order_id: "" }],
+    original_total: "0",
+    final_total: "0",
     payment_method: "pix",
     payment_status: "pendente",
     due_date: "",
@@ -66,8 +66,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       supplier_id: "", supplier_name: "",
       purchase_date: localDateString(),
       invoice_number: "",
-      items: [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
-      original_total: "", final_total: "",
+      items: [{ material: "", quantity: "1", unit: "un", original_unit_price: "0", final_unit_price: "0", client_id: "", work_order_id: "" }],
+      original_total: "0", final_total: "0",
       payment_method: "pix", payment_status: "pendente",
       due_date: "", notes: "", linked_wo_id: "",
     });
@@ -155,13 +155,14 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
               material: item.material || "",
               quantity: String(item.quantity || 1),
               unit: item.unit || "un",
-              unit_price: String(item.unit_price || 0),
+              original_unit_price: String(item.original_unit_price || item.unit_price || 0),
+              final_unit_price: String(item.final_unit_price || item.unit_price || 0),
               client_id: "",
               work_order_id: "",
             }))
-          : [{ material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
-        original_total: String(data.final_total || data.original_total || ""),
-        final_total: String(data.final_total || ""),
+          : [{ material: "", quantity: "1", unit: "un", original_unit_price: "0", final_unit_price: "0", client_id: "", work_order_id: "" }],
+        original_total: String(data.original_total || data.final_total || "0"),
+        final_total: String(data.final_total || "0"),
         payment_method: data.payment_method || "pix",
         payment_status: "pendente",
         due_date: data.due_date || "",
@@ -181,15 +182,20 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   const updateItem = (index: number, field: string, value: string) => {
     setForm(prev => {
       const newItems = prev.items.map((item, i) => i === index ? { ...item, [field]: value } : item);
-      const newItemsTotal = newItems.reduce((sum, item) => 
-        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      
+      const newOriginalTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.original_unit_price) || 0), 0
+      );
+      
+      const newFinalTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.final_unit_price) || 0), 0
       );
       
       return {
         ...prev,
         items: newItems,
-        original_total: String(newItemsTotal),
-        final_total: finalTotalTouched ? prev.final_total : String(newItemsTotal),
+        original_total: String(newOriginalTotal),
+        final_total: String(newFinalTotal),
       };
     });
   };
@@ -210,27 +216,33 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   const addItem = () => {
     setForm(prev => ({
       ...prev,
-      items: [...prev.items, { material: "", quantity: "1", unit: "un", unit_price: "0", client_id: "", work_order_id: "" }],
+      items: [...prev.items, { material: "", quantity: "1", unit: "un", original_unit_price: "0", final_unit_price: "0", client_id: "", work_order_id: "" }],
     }));
   };
 
   const removeItem = (index: number) => {
     setForm(prev => {
       const newItems = prev.items.filter((_, i) => i !== index);
-      const newItemsTotal = newItems.reduce((sum, item) => 
-        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      const newOriginalTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.original_unit_price) || 0), 0
+      );
+      const newFinalTotal = newItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.final_unit_price) || 0), 0
       );
       return {
         ...prev,
         items: newItems,
-        original_total: String(newItemsTotal),
-        final_total: finalTotalTouched ? prev.final_total : String(newItemsTotal),
+        original_total: String(newOriginalTotal),
+        final_total: String(newFinalTotal),
       };
     });
   };
 
-  const calcItemsTotal = () => {
-    return form.items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0);
+  const calcItemsFinalTotal = () => {
+    return form.items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.final_unit_price) || 0), 0);
+  };
+  const calcItemsOriginalTotal = () => {
+    return form.items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.original_unit_price) || 0), 0);
   };
 
   const handleSave = async () => {
@@ -242,35 +254,37 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setSaving(true);
     try {
       const filteredItems = form.items.filter(i => i.material);
-      const itemsTotal = filteredItems.reduce((sum, item) => 
-        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0), 0
+      const itemsFinalTotal = filteredItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.final_unit_price) || 0), 0
+      );
+      const itemsOriginalTotal = filteredItems.reduce((sum, item) => 
+        sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.original_unit_price) || 0), 0
       );
       
-      const confirmedTotal = Number((parseFloat(form.final_total) || itemsTotal).toFixed(2));
-      const originalTotal = Number((parseFloat(form.original_total) || itemsTotal).toFixed(2));
+      const confirmedFinalTotal = Number((parseFloat(form.final_total) || itemsFinalTotal).toFixed(2));
+      const confirmedOriginalTotal = Number((parseFloat(form.original_total) || itemsOriginalTotal).toFixed(2));
       
-      const totalFactor = itemsTotal > 0 && confirmedTotal > 0 ? confirmedTotal / itemsTotal : 1;
-      const totalDiscount = Math.max(0, originalTotal - confirmedTotal);
+      const finalTotalFactor = itemsFinalTotal > 0 ? confirmedFinalTotal / itemsFinalTotal : 1;
+      const originalTotalFactor = itemsOriginalTotal > 0 ? confirmedOriginalTotal / itemsOriginalTotal : 1;
+      const totalDiscount = Math.max(0, confirmedOriginalTotal - confirmedFinalTotal);
 
       const items = filteredItems.map((item, index) => {
         const qty = parseFloat(item.quantity) || 1;
-        const typedUnitPrice = parseFloat(item.unit_price) || 0;
-        const itemOriginalTotal = qty * typedUnitPrice;
+        const typedFinalUnitPrice = parseFloat(item.final_unit_price) || 0;
+        const typedOriginalUnitPrice = parseFloat(item.original_unit_price) || 0;
         
-        const previousTotals = filteredItems
+        const itemOriginalTotal = qty * typedOriginalUnitPrice * originalTotalFactor;
+        
+        const previousFinalTotals = filteredItems
           .slice(0, index)
-          .reduce((sum, previous) => sum + Number((((parseFloat(previous.quantity) || 1) * (parseFloat(previous.unit_price) || 0) * totalFactor).toFixed(2))), 0);
+          .reduce((sum, previous) => sum + Number((((parseFloat(previous.quantity) || 1) * (parseFloat(previous.final_unit_price) || 0) * finalTotalFactor).toFixed(2))), 0);
         
         const itemFinalTotal = index === filteredItems.length - 1
-          ? Number((confirmedTotal - previousTotals).toFixed(2))
-          : Number((qty * typedUnitPrice * totalFactor).toFixed(2));
+          ? Number((confirmedFinalTotal - previousFinalTotals).toFixed(2))
+          : Number((qty * typedFinalUnitPrice * finalTotalFactor).toFixed(2));
         
-        const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : typedUnitPrice;
-        
-        // Proportional discount distribution
-        const itemDiscount = originalTotal > 0 
-          ? (itemOriginalTotal / originalTotal) * totalDiscount 
-          : 0;
+        const finalUnitPrice = qty > 0 ? itemFinalTotal / qty : typedFinalUnitPrice;
+        const itemDiscount = Math.max(0, itemOriginalTotal - itemFinalTotal);
 
         return {
           supplier_id: form.supplier_id || null,
@@ -278,7 +292,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
           quantity: qty,
           unit: item.unit,
           unit_price: finalUnitPrice,
-          original_price: typedUnitPrice,
+          original_price: qty > 0 ? itemOriginalTotal / qty : typedOriginalUnitPrice,
           total: itemFinalTotal,
           purchase_date: form.purchase_date,
           invoice_number: form.invoice_number || null,
@@ -295,8 +309,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
       onSave({
         items,
-        order_total: confirmedTotal,
-        original_total: originalTotal,
+        order_total: confirmedFinalTotal,
+        original_total: confirmedOriginalTotal,
         discount_amount: totalDiscount,
         linked_wo_id: form.linked_wo_id || null,
       });
@@ -455,90 +469,124 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                 <Label className="text-sm font-semibold">Materiais</Label>
                 <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-3 w-3 mr-1" />Adicionar</Button>
               </div>
-              {form.items.map((item, i) => (
-                <div key={i} className="space-y-1 border rounded-md p-2">
-                  <div className="grid grid-cols-12 gap-1 items-end">
-                    <div className="col-span-5">
-                      {i === 0 && <Label className="text-xs">Material</Label>}
-                      <Input value={item.material} onChange={e => updateItem(i, "material", e.target.value)} placeholder="Material" />
+              {form.items.map((item, i) => {
+                const itemOriginalTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.original_unit_price) || 0);
+                const itemFinalTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.final_unit_price) || 0);
+                const itemDiscount = Math.max(0, itemOriginalTotal - itemFinalTotal);
+                const itemDiscountPerc = itemOriginalTotal > 0 ? (itemDiscount / itemOriginalTotal) * 100 : 0;
+
+                return (
+                  <div key={i} className="space-y-1 border rounded-md p-2 bg-muted/30">
+                    <div className="grid grid-cols-12 gap-1 items-end">
+                      <div className="col-span-4">
+                        {i === 0 && <Label className="text-xs">Material</Label>}
+                        <Input value={item.material} onChange={e => updateItem(i, "material", e.target.value)} placeholder="Material" />
+                      </div>
+                      <div className="col-span-2">
+                        {i === 0 && <Label className="text-xs">Qtd</Label>}
+                        <Input type="number" step="0.01" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
+                      </div>
+                      <div className="col-span-1">
+                        {i === 0 && <Label className="text-xs">Un</Label>}
+                        <Input value={item.unit} onChange={e => updateItem(i, "unit", e.target.value)} className="px-1 text-center" />
+                      </div>
+                      <div className="col-span-2">
+                        {i === 0 && <Label className="text-xs">R$ Original</Label>}
+                        <Input type="number" step="0.01" value={item.original_unit_price} onChange={e => updateItem(i, "original_unit_price", e.target.value)} className="bg-orange-50/50" />
+                      </div>
+                      <div className="col-span-2">
+                        {i === 0 && <Label className="text-xs">R$ Negociado</Label>}
+                        <Input type="number" step="0.01" value={item.final_unit_price} onChange={e => updateItem(i, "final_unit_price", e.target.value)} className="bg-green-50/50" />
+                      </div>
+                      <div className="col-span-1">
+                        {form.items.length > 1 && (
+                          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => removeItem(i)}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="col-span-2">
-                      {i === 0 && <Label className="text-xs">Qtd</Label>}
-                      <Input type="number" step="0.01" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
-                    </div>
-                    <div className="col-span-2">
-                      {i === 0 && <Label className="text-xs">Un</Label>}
-                      <Select value={item.unit} onValueChange={v => updateItem(i, "unit", v)}>
-                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {["un", "kg", "m", "m²", "m³", "ml", "litro", "peça", "pacote", "cx", "rolo"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-2">
-                      {i === 0 && <Label className="text-xs">Valor Un.</Label>}
-                      <Input type="number" step="0.01" value={item.unit_price} onChange={e => updateItem(i, "unit_price", e.target.value)} />
-                    </div>
-                    <div className="col-span-1">
-                      {form.items.length > 1 && (
-                        <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => removeItem(i)}>
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      )}
+                    {/* Client / Obra per item */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex-1">
+                        <Select
+                          value={item.work_order_id || item.client_id || "geral"}
+                          onValueChange={v => updateItemDestination(i, v)}
+                        >
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Uso Geral / Estoque" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="geral">Uso Geral / Estoque</SelectItem>
+                            {workOrders.map((wo: any) => (
+                              <SelectItem key={wo.id} value={wo.id}>
+                                {wo.clients?.name || "Cliente"} — OS #{wo.id.slice(0, 8)}
+                              </SelectItem>
+                            ))}
+                            {clients.filter((c: any) => !workOrders.some((wo: any) => wo.client_id === c.id)).map((c: any) => (
+                              <SelectItem key={c.id} value={c.id}>{c.name} (sem OS)</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground flex gap-2">
+                        <span>Original: {fmt(itemOriginalTotal)}</span>
+                        <span className="text-green-600 font-medium">Final: {fmt(itemFinalTotal)}</span>
+                        {itemDiscount > 0 && <span className="text-orange-600">(-{fmt(itemDiscount)} | {itemDiscountPerc.toFixed(1)}%)</span>}
+                      </div>
                     </div>
                   </div>
-                  {/* Client / Obra per item */}
-                  <div>
-                    <Label className="text-xs">Cliente / Obra</Label>
-                    <Select
-                      value={item.work_order_id || item.client_id || "geral"}
-                      onValueChange={v => updateItemDestination(i, v)}
-                    >
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Uso Geral / Estoque" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="geral">Uso Geral / Estoque</SelectItem>
-                        {workOrders.map((wo: any) => (
-                          <SelectItem key={wo.id} value={wo.id}>
-                            {wo.clients?.name || "Cliente"} — OS #{wo.id.slice(0, 8)}
-                          </SelectItem>
-                        ))}
-                        {clients.filter((c: any) => !workOrders.some((wo: any) => wo.client_id === c.id)).map((c: any) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name} (sem OS)</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="text-xs text-muted-foreground text-right">
-                    Total: {fmt((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0))}
-                  </p>
-                </div>
-              ))}
-              <p className="text-xs text-muted-foreground font-medium">Total itens: {fmt(calcItemsTotal())}</p>
+                );
+              })}
+              <div className="flex justify-between items-center px-1">
+                <p className="text-xs text-muted-foreground">Original: {fmt(calcItemsOriginalTotal())}</p>
+                <p className="text-xs text-green-600 font-semibold">Negociado: {fmt(calcItemsFinalTotal())}</p>
+              </div>
             </div>
 
-            {/* Totals */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label>Total lido dos itens (R$)</Label>
-                <Input
-                  type="number" step="0.01"
-                  value={form.original_total}
-                  onChange={e => setForm({ ...form, original_total: e.target.value })}
-                  placeholder="Soma dos itens"
-                />
+            {/* Summary / Totals */}
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Valor Original</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                    <Input
+                      type="number" step="0.01"
+                      className="pl-9 bg-background"
+                      value={form.original_total}
+                      onChange={e => setForm({ ...form, original_total: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-green-700">Valor Negociado</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-700 font-bold text-sm">R$</span>
+                    <Input
+                      type="number" step="0.01"
+                      className={`pl-9 bg-background border-green-200 focus-visible:ring-green-500 font-bold text-green-700 ${isFieldMissing("final_total") ? "ring-2 ring-yellow-400" : ""}`}
+                      value={form.final_total}
+                      onChange={e => setForm({ ...form, final_total: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className={isFieldMissing("final_total") ? "ring-2 ring-yellow-400 rounded-md p-2" : ""}>
-                <Label>Valor Total Confirmado (R$)</Label>
-                <Input
-                  type="number" step="0.01"
-                  value={form.final_total}
-                  onChange={e => {
-                    setFinalTotalTouched(true);
-                    setForm({ ...form, final_total: e.target.value });
-                  }}
-                  placeholder={String(calcItemsTotal())}
-                />
-              </div>
+
+              {Number(form.original_total) > Number(form.final_total) && (
+                <div className="flex items-center justify-between py-2 px-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <TrendingDown className="h-4 w-4" />
+                    <span className="text-sm font-medium">Economia Realizada:</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-green-700">
+                      {fmt(Number(form.original_total) - Number(form.final_total))}
+                    </p>
+                    <p className="text-[10px] text-green-600 font-medium">
+                      ({(((Number(form.original_total) - Number(form.final_total)) / Number(form.original_total)) * 100).toFixed(1)}% de desconto)
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Payment */}

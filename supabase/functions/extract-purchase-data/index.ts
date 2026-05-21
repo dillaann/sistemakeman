@@ -24,8 +24,10 @@ serve(async (req) => {
       image_url: { url },
     }));
 
-    const systemPrompt = `Você é um assistente especializado em extrair dados de documentos de compras, notas fiscais e pedidos de fornecedores.
-Analise as imagens enviadas e extraia os seguintes dados em formato JSON:
+    const systemPrompt = `Você é um assistente especializado em extrair dados de documentos de compras.
+O usuário enviará até duas fotos: uma do pedido original (antes da negociação) e outra do pedido final (após negociação/com descontos).
+
+Sua tarefa é extrair e comparar os dados das duas fotos em formato JSON:
 
 {
   "supplier_name": "nome do fornecedor",
@@ -36,7 +38,8 @@ Analise as imagens enviadas e extraia os seguintes dados em formato JSON:
       "material": "nome do material/produto",
       "quantity": 1,
       "unit": "un",
-      "unit_price": 0.00
+      "original_unit_price": 0.00,
+      "final_unit_price": 0.00
     }
   ],
   "original_total": 0.00,
@@ -46,15 +49,18 @@ Analise as imagens enviadas e extraia os seguintes dados em formato JSON:
   "notes": "observações relevantes"
 }
 
-Regras:
-- Se houver duas imagens, use-as apenas para melhorar a leitura dos itens e do total; nunca calcule desconto ou reduza valores automaticamente
-- Se houver apenas uma imagem, extraia os dados disponíveis
-- Para unit, use: un, kg, m, m², m³, litro, peça, pacote, cx, rolo
-- Se não conseguir identificar um campo, use null
-- Retorne APENAS o JSON, sem texto adicional
-- final_total deve ser o valor total explícito do pedido/nota que o usuário irá confirmar, sem aplicar desconto automático sobre os itens
-- Valores monetários devem ser números decimais (ex: 1250.50)
-- Datas devem estar no formato YYYY-MM-DD`;
+Regras Cruciais:
+1. Se houver DUAS fotos:
+   - Identifique qual é o pedido original (preços maiores) e qual é o final (preços menores).
+   - "original_total" deve vir da foto sem desconto.
+   - "final_total" deve vir da foto com desconto.
+   - Para cada item, cruze as informações pelo nome do material para obter "original_unit_price" e "final_unit_price".
+2. Se houver apenas UMA foto:
+   - Se a foto já mostrar descontos aplicados (ex: preço riscado ou coluna de desconto), extraia ambos.
+   - Caso contrário, defina "original_unit_price" e "final_unit_price" como o mesmo valor.
+3. Valores monetários devem ser números decimais (ex: 1250.50).
+4. Datas no formato YYYY-MM-DD.
+5. Retorne APENAS o JSON.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
