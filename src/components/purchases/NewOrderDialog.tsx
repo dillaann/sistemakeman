@@ -47,6 +47,8 @@ interface Props {
       invoice_number: string | null;
       notes: string | null;
       total: number;
+      original_total?: number;
+      discount_amount?: number;
     };
     items: Array<{
       material: string;
@@ -131,6 +133,8 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
         invoice_number: orderForm.invoice_number || null,
         notes: orderForm.notes || null,
         total: itemsPayload.reduce((s, i) => s + i.total, 0),
+        original_total: itemsPayload.reduce((s, i) => s + i.total, 0),
+        discount_amount: 0,
       },
       items: itemsPayload,
     });
