@@ -546,6 +546,9 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
             {/* Summary / Totals */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-3">
+              <p className="text-[11px] text-muted-foreground">
+                Informe o <strong>Valor Original</strong> (do pedido antes do desconto) e o <strong>Valor Negociado</strong> (o que você efetivamente pagou). A diferença será registrada como economia.
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Valor Original</Label>
