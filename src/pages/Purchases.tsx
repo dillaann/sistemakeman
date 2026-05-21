@@ -576,22 +576,15 @@ const Purchases = () => {
       if (!sid) return;
       const name = (p as any).suppliers?.name ?? "Sem nome";
       if (!map[sid]) map[sid] = { name, totalOriginal: 0, totalPaid: 0, totalSaved: 0, count: 0 };
-      const origPrice = Number((p as any).original_price ?? 0);
+      
       const paidTotal = Number(p.total);
-      const qty = Number(p.quantity);
-      let originalTotal: number;
-      if (origPrice > 0) {
-        const asPerUnit = origPrice * qty;
-        const asTotalDiff = Math.abs(origPrice - paidTotal);
-        const asPerUnitDiff = Math.abs(asPerUnit - paidTotal);
-        originalTotal = asTotalDiff < asPerUnitDiff ? origPrice : asPerUnit;
-      } else {
-        originalTotal = paidTotal;
-      }
+      const discount = Number(p.discount_amount ?? 0);
+      const originalTotal = paidTotal + discount;
+      
       map[sid].totalOriginal += originalTotal;
       map[sid].totalPaid += paidTotal;
-      map[sid].totalSaved += originalTotal - paidTotal;
-      if (Number(p.discount_amount ?? 0) > 0) map[sid].count++;
+      map[sid].totalSaved += discount;
+      if (discount > 0) map[sid].count++;
     });
     return Object.values(map).sort((a, b) => b.totalSaved - a.totalSaved);
   }, [monthPurchases]);
@@ -688,14 +681,14 @@ const Purchases = () => {
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Gasto no Mês</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Pago no Mês</CardTitle>
                 <ShoppingCart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent><div className="text-2xl font-bold">{fmt(totalMonth)}</div></CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Economizado em Descontos</CardTitle>
+                <CardTitle className="text-sm font-medium">Descontos Obtidos</CardTitle>
                 <TrendingDown className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent><div className="text-2xl font-bold text-green-600">{fmt(totalDiscount)}</div></CardContent>
@@ -1247,8 +1240,9 @@ const Purchases = () => {
         clients={clients}
         workOrders={allWorkOrders}
         onSave={async (data: any) => {
-          const { items, linked_wo_id, order_total } = data;
+          const { items, linked_wo_id, order_total, original_total, discount_amount } = data;
           if (!items || items.length === 0) return;
+          
           // Group all items into ONE purchase_order (foto = nota fiscal única)
           const first = items[0];
           const supplierId = first.supplier_id || null;
@@ -1257,7 +1251,12 @@ const Purchases = () => {
           const paymentStatus = first.payment_status || "pendente";
           const dueDate = first.due_date || null;
           const invoiceNumber = first.invoice_number || null;
+          
+          // order_total is the NEGOTIATED value (final paid amount)
           const orderTotal = Number(order_total ?? items.reduce((s: number, it: any) => s + Number(it.total || 0), 0));
+          const orderOriginalTotal = Number(original_total ?? orderTotal);
+          const orderDiscount = Number(discount_amount ?? 0);
+          
           const orderClient = first.client_id || null;
           const orderWO = first.work_order_id || null;
 
@@ -1266,11 +1265,20 @@ const Purchases = () => {
           if (numErr) { toast({ title: "Erro", description: numErr.message, variant: "destructive" }); return; }
           const orderNumber = numData as unknown as string;
 
-          // Insert order header
+          // Insert order header - including original_total and discount_amount
           const { data: newOrder, error: oErr } = await supabase.from("purchase_orders" as any).insert({
-            order_number: orderNumber, supplier_id: supplierId, client_id: orderClient, work_order_id: orderWO,
-            purchase_date: purchaseDate, payment_method: paymentMethod, payment_status: paymentStatus,
-            due_date: dueDate, invoice_number: invoiceNumber, total: orderTotal,
+            order_number: orderNumber, 
+            supplier_id: supplierId, 
+            client_id: orderClient, 
+            work_order_id: orderWO,
+            purchase_date: purchaseDate, 
+            payment_method: paymentMethod, 
+            payment_status: paymentStatus,
+            due_date: dueDate, 
+            invoice_number: invoiceNumber, 
+            total: orderTotal,
+            original_total: orderOriginalTotal,
+            discount_amount: orderDiscount,
           } as any).select().single();
           if (oErr) { toast({ title: "Erro", description: oErr.message, variant: "destructive" }); return; }
 
