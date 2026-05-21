@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, TrendingDown } from "lucide-react";
 import { localDateString } from "@/lib/utils";
 
 const paymentMethods: Record<string, string> = {
@@ -22,12 +22,13 @@ interface ItemRow {
   material: string;
   quantity: string;
   unit: string;
-  unit_price: string;
+  original_unit_price: string;
+  final_unit_price: string;
   client_id?: string;
   work_order_id?: string;
 }
 
-const emptyItem = (): ItemRow => ({ material: "", quantity: "1", unit: "un", unit_price: "0" });
+const emptyItem = (): ItemRow => ({ material: "", quantity: "1", unit: "un", original_unit_price: "0", final_unit_price: "0" });
 
 interface Props {
   open: boolean;
@@ -55,7 +56,9 @@ interface Props {
       quantity: number;
       unit: string;
       unit_price: number;
+      original_price?: number;
       total: number;
+      discount_amount?: number;
       client_id: string | null;
       work_order_id: string | null;
     }>;
@@ -76,6 +79,8 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
     notes: "",
   });
   const [items, setItems] = useState<ItemRow[]>([emptyItem()]);
+  const [originalTotalOverride, setOriginalTotalOverride] = useState<string>("");
+  const [finalTotalOverride, setFinalTotalOverride] = useState<string>("");
 
   const reset = () => {
     setOrderForm({
@@ -84,16 +89,35 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
       due_date: "", invoice_number: "", notes: "",
     });
     setItems([emptyItem()]);
+    setOriginalTotalOverride("");
+    setFinalTotalOverride("");
   };
 
-  const total = items.reduce((s, it) => {
+  const itemsOriginalTotal = items.reduce((s, it) => {
     const q = parseFloat(it.quantity) || 0;
-    const p = parseFloat(it.unit_price) || 0;
+    const p = parseFloat(it.original_unit_price) || 0;
+    return s + q * p;
+  }, 0);
+  const itemsFinalTotal = items.reduce((s, it) => {
+    const q = parseFloat(it.quantity) || 0;
+    const p = parseFloat(it.final_unit_price) || 0;
     return s + q * p;
   }, 0);
 
+  const originalTotal = originalTotalOverride !== "" ? (parseFloat(originalTotalOverride) || 0) : itemsOriginalTotal;
+  const finalTotal = finalTotalOverride !== "" ? (parseFloat(finalTotalOverride) || 0) : itemsFinalTotal;
+  const discount = Math.max(0, originalTotal - finalTotal);
+
   const handleItemChange = (idx: number, field: keyof ItemRow, value: string) => {
-    setItems(items.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+    setItems(items.map((it, i) => {
+      if (i !== idx) return it;
+      const next = { ...it, [field]: value };
+      // when user types only final price, mirror to original (no discount by default)
+      if (field === "final_unit_price" && (parseFloat(it.original_unit_price) || 0) === 0) {
+        next.original_unit_price = value;
+      }
+      return next;
+    }));
   };
 
   const addItem = () => setItems([...items, emptyItem()]);
@@ -107,15 +131,39 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
     const validItems = items.filter(it => it.material.trim() !== "");
     if (validItems.length === 0) return;
 
-    const itemsPayload = validItems.map(it => {
+    // Use override totals if provided, otherwise fall back to items sum
+    const confirmedFinal = Number(finalTotal.toFixed(2));
+    const confirmedOriginal = Number(Math.max(originalTotal, confirmedFinal).toFixed(2));
+    const totalDiscount = Math.max(0, confirmedOriginal - confirmedFinal);
+
+    const finalFactor = itemsFinalTotal > 0 ? confirmedFinal / itemsFinalTotal : 1;
+    const originalFactor = itemsOriginalTotal > 0 ? confirmedOriginal / itemsOriginalTotal : 1;
+
+    const itemsPayload = validItems.map((it, idx) => {
       const q = parseFloat(it.quantity) || 0;
-      const p = parseFloat(it.unit_price) || 0;
+      const finalUnit = parseFloat(it.final_unit_price) || 0;
+      const originalUnit = parseFloat(it.original_unit_price) || finalUnit;
+
+      const itemOriginal = q * originalUnit * originalFactor;
+      const previousFinals = validItems.slice(0, idx).reduce((s, prev) => {
+        const pq = parseFloat(prev.quantity) || 0;
+        const pf = parseFloat(prev.final_unit_price) || 0;
+        return s + Number((pq * pf * finalFactor).toFixed(2));
+      }, 0);
+      const itemFinal = idx === validItems.length - 1
+        ? Number((confirmedFinal - previousFinals).toFixed(2))
+        : Number((q * finalUnit * finalFactor).toFixed(2));
+
+      const itemDiscount = Math.max(0, itemOriginal - itemFinal);
+
       return {
         material: it.material.trim(),
         quantity: q,
         unit: it.unit,
-        unit_price: p,
-        total: q * p,
+        unit_price: q > 0 ? itemFinal / q : finalUnit,
+        original_price: q > 0 ? itemOriginal / q : originalUnit,
+        total: itemFinal,
+        discount_amount: itemDiscount,
         client_id: it.client_id || orderForm.client_id || null,
         work_order_id: it.work_order_id || orderForm.work_order_id || null,
       };
@@ -132,9 +180,9 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
         due_date: orderForm.due_date || null,
         invoice_number: orderForm.invoice_number || null,
         notes: orderForm.notes || null,
-        total: itemsPayload.reduce((s, i) => s + i.total, 0),
-        original_total: itemsPayload.reduce((s, i) => s + i.total, 0),
-        discount_amount: 0,
+        total: confirmedFinal,
+        original_total: confirmedOriginal,
+        discount_amount: totalDiscount,
       },
       items: itemsPayload,
     });
@@ -228,22 +276,26 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
                 <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar item
               </Button>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Preencha o <strong>Valor Original</strong> (antes da negociação) e o <strong>Valor Pago</strong> de cada item. A diferença vira economia.
+            </p>
             <div className="border rounded-lg overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Material *</TableHead>
-                    <TableHead className="w-20">Qtd</TableHead>
-                    <TableHead className="w-20">Un.</TableHead>
-                    <TableHead className="w-28">Vlr Unit.</TableHead>
-                    <TableHead className="w-28">Total</TableHead>
+                    <TableHead className="w-16">Qtd</TableHead>
+                    <TableHead className="w-16">Un.</TableHead>
+                    <TableHead className="w-24">R$ Original</TableHead>
+                    <TableHead className="w-24">R$ Pago</TableHead>
+                    <TableHead className="w-24">Total Pago</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((it, idx) => {
                     const q = parseFloat(it.quantity) || 0;
-                    const p = parseFloat(it.unit_price) || 0;
+                    const fp = parseFloat(it.final_unit_price) || 0;
                     return (
                       <TableRow key={idx}>
                         <TableCell>
@@ -261,9 +313,12 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <Input type="number" step="0.01" value={it.unit_price} onChange={e => handleItemChange(idx, "unit_price", e.target.value)} />
+                          <Input type="number" step="0.01" className="bg-orange-50/50" value={it.original_unit_price} onChange={e => handleItemChange(idx, "original_unit_price", e.target.value)} />
                         </TableCell>
-                        <TableCell className="font-medium">{fmt(q * p)}</TableCell>
+                        <TableCell>
+                          <Input type="number" step="0.01" className="bg-green-50/50" value={it.final_unit_price} onChange={e => handleItemChange(idx, "final_unit_price", e.target.value)} />
+                        </TableCell>
+                        <TableCell className="font-medium text-green-700">{fmt(q * fp)}</TableCell>
                         <TableCell>
                           <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)} disabled={items.length === 1}>
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -275,9 +330,51 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
                 </TableBody>
               </Table>
             </div>
-            <div className="flex justify-end items-center gap-3 pt-2 border-t">
-              <span className="text-sm text-muted-foreground">Total do Pedido:</span>
-              <span className="text-xl font-bold">{fmt(total)}</span>
+
+            {/* Totals summary */}
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-3 mt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Valor Original</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                    <Input
+                      type="number" step="0.01"
+                      className="pl-9 bg-background"
+                      value={originalTotalOverride !== "" ? originalTotalOverride : String(itemsOriginalTotal.toFixed(2))}
+                      onChange={e => setOriginalTotalOverride(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-green-700">Valor Pago (Final)</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-700 font-bold text-sm">R$</span>
+                    <Input
+                      type="number" step="0.01"
+                      className="pl-9 bg-background border-green-200 focus-visible:ring-green-500 font-bold text-green-700"
+                      value={finalTotalOverride !== "" ? finalTotalOverride : String(itemsFinalTotal.toFixed(2))}
+                      onChange={e => setFinalTotalOverride(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              {discount > 0 && (
+                <div className="flex items-center justify-between py-2 px-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <TrendingDown className="h-4 w-4" />
+                    <span className="text-sm font-medium">Economia Realizada:</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-green-700">{fmt(discount)}</p>
+                    {originalTotal > 0 && (
+                      <p className="text-[10px] text-green-600 font-medium">
+                        ({((discount / originalTotal) * 100).toFixed(1)}% de desconto)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

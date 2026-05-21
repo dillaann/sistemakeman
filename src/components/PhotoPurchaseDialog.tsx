@@ -39,6 +39,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [finalTotalTouched, setFinalTotalTouched] = useState(false);
+  const [originalTotalTouched, setOriginalTotalTouched] = useState(false);
 
   // Form state for review
   const [form, setForm] = useState({
@@ -62,6 +63,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setExtractedData(null);
     setMissingFields([]);
     setFinalTotalTouched(false);
+    setOriginalTotalTouched(false);
     setForm({
       supplier_id: "", supplier_name: "",
       purchase_date: localDateString(),
@@ -194,8 +196,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       return {
         ...prev,
         items: newItems,
-        original_total: String(newOriginalTotal),
-        final_total: String(newFinalTotal),
+        original_total: originalTotalTouched ? prev.original_total : String(newOriginalTotal),
+        final_total: finalTotalTouched ? prev.final_total : String(newFinalTotal),
       };
     });
   };
@@ -232,8 +234,8 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       return {
         ...prev,
         items: newItems,
-        original_total: String(newOriginalTotal),
-        final_total: String(newFinalTotal),
+        original_total: originalTotalTouched ? prev.original_total : String(newOriginalTotal),
+        final_total: finalTotalTouched ? prev.final_total : String(newFinalTotal),
       };
     });
   };
@@ -544,6 +546,9 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
 
             {/* Summary / Totals */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-3">
+              <p className="text-[11px] text-muted-foreground">
+                Informe o <strong>Valor Original</strong> (do pedido antes do desconto) e o <strong>Valor Negociado</strong> (o que você efetivamente pagou). A diferença será registrada como economia.
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Valor Original</Label>
@@ -553,19 +558,19 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
                       type="number" step="0.01"
                       className="pl-9 bg-background"
                       value={form.original_total}
-                      onChange={e => setForm({ ...form, original_total: e.target.value })}
+                      onChange={e => { setOriginalTotalTouched(true); setForm({ ...form, original_total: e.target.value }); }}
                     />
                   </div>
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-green-700">Valor Negociado</Label>
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-green-700">Valor Negociado (Pago)</Label>
                   <div className="relative mt-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-700 font-bold text-sm">R$</span>
                     <Input
                       type="number" step="0.01"
                       className={`pl-9 bg-background border-green-200 focus-visible:ring-green-500 font-bold text-green-700 ${isFieldMissing("final_total") ? "ring-2 ring-yellow-400" : ""}`}
                       value={form.final_total}
-                      onChange={e => setForm({ ...form, final_total: e.target.value })}
+                      onChange={e => { setFinalTotalTouched(true); setForm({ ...form, final_total: e.target.value }); }}
                     />
                   </div>
                 </div>
