@@ -39,6 +39,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [finalTotalTouched, setFinalTotalTouched] = useState(false);
+  const [originalTotalTouched, setOriginalTotalTouched] = useState(false);
 
   // Form state for review
   const [form, setForm] = useState({
