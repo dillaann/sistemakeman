@@ -1253,12 +1253,12 @@ const Purchases = () => {
           const invoiceNumber = first.invoice_number || null;
           
           // order_total is the NEGOTIATED value (final paid amount)
-          const orderTotal = Number(order_total ?? items.reduce((s: number, it: any) => s + Number(it.total || 0), 0));
-          const orderOriginalTotal = Number(original_total ?? orderTotal);
-          const orderDiscount = Number(discount_amount ?? 0);
+          const orderTotal = Number(order_total);
+          const orderOriginalTotal = Number(original_total);
+          const orderDiscount = Number(discount_amount);
           
-          const orderClient = first.client_id || null;
-          const orderWO = first.work_order_id || null;
+          const orderClient = items[0].client_id || null;
+          const orderWO = items[0].work_order_id || null;
 
           // Generate order number
           const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, { _date: purchaseDate });
