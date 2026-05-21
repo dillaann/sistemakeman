@@ -383,6 +383,8 @@ const Purchases = () => {
           invoice_number: order.invoice_number,
           notes: order.notes,
           total: order.total,
+          original_total: order.original_total || order.total,
+          discount_amount: order.discount_amount || 0,
         } as any)
         .select()
         .single();
@@ -405,6 +407,9 @@ const Purchases = () => {
         payment_status: order.payment_status,
         due_date: order.due_date,
         invoice_number: order.invoice_number,
+        original_price: it.original_price || null,
+        discount_amount: it.discount_amount || 0,
+        discount_percentage: it.discount_percentage || 0,
       }));
       const { error: itemsErr } = await supabase.from("purchases").insert(itemsToInsert as any);
       if (itemsErr) throw itemsErr;

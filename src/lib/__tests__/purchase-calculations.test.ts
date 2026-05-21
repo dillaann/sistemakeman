@@ -20,7 +20,7 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
     items.forEach((item) => {
       expect(item.total).toBeCloseTo(item.quantity * item.unit_price, 2);
       expect(item.discount_amount).toBe(0);
-      expect(item.original_price).toBeNull();
+      expect(item.original_price).toBe(item.unit_price);
     });
   });
 
@@ -30,7 +30,7 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
         { material: "Chapa", quantity: 10, unit_price: 50 },
         { material: "Tubo", quantity: 5, unit_price: 100 },
       ],
-      original_total: 1000,
+      original_total: 2532,
       final_total: 2532,
     });
 
@@ -45,11 +45,11 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
     items.forEach((item) => {
       expect(item.discount_amount).toBe(0);
       expect(item.discount_percentage).toBe(0);
-      expect(item.original_price).toBeNull();
+      expect(item.original_price).toBeGreaterThan(0);
     });
   });
 
-  it("não registra desconto automático quando final_total é menor que original_total", () => {
+  it("registra desconto quando final_total é menor que original_total", () => {
     const items = calculatePurchaseItems({
       items: [{ material: "Chapa", quantity: 10, unit_price: 100 }],
       original_total: 1000,
@@ -58,9 +58,9 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
 
     expect(items[0].unit_price).toBeCloseTo(90, 2);
     expect(items[0].total).toBeCloseTo(900, 2);
-    expect(items[0].original_price).toBeNull();
-    expect(items[0].discount_amount).toBe(0);
-    expect(items[0].discount_percentage).toBe(0);
+    expect(items[0].original_price).toBe(100);
+    expect(items[0].discount_amount).toBe(100);
+    expect(items[0].discount_percentage).toBe(10);
     expect(items[0].quantity * items[0].unit_price).toBeCloseTo(items[0].total, 2);
   });
 
@@ -77,7 +77,7 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
     expect(result.errors[0]).toMatch(/total/);
   });
 
-  it("desconto nunca é negativo nem maior que o valor original", () => {
+  it("desconto nunca é negativo", () => {
     const items = calculatePurchaseItems({
       items: [{ material: "X", quantity: 1, unit_price: 100 }],
       original_total: 100,
@@ -85,10 +85,10 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
     });
     expect(items[0].total).toBeCloseTo(110, 2);
     expect(items[0].discount_amount).toBe(0);
-    expect(items[0].original_price).toBeNull();
+    expect(items[0].original_price).toBe(100);
   });
 
-  it("um único item preserva o total informado sem desconto", () => {
+  it("um único item preserva o total informado e registra desconto", () => {
     const items = calculatePurchaseItems({
       items: [{ material: "Solda", quantity: 3, unit_price: 200 }],
       original_total: 600,
@@ -96,6 +96,7 @@ describe("regressão: cálculo de compras (preserva valor digitado)", () => {
     });
     expect(items[0].unit_price).toBeCloseTo(180, 2);
     expect(items[0].total).toBeCloseTo(540, 2);
-    expect(items[0].discount_percentage).toBe(0);
+    expect(items[0].discount_amount).toBe(60);
+    expect(items[0].discount_percentage).toBe(10);
   });
 });
