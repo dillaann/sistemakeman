@@ -63,6 +63,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setExtractedData(null);
     setMissingFields([]);
     setFinalTotalTouched(false);
+    setOriginalTotalTouched(false);
     setForm({
       supplier_id: "", supplier_name: "",
       purchase_date: localDateString(),
