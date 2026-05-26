@@ -225,7 +225,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                   </Select>
                 </div>
               </div>
-              <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} maxLength={500} /></div>
+              <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} maxLength={500} className="min-h-[100px] resize-y" /></div>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar</Button>
             </form>
           </DialogContent>

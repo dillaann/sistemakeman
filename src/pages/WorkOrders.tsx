@@ -171,7 +171,7 @@ const WorkOrders = () => {
                   <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              <div><Label>Descrição</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="min-h-[100px] resize-y" /></div>
               <div><Label>Origem da Venda *</Label>
                 <Select value={form.origem_venda} onValueChange={v => setForm({ ...form, origem_venda: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>

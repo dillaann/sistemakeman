@@ -1011,17 +1011,25 @@ const Quotes = () => {
                   </Button>
                 </div>
                 {items.map((item, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-4">
-                      {i === 0 && <Label className="text-xs">Descrição</Label>}
-                      <Input placeholder="Descrição do item" value={item.description} onChange={e => updateItem(i, "description", e.target.value)} />
+                  <div key={i} className="grid grid-cols-12 gap-2 items-start border-b pb-3 md:pb-0 md:border-0 md:items-end">
+                    <div className="col-span-12 md:col-span-4">
+                      {i === 0 && <Label className="hidden md:block text-xs">Descrição</Label>}
+                      <Label className="md:hidden text-xs mb-1 block">Descrição</Label>
+                      <Textarea 
+                        placeholder="Descrição do item" 
+                        value={item.description} 
+                        onChange={e => updateItem(i, "description", e.target.value)}
+                        className="min-h-[80px] md:min-h-[40px] resize-y"
+                      />
                     </div>
-                    <div className="col-span-2">
-                      {i === 0 && <Label className="text-xs">Qtd</Label>}
+                    <div className="col-span-4 md:col-span-2">
+                      {i === 0 && <Label className="hidden md:block text-xs">Qtd</Label>}
+                      <Label className="md:hidden text-xs mb-1 block">Qtd</Label>
                       <Input type="number" step="any" min="0" value={item.quantity} onChange={e => updateItem(i, "quantity", e.target.value)} />
                     </div>
-                    <div className="col-span-1">
-                      {i === 0 && <Label className="text-xs">Unid.</Label>}
+                    <div className="col-span-3 md:col-span-1">
+                      {i === 0 && <Label className="hidden md:block text-xs">Unid.</Label>}
+                      <Label className="md:hidden text-xs mb-1 block">Unid.</Label>
                       <Select value={item.unit} onValueChange={(v) => updateItem(i, "unit", v)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1029,15 +1037,19 @@ const Quotes = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="col-span-2">
-                      {i === 0 && <Label className="text-xs">Preço Un.</Label>}
+                    <div className="col-span-5 md:col-span-2">
+                      {i === 0 && <Label className="hidden md:block text-xs">Preço Un.</Label>}
+                      <Label className="md:hidden text-xs mb-1 block">Preço Un.</Label>
                       <Input type="number" step="0.01" placeholder="0,00" value={item.unit_price} onChange={e => updateItem(i, "unit_price", e.target.value)} />
                     </div>
-                    <div className="col-span-2 text-right text-sm font-medium pt-2">{fmt(calcItemTotal(item))}</div>
-                    <div className="col-span-1">
+                    <div className="col-span-10 md:col-span-2 text-right text-sm font-medium pt-2 md:pt-0 self-center">
+                      <Label className="md:hidden text-xs mb-1 block text-left">Total</Label>
+                      {fmt(calcItemTotal(item))}
+                    </div>
+                    <div className="col-span-2 md:col-span-1 flex justify-end">
                       {items.length > 1 && (
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)} className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
@@ -1271,17 +1283,25 @@ const Quotes = () => {
                 </Button>
               </div>
               {editItems.map((item, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-4">
-                    {i === 0 && <Label className="text-xs">Descrição</Label>}
-                    <Input placeholder="Descrição do item" value={item.description} onChange={e => updateEditItem(i, "description", e.target.value)} />
+                <div key={i} className="grid grid-cols-12 gap-2 items-start border-b pb-3 md:pb-0 md:border-0 md:items-end">
+                  <div className="col-span-12 md:col-span-4">
+                    {i === 0 && <Label className="hidden md:block text-xs">Descrição</Label>}
+                    <Label className="md:hidden text-xs mb-1 block">Descrição</Label>
+                    <Textarea 
+                      placeholder="Descrição do item" 
+                      value={item.description} 
+                      onChange={e => updateEditItem(i, "description", e.target.value)}
+                      className="min-h-[80px] md:min-h-[40px] resize-y"
+                    />
                   </div>
-                  <div className="col-span-2">
-                    {i === 0 && <Label className="text-xs">Qtd</Label>}
+                  <div className="col-span-4 md:col-span-2">
+                    {i === 0 && <Label className="hidden md:block text-xs">Qtd</Label>}
+                    <Label className="md:hidden text-xs mb-1 block">Qtd</Label>
                     <Input type="number" step="any" min="0" value={item.quantity} onChange={e => updateEditItem(i, "quantity", e.target.value)} />
                   </div>
-                  <div className="col-span-1">
-                    {i === 0 && <Label className="text-xs">Unid.</Label>}
+                  <div className="col-span-3 md:col-span-1">
+                    {i === 0 && <Label className="hidden md:block text-xs">Unid.</Label>}
+                    <Label className="md:hidden text-xs mb-1 block">Unid.</Label>
                     <Select value={item.unit} onValueChange={(v) => updateEditItem(i, "unit", v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1289,15 +1309,19 @@ const Quotes = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2">
-                    {i === 0 && <Label className="text-xs">Preço Un.</Label>}
+                  <div className="col-span-5 md:col-span-2">
+                    {i === 0 && <Label className="hidden md:block text-xs">Preço Un.</Label>}
+                    <Label className="md:hidden text-xs mb-1 block">Preço Un.</Label>
                     <Input type="number" step="0.01" placeholder="0,00" value={item.unit_price} onChange={e => updateEditItem(i, "unit_price", e.target.value)} />
                   </div>
-                  <div className="col-span-2 text-right text-sm font-medium pt-2">{fmt(calcItemTotal(item))}</div>
-                  <div className="col-span-1">
+                  <div className="col-span-10 md:col-span-2 text-right text-sm font-medium pt-2 md:pt-0 self-center">
+                    <Label className="md:hidden text-xs mb-1 block text-left">Total</Label>
+                    {fmt(calcItemTotal(item))}
+                  </div>
+                  <div className="col-span-2 md:col-span-1 flex justify-end">
                     {editItems.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeEditItem(i)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeEditItem(i)} className="text-destructive">
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
