@@ -1093,8 +1093,8 @@ const Purchases = () => {
                     <div><Label>Telefone</Label><Input value={supplierForm.phone} onChange={e => setSupplierForm({ ...supplierForm, phone: e.target.value })} /></div>
                   </div>
                   <div><Label>E-mail</Label><Input type="email" value={supplierForm.email} onChange={e => setSupplierForm({ ...supplierForm, email: e.target.value })} /></div>
-                  <div><Label>Produtos / Materiais</Label><Textarea value={supplierForm.products} onChange={e => setSupplierForm({ ...supplierForm, products: e.target.value })} /></div>
-                  <div><Label>Observações</Label><Textarea value={supplierForm.notes} onChange={e => setSupplierForm({ ...supplierForm, notes: e.target.value })} /></div>
+                  <div><Label>Produtos / Materiais</Label><Textarea value={supplierForm.products} onChange={e => setSupplierForm({ ...supplierForm, products: e.target.value })} className="min-h-[100px] resize-y" /></div>
+                  <div><Label>Observações</Label><Textarea value={supplierForm.notes} onChange={e => setSupplierForm({ ...supplierForm, notes: e.target.value })} className="min-h-[100px] resize-y" /></div>
                   <Button type="submit" className="w-full" disabled={saveSupplier.isPending}>Salvar</Button>
                 </form>
               </DialogContent>
