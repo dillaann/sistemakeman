@@ -209,10 +209,10 @@ const SellerSalesView = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Descrição do serviço/produto *</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required /></div>
+              <div><Label>Descrição do serviço/produto *</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required className="min-h-[100px] resize-y" /></div>
               <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
               <div><Label>Prazo de entrega</Label><Input type="date" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
-              <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+              <div><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="min-h-[100px] resize-y" /></div>
               <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.description || !form.origem_venda}>
                 {saveMutation.isPending ? "Salvando..." : "Registrar Venda"}
               </Button>
