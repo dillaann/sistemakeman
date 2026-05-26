@@ -134,9 +134,19 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
       qc.invalidateQueries({ queryKey: ["financial"] });
       setOpen(false); setEditId(null);
       resetForm();
-      toast({ title: editId ? "Saída atualizada!" : "Saída criada!" });
+      toast({ 
+        title: editId ? "Saída atualizada!" : "Saída criada!",
+        description: "Transação financeira registrada com sucesso."
+      });
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      console.error("Erro ao salvar saída:", e);
+      toast({ 
+        title: "Erro", 
+        description: e.message || "Falha ao persistir a saída financeira.", 
+        variant: "destructive" 
+      });
+    },
   });
 
   const deleteMutation = useMutation({

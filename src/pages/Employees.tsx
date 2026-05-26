@@ -63,8 +63,23 @@ const Employees = () => {
       if (emp.id) { const { error } = await supabase.from("employees").update(payload).eq("id", emp.id); if (error) throw error; }
       else { const { error } = await supabase.from("employees").insert(payload); if (error) throw error; }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employees"] }); setOpen(false); setEditing(null); toast({ title: "Funcionário salvo!" }); },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ["employees"] }); 
+      setOpen(false); 
+      setEditing(null); 
+      toast({ 
+        title: "Funcionário salvo!",
+        description: "Os dados do funcionário foram atualizados."
+      }); 
+    },
+    onError: (e: any) => {
+      console.error("Erro ao salvar funcionário:", e);
+      toast({ 
+        title: "Erro", 
+        description: e.message || "Não foi possível salvar os dados do funcionário.", 
+        variant: "destructive" 
+      });
+    },
   });
 
   const [commOpen, setCommOpen] = useState(false);

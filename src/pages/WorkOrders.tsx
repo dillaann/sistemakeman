@@ -70,8 +70,22 @@ const WorkOrders = () => {
       } as any);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["work-orders"] }); setOpen(false); toast({ title: "OS criada!" }); },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] }); 
+      setOpen(false); 
+      toast({ 
+        title: "OS criada!",
+        description: "Ordem de serviço registrada com sucesso."
+      }); 
+    },
+    onError: (e: any) => {
+      console.error("Erro ao salvar OS:", e);
+      toast({ 
+        title: "Erro", 
+        description: e.message || "Erro ao tentar salvar a Ordem de Serviço.", 
+        variant: "destructive" 
+      });
+    },
   });
 
   const updateStatus = useMutation({
