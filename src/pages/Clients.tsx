@@ -16,7 +16,7 @@ import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 type Client = {
   id: string; name: string; email: string | null; phone: string | null;
   cpf_cnpj: string | null; address: string | null; city: string | null;
-  state: string | null; notes: string | null;
+  state: string | null; notes: string | null; created_by?: string | null;
 };
 
 const Clients = () => {
@@ -52,9 +52,19 @@ const Clients = () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       setOpen(false);
       setEditing(null);
-      toast({ title: editing ? "Cliente atualizado!" : "Cliente cadastrado!" });
+      toast({ 
+        title: editing ? "Cliente atualizado!" : "Cliente cadastrado!",
+        description: "As informações foram salvas com sucesso no banco de dados."
+      });
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      console.error("Erro ao salvar cliente:", e);
+      toast({ 
+        title: "Erro ao salvar", 
+        description: e.message || "Não foi possível persistir os dados. Verifique sua conexão ou permissões.", 
+        variant: "destructive" 
+      });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -171,7 +181,9 @@ const Clients = () => {
                 <TableCell>{[c.city, c.state].filter(Boolean).join("/")}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                    {(userRole === "admin" || userRole === "financeiro" || (userRole === "vendedor" && (!c.created_by || c.created_by === (supabase.auth.getSession() as any)?.data?.session?.user?.id))) && (
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                    )}
                     {userRole === "admin" && (
                       <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     )}

@@ -155,9 +155,19 @@ const SellerSalesView = () => {
       queryClient.invalidateQueries({ queryKey: ["my-commissions"] });
       setOpen(false);
       setForm({ client_id: "", description: "", amount: "", delivery_deadline: "", notes: "", origem_venda: "" });
-      toast({ title: "Venda registrada com sucesso!" });
+      toast({ 
+        title: "Venda registrada!",
+        description: "A venda e a OS foram criadas com sucesso."
+      });
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      console.error("Erro ao salvar venda:", e);
+      toast({ 
+        title: "Erro", 
+        description: e.message || "Falha ao registrar venda.", 
+        variant: "destructive" 
+      });
+    },
   });
 
   return (

@@ -135,11 +135,16 @@ const Marketing = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["marketing-campaigns"] });
-      toast.success(editingCampaign ? "Campanha atualizada!" : "Campanha registrada!");
+      toast.success(editingCampaign ? "Campanha atualizada!" : "Campanha registrada!", {
+        description: "Os dados da campanha foram salvos com sucesso."
+      });
       setOpenDialog(false);
       resetForm();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      console.error("Erro ao salvar campanha:", e);
+      toast.error(e.message || "Erro ao tentar salvar a campanha de marketing.");
+    },
   });
 
   const deleteMutation = useMutation({
