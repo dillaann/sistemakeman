@@ -173,9 +173,19 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       setOpen(false);
       setEditId(null);
       resetForm();
-      toast({ title: editId ? "Entrada atualizada!" : "Entrada criada!" });
+      toast({ 
+        title: editId ? "Entrada atualizada!" : "Entrada criada!",
+        description: "Transação financeira registrada com sucesso."
+      });
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      console.error("Erro ao salvar entrada:", e);
+      toast({ 
+        title: "Erro", 
+        description: e.message || "Não foi possível salvar a entrada financeira.", 
+        variant: "destructive" 
+      });
+    },
   });
 
   const deleteMutation = useMutation({

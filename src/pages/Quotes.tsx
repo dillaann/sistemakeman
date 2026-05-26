@@ -273,9 +273,19 @@ const Quotes = () => {
       setOpen(false);
       setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
       setItems([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
-      toast({ title: "Orçamento criado!" });
+      toast({ 
+        title: "Orçamento criado!",
+        description: "Os dados foram salvos com sucesso."
+      });
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      console.error("Erro ao salvar orçamento:", e);
+      toast({ 
+        title: "Erro ao salvar", 
+        description: e.message || "Não foi possível persistir os dados. Verifique os campos e tente novamente.", 
+        variant: "destructive" 
+      });
+    },
   });
 
   // --- EDIT QUOTE ---
