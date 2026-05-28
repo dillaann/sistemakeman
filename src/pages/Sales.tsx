@@ -420,7 +420,8 @@ const AdminSalesView = () => {
       const sellerIds = (roles ?? []).filter(r => r.role === "vendedor").map(r => r.user_id);
       if (sellerIds.length === 0) return [];
       
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name, email").in("id", sellerIds);
+      const { data: allProfiles } = await supabase.rpc("get_team_display_names");
+      const profiles = (allProfiles ?? []).filter((p: any) => sellerIds.includes(p.id));
       const { data: employees } = await supabase.from("employees").select("user_id, active").in("user_id", sellerIds);
       
       return (profiles ?? []).map(p => {
