@@ -2151,6 +2151,13 @@ export type Database = {
       }
     }
     Functions: {
+      get_team_display_names: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
