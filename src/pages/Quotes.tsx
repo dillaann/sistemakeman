@@ -128,7 +128,7 @@ const Quotes = () => {
       const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "vendedor");
       if (!roles?.length) return [];
       const sellerIds = roles.map(r => r.user_id);
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
+      const { data: profiles } = await supabase.rpc("get_team_display_names");
       return (profiles ?? []).filter(p => sellerIds.includes(p.id));
     },
   });
@@ -144,7 +144,7 @@ const Quotes = () => {
   const { data: profilesMap = {} } = useQuery({
     queryKey: ["profiles-map"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("id, full_name");
+      const { data } = await supabase.rpc("get_team_display_names");
       const map: Record<string, string> = {};
       (data ?? []).forEach(p => { map[p.id] = p.full_name || "Sem nome"; });
       return map;
@@ -984,7 +984,7 @@ const Quotes = () => {
                   <Select value={form.seller_id} onValueChange={v => setForm({ ...form, seller_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
                     <SelectContent>
-                      {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
+                      {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || "Sem nome"}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}
@@ -1258,7 +1258,7 @@ const Quotes = () => {
                 <Select value={editForm.seller_id} onValueChange={v => setEditForm({ ...editForm, seller_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
                   <SelectContent>
-                    {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
+                    {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || "Sem nome"}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

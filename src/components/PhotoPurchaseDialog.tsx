@@ -97,11 +97,15 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
       const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage.from("purchase-photos").upload(path, photo.file);
       if (error) throw error;
-      const { data: urlData } = supabase.storage.from("purchase-photos").getPublicUrl(path);
-      urls.push(urlData.publicUrl);
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("purchase-photos")
+        .createSignedUrl(path, 60 * 60);
+      if (signErr || !signed) throw signErr ?? new Error("Falha ao gerar URL");
+      urls.push(signed.signedUrl);
     }
     return urls;
   };
+
 
   const processWithAI = async () => {
     if (photos.length === 0) {

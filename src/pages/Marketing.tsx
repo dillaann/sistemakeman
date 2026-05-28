@@ -96,7 +96,10 @@ const Marketing = () => {
           ? supabase.from("clients").select("id, name").in("id", clientIds)
           : Promise.resolve({ data: [], error: null }),
         sellerIds.length
-          ? supabase.from("profiles").select("id, full_name").in("id", sellerIds)
+          ? supabase.rpc("get_team_display_names").then((r: any) => ({
+              data: (r.data ?? []).filter((p: any) => sellerIds.includes(p.id)),
+              error: r.error,
+            }))
           : Promise.resolve({ data: [], error: null }),
       ]);
 
