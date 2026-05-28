@@ -984,7 +984,7 @@ const Quotes = () => {
                   <Select value={form.seller_id} onValueChange={v => setForm({ ...form, seller_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
                     <SelectContent>
-                      {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
+                      {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || "Sem nome"}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}
@@ -1258,7 +1258,7 @@ const Quotes = () => {
                 <Select value={editForm.seller_id} onValueChange={v => setEditForm({ ...editForm, seller_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecionar vendedor (opcional)" /></SelectTrigger>
                   <SelectContent>
-                    {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>)}
+                    {sellers.map(s => <SelectItem key={s.id} value={s.id}>{s.full_name || "Sem nome"}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
