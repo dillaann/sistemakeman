@@ -105,8 +105,7 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     }
     return urls;
   };
-    return urls;
-  };
+
 
   const processWithAI = async () => {
     if (photos.length === 0) {
