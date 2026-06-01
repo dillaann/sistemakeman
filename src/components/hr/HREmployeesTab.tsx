@@ -34,7 +34,12 @@ const HREmployeesTab = ({ employees, canEdit, onEditSalary }: HREmployeesTabProp
               <TableRow key={e.id}>
                 <TableCell className="font-medium">{e.name}</TableCell>
                 <TableCell>{e.role}</TableCell>
-                <TableCell className="capitalize">{e.payment_type || "mensal"}</TableCell>
+                 <TableCell className="capitalize">
+                  {e.payment_type || "mensal"}
+                  {e.payment_type_change_date && (
+                    <div className="text-[10px] text-muted-foreground">Vigência: {new Date(e.payment_type_change_date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>
+                  )}
+                </TableCell>
                 <TableCell>{fmt(Number(e.salary))}</TableCell>
                 <TableCell>{fmt(Number(e.saturday_value))}</TableCell>
                 <TableCell>{fmt(Number(e.overtime_hourly_rate))}</TableCell>
