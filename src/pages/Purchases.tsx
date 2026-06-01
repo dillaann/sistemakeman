@@ -550,17 +550,17 @@ const Purchases = () => {
   }, [purchases]);
 
   // Calculations (per item — for materials/discounts/client costs)
+  // Compras ficam fixas no mês de registro (data da compra), mesmo pendentes.
   const monthPurchases = purchases.filter(p => {
-    const isOpen = p.payment_status !== "pago";
-    return isInRangeOrOpen(p.purchase_date, dateRange, isOpen, p.payment_status === "pago" ? p.purchase_date : null);
+    return isInRange(p.purchase_date, dateRange);
   });
   const totalDiscount = monthPurchases.reduce((s, p) => s + Number(p.discount_amount ?? 0), 0);
 
   // Orders for the period (for panel + listing) — based on purchase_orders
+  // Pedidos ficam fixos no mês de registro (data da compra), mesmo pendentes.
   const monthOrders = useMemo(() => {
     return purchaseOrders.filter((o: any) => {
-      const isOpen = o.payment_status !== "pago";
-      return isInRangeOrOpen(o.purchase_date, dateRange, isOpen, o.payment_status === "pago" ? o.purchase_date : null);
+      return isInRange(o.purchase_date, dateRange);
     });
   }, [purchaseOrders, dateRange]);
 
