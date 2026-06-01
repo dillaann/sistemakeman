@@ -146,7 +146,7 @@ Regras:
     });
   } catch (e) {
     console.error("process-fiscal-invoice error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "Erro ao processar a nota fiscal. Tente novamente." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
