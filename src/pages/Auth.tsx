@@ -26,7 +26,10 @@ const Auth = () => {
         toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
       }
     } else {
-      if (accessCode !== "fuzil") {
+      const { data: codeCheck, error: codeError } = await supabase.functions.invoke("verify-access-code", {
+        body: { accessCode },
+      });
+      if (codeError || !codeCheck?.valid) {
         toast({ title: "Código de acesso inválido", description: "Solicite o código de acesso ao administrador.", variant: "destructive" });
         setLoading(false);
         return;
