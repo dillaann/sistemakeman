@@ -117,25 +117,13 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     try {
       const imageUrls = await uploadPhotos();
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-purchase-data`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ imageUrls }),
-        }
+      const { data: result, error: fnError } = await supabase.functions.invoke(
+        "extract-purchase-data",
+        { body: { imageUrls } }
       );
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Erro ao processar");
-      }
-
-      const result = await response.json();
-      if (!result.success) throw new Error(result.error || "Falha na extração");
+      if (fnError) throw new Error(fnError.message || "Erro ao processar");
+      if (!result?.success) throw new Error(result?.error || "Falha na extração");
 
       const data = result.data;
       setExtractedData(data);
