@@ -55,7 +55,19 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const weeklyEmployees = employees.filter(e => e.payment_type === "semanal");
+  const isWeeklyForMonth = (emp: any) => {
+    if (!emp.payment_type_change_date) return emp.payment_type === "semanal";
+    
+    const [selYear, selMonth] = selectedMonth.split("-").map(Number);
+    const [transYear, transMonth] = emp.payment_type_change_date.split("-").map(Number);
+    
+    if (selYear < transYear) return true;
+    if (selYear > transYear) return emp.payment_type === "semanal";
+    if (selMonth < transMonth) return true;
+    return emp.payment_type === "semanal";
+  };
+
+  const weeklyEmployees = employees.filter(isWeeklyForMonth);
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
