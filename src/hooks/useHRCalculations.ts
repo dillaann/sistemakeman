@@ -57,7 +57,18 @@ export const useHRCalculations = (
       const empAbsences = absences.filter((a: any) => a.employee_id === emp.id).reduce((s: number, a: any) => s + Number(a.calculated_value), 0);
       const baseSalary = Number(emp.salary) || 0;
       const closing = closings.find(c => c.employee_id === emp.id);
-      const isWeekly = emp.payment_type === "semanal";
+      
+      const isWeekly = (() => {
+        if (!emp.payment_type_change_date) return emp.payment_type === "semanal";
+        
+        const [selYear, selMonth] = selectedMonth.split("-").map(Number);
+        const [transYear, transMonth] = emp.payment_type_change_date.split("-").map(Number);
+        
+        if (selYear < transYear) return true;
+        if (selYear > transYear) return emp.payment_type === "semanal";
+        if (selMonth < transMonth) return true;
+        return emp.payment_type === "semanal";
+      })();
       const weeklyTotal = isWeekly ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id).reduce((s: number, wc: any) => s + Number(wc.net_pay), 0) : 0;
       
       const netPay = isWeekly ? weeklyTotal : (baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empAbsences);
