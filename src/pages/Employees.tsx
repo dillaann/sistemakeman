@@ -30,7 +30,8 @@ const Employees = () => {
     saturday_value: "", 
     overtime_hourly_rate: "", 
     daily_rate: "", 
-    payment_notes: "" 
+    payment_notes: "",
+    payment_type_change_date: ""
   });
 
   const { data: employees = [] } = useQuery({
@@ -58,7 +59,8 @@ const Employees = () => {
         saturday_value: parseFloat(emp.saturday_value) || 0,
         overtime_hourly_rate: parseFloat(emp.overtime_hourly_rate) || 0,
         daily_rate: parseFloat(emp.daily_rate) || 0,
-        payment_notes: emp.payment_notes || null
+        payment_notes: emp.payment_notes || null,
+        payment_type_change_date: emp.payment_type_change_date || null
       };
       if (emp.id) { const { error } = await supabase.from("employees").update(payload).eq("id", emp.id); if (error) throw error; }
       else { const { error } = await supabase.from("employees").insert(payload); if (error) throw error; }
@@ -112,7 +114,8 @@ const Employees = () => {
       saturday_value: "", 
       overtime_hourly_rate: "", 
       daily_rate: "", 
-      payment_notes: "" 
+      payment_notes: "",
+      payment_type_change_date: ""
     }); 
     setOpen(true); 
   };
@@ -131,7 +134,8 @@ const Employees = () => {
       saturday_value: e.saturday_value ? String(e.saturday_value) : "", 
       overtime_hourly_rate: e.overtime_hourly_rate ? String(e.overtime_hourly_rate) : "", 
       daily_rate: e.daily_rate ? String(e.daily_rate) : "", 
-      payment_notes: e.payment_notes ?? "" 
+      payment_notes: e.payment_notes ?? "",
+      payment_type_change_date: e.payment_type_change_date ?? ""
     }); 
     setOpen(true); 
   };
@@ -249,6 +253,7 @@ const Employees = () => {
                   <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={v => setForm({ ...form, active: v })} /><Label>Ativo</Label></div>
                 </div>
                 <div><Label>Obs. Pagamento</Label><Input value={form.payment_notes} onChange={e => setForm({ ...form, payment_notes: e.target.value })} placeholder="Ex: 50% cada quinzena" /></div>
+                <div><Label>Data Mudança Tipo Pgto (Vigência)</Label><Input type="date" value={form.payment_type_change_date} onChange={e => setForm({ ...form, payment_type_change_date: e.target.value })} /></div>
                 <Button type="submit" className="w-full" disabled={saveMutation.isPending}>Salvar</Button>
               </form>
             </DialogContent>

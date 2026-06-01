@@ -1,0 +1,1 @@
+ALTER TABLE public.employees ADD COLUMN payment_type_change_date DATE;

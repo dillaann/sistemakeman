@@ -556,6 +556,7 @@ export type Database = {
           overtime_hourly_rate: number | null
           payment_notes: string | null
           payment_type: string | null
+          payment_type_change_date: string | null
           phone: string | null
           role: string | null
           salary: number | null
@@ -575,6 +576,7 @@ export type Database = {
           overtime_hourly_rate?: number | null
           payment_notes?: string | null
           payment_type?: string | null
+          payment_type_change_date?: string | null
           phone?: string | null
           role?: string | null
           salary?: number | null
@@ -594,6 +596,7 @@ export type Database = {
           overtime_hourly_rate?: number | null
           payment_notes?: string | null
           payment_type?: string | null
+          payment_type_change_date?: string | null
           phone?: string | null
           role?: string | null
           salary?: number | null

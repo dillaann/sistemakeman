@@ -66,7 +66,7 @@ const HR = () => {
   const [weekEdit, setWeekEdit] = useState<{ open: boolean; mode: "edit" | "create"; wc: any | null; employee: any | null }>({ open: false, mode: "create", wc: null, employee: null });
   const [editCtx, setEditCtx] = useState<any | null>(null);
   const [editEmpOpen, setEditEmpOpen] = useState(false);
-  const [editEmpForm, setEditEmpForm] = useState({ id: "", name: "", salary: "", saturday_value: "", overtime_hourly_rate: "" });
+  const [editEmpForm, setEditEmpForm] = useState({ id: "", name: "", salary: "", saturday_value: "", overtime_hourly_rate: "", payment_type_change_date: "" });
   const [inputDialog, setInputDialog] = useState<any | null>(null);
   const [inputDialogValues, setInputDialogValues] = useState<Record<string, string>>({});
   const [payInstOpen, setPayInstOpen] = useState(false);
@@ -83,6 +83,7 @@ const HR = () => {
         salary: parseFloat(editEmpForm.salary) || 0,
         saturday_value: parseFloat(editEmpForm.saturday_value) || 0,
         overtime_hourly_rate: parseFloat(editEmpForm.overtime_hourly_rate) || 0,
+        payment_type_change_date: editEmpForm.payment_type_change_date || null,
       }).eq("id", editEmpForm.id);
       if (error) throw error;
     },
@@ -289,7 +290,7 @@ const HR = () => {
             />
             <HREmployeesTab 
               employees={hrData.employees} canEdit={canEdit} 
-              onEditSalary={(emp) => { setEditEmpForm({ id: emp.id, name: emp.name, salary: String(Number(emp.salary) || 0), saturday_value: String(Number(emp.saturday_value) || 0), overtime_hourly_rate: String(Number(emp.overtime_hourly_rate) || 0) }); setEditEmpOpen(true); }} 
+              onEditSalary={(emp) => { setEditEmpForm({ id: emp.id, name: emp.name, salary: String(Number(emp.salary) || 0), saturday_value: String(Number(emp.saturday_value) || 0), overtime_hourly_rate: String(Number(emp.overtime_hourly_rate) || 0), payment_type_change_date: emp.payment_type_change_date || "" }); setEditEmpOpen(true); }} 
             />
           </div>
         </TabsContent>
