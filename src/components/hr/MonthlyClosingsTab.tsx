@@ -54,7 +54,18 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle>Fechamentos Mensais — {monthLabel(selectedMonth)}</CardTitle>
         {canEdit && (
-          <Button size="sm" onClick={() => employees.filter(e => e.payment_type !== "semanal").forEach(e => closingMutation.mutate(e.id))} disabled={closingMutation.isPending}>
+          <Button size="sm" onClick={() => employees.filter(e => {
+            const isWeekly = (() => {
+              if (!e.payment_type_change_date) return e.payment_type === "semanal";
+              const [selYear, selMonth] = selectedMonth.split("-").map(Number);
+              const [transYear, transMonth] = e.payment_type_change_date.split("-").map(Number);
+              if (selYear < transYear) return true;
+              if (selYear > transYear) return e.payment_type === "semanal";
+              if (selMonth < transMonth) return true;
+              return e.payment_type === "semanal";
+            })();
+            return !isWeekly;
+          }).forEach(e => closingMutation.mutate(e.id))} disabled={closingMutation.isPending}>
             <CheckCircle className="h-4 w-4 mr-2" /> Fechar Todos do Mês
           </Button>
         )}
