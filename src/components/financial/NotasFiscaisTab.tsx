@@ -190,54 +190,12 @@ export default function NotasFiscaisTab({ dateRange }: NotasFiscaisTabProps) {
         ...(fileUrl ? { file_url: fileUrl } : {}),
       };
 
-      const transType = (vals.type === 'nfe_saida' || vals.type === 'nfse_emitida') ? 'a_receber' : 'a_pagar';
-      const wo = workOrders.find(w => w.id === vals.work_order_id);
-      const txStatus = vals.payment_status === 'pago' ? 'pago' : 'pendente';
-      const txPayload = {
-        type: transType as 'a_receber' | 'a_pagar',
-        status: txStatus as 'pago' | 'pendente',
-        description: `NF ${vals.invoice_number} - ${vals.entity_name}`,
-        amount: Number(vals.amount),
-        due_date: vals.issue_date,
-        paid_date: txStatus === 'pago' ? new Date().toISOString().slice(0, 10) : null,
-        client_id: wo?.client_id || null,
-        work_order_id: vals.work_order_id && vals.work_order_id !== 'none' ? vals.work_order_id : null,
-      };
-
       if (editId) {
         const { error } = await supabase.from("fiscal_invoices").update(payload).eq("id", editId);
         if (error) throw error;
-
-        // Sync the linked financial transaction (or create it if missing)
-        const syncOrigin = `fiscal_invoice:${editId}`;
-        const { data: existingTx } = await supabase
-          .from("financial_transactions")
-          .select("id")
-          .eq("sync_origin", syncOrigin)
-          .maybeSingle();
-
-        if (existingTx) {
-          const { error: txErr } = await supabase
-            .from("financial_transactions")
-            .update(txPayload)
-            .eq("id", existingTx.id);
-          if (txErr) throw txErr;
-        } else {
-          const { error: txErr } = await supabase
-            .from("financial_transactions")
-            .insert({ ...txPayload, sync_origin: syncOrigin });
-          if (txErr) throw txErr;
-        }
       } else {
-        const { data: invData, error } = await supabase.from("fiscal_invoices").insert(payload).select().single();
+        const { error } = await supabase.from("fiscal_invoices").insert(payload);
         if (error) throw error;
-
-        if (invData) {
-          await supabase.from("financial_transactions").insert({
-            ...txPayload,
-            sync_origin: `fiscal_invoice:${invData.id}`,
-          });
-        }
       }
     },
     onSuccess: () => {
