@@ -81,7 +81,8 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
       if (t.status !== "pago") return false;
-      const refDate = t.paid_date ?? t.due_date;
+      // prioritize paid_date if available, otherwise fallback to due_date
+      const refDate = t.paid_date || t.due_date;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
