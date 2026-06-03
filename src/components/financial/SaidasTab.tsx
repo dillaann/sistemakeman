@@ -73,7 +73,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-saidas"],
     queryFn: async () => {
-      const { data } = await supabase.from("financial_transactions").select("*").eq("type", "a_pagar").order("due_date", { ascending: false });
+      const { data } = await supabase.from("financial_transactions").select("*").eq("type", "a_pagar").order("due_date", { ascending: false }).range(0, 10000);
       return data ?? [];
     },
   });
