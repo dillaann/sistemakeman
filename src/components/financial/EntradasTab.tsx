@@ -80,10 +80,18 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     queryFn: async () => { const { data } = await supabase.from("quotes").select("id, client_id"); return data ?? []; },
   });
 
+  const rangeStart = dateRange ? localDateString(dateRange.start) : null;
+  const rangeEnd = dateRange ? localDateString(dateRange.end) : null;
+
   const { data: transactions = [] } = useQuery({
-    queryKey: ["financial-entradas"],
+    queryKey: ["financial-entradas", rangeStart, rangeEnd],
     queryFn: async () => {
-      const { data } = await supabase.from("financial_transactions").select("*").eq("type", "a_receber").order("due_date", { ascending: false });
+      let q = supabase.from("financial_transactions").select("*").eq("type", "a_receber");
+      // Filter by date on the SERVER to avoid the 1000-row response cap (cash basis: paid_date, fallback due_date)
+      if (rangeStart && rangeEnd) {
+        q = q.or(`and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd}),and(paid_date.is.null,due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`);
+      }
+      const { data } = await q.order("due_date", { ascending: false }).range(0, 10000);
       return data ?? [];
     },
   });
