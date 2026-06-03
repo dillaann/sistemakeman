@@ -140,9 +140,8 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       let paidDate = form.status === "recebido" ? form.due_date : null;
 
       if (isFutureDate(form.due_date) && finalStatus === "pago") {
-        finalStatus = "pendente";
-        paidDate = null;
-        toast({ title: "Aviso", description: "Data futura detectada. Status alterado para 'Pendente'." });
+        // Permitir recebimento futuro em 2026 sem forçar pendência
+        paidDate = form.due_date;
       }
 
 

@@ -256,7 +256,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
         payment_method: editForm.payment_method || null,
         account_id: editForm.account_id || null,
         client_id: editForm.client_id || null,
-        paid_date: editForm.status === "pago" ? (editForm.due_date <= localDateString() ? editForm.due_date : localDateString()) : null,
+        paid_date: editForm.status === "pago" ? editForm.due_date : null,
       };
       const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editTxId!);
       if (error) throw error;

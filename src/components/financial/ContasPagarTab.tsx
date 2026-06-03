@@ -162,7 +162,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
         status: editForm.status as any,
         payment_method: editForm.payment_method || null,
         account_id: editForm.account_id || null,
-        paid_date: editForm.status === "pago" ? (editForm.due_date <= localDateString() ? editForm.due_date : localDateString()) : null,
+        paid_date: editForm.status === "pago" ? editForm.due_date : null,
       };
       const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId!);
       if (error) throw error;
