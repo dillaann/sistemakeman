@@ -22,6 +22,7 @@ interface Commission {
   amount: number;
   seller_id: string | null;
   created_at: string;
+  status?: string;
 }
 
 interface Rate {
@@ -80,12 +81,20 @@ export const SellerCommissionReport = ({ sellers, sales, commissions, rates }: S
 
       const totalSales = filteredSales.reduce((acc, s) => acc + Number(s.amount), 0);
       const totalCommissions = filteredCommissions.reduce((acc, c) => acc + Number(c.amount), 0);
+      const paidCommissions = filteredCommissions
+        .filter(c => c.status === 'paga')
+        .reduce((acc, c) => acc + Number(c.amount), 0);
+      const pendingCommissions = filteredCommissions
+        .filter(c => c.status !== 'paga')
+        .reduce((acc, c) => acc + Number(c.amount), 0);
 
       return {
         id: seller.id,
         name: seller.full_name || "—",
         sales: totalSales,
         commission: totalCommissions,
+        paidCommission: paidCommissions,
+        pendingCommission: pendingCommissions,
         percentage: rate,
         active: seller.active ?? true
       };
@@ -217,7 +226,17 @@ export const SellerCommissionReport = ({ sellers, sales, commissions, rates }: S
                   </TableHead>
                   <TableHead className="text-right cursor-pointer hover:bg-muted/20 transition-colors py-4 px-6" onClick={() => handleSort('commission')}>
                     <div className="flex items-center justify-end gap-2 text-green-600">
-                      Comissão <ArrowUpDown className="h-3 w-3" />
+                      Total Comis. <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/20 transition-colors py-4 px-6" onClick={() => handleSort('paidCommission')}>
+                    <div className="flex items-center justify-end gap-2 text-blue-600">
+                      Recebido <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/20 transition-colors py-4 px-6" onClick={() => handleSort('pendingCommission')}>
+                    <div className="flex items-center justify-end gap-2 text-orange-600">
+                      Pendente <ArrowUpDown className="h-3 w-3" />
                     </div>
                   </TableHead>
                   <TableHead className="text-center py-4 px-4">% Comis.</TableHead>
@@ -230,6 +249,8 @@ export const SellerCommissionReport = ({ sellers, sales, commissions, rates }: S
                     <TableCell className="font-semibold py-4 px-6">{row.name}</TableCell>
                     <TableCell className="text-right py-4 px-6 font-medium">{fmt(row.sales)}</TableCell>
                     <TableCell className="text-right py-4 px-6 font-bold text-green-600">{fmt(row.commission)}</TableCell>
+                    <TableCell className="text-right py-4 px-6 font-bold text-blue-600">{fmt(row.paidCommission)}</TableCell>
+                    <TableCell className="text-right py-4 px-6 font-bold text-orange-600">{fmt(row.pendingCommission)}</TableCell>
                     <TableCell className="text-center py-4 px-4">
                       <Badge variant="outline" className="font-medium border-primary/20 text-primary">{row.percentage}%</Badge>
                     </TableCell>
@@ -258,6 +279,8 @@ export const SellerCommissionReport = ({ sellers, sales, commissions, rates }: S
                   <TableCell className="py-4 px-6">TOTAL GERAL</TableCell>
                   <TableCell className="text-right py-4 px-6 text-primary">{fmt(totals.sales)}</TableCell>
                   <TableCell className="text-right py-4 px-6 text-green-700">{fmt(totals.commission)}</TableCell>
+                  <TableCell className="text-right py-4 px-6 text-blue-700">{fmt(sortedData.reduce((acc, curr) => acc + curr.paidCommission, 0))}</TableCell>
+                  <TableCell className="text-right py-4 px-6 text-orange-700">{fmt(sortedData.reduce((acc, curr) => acc + curr.pendingCommission, 0))}</TableCell>
                   <TableCell colSpan={2}></TableCell>
                 </TableRow>
               </TableFooter>
