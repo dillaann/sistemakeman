@@ -84,7 +84,7 @@ const SellerSalesView = () => {
   const { data: myCommissions = [] } = useQuery({
     queryKey: ["my-commissions"],
     queryFn: async () => {
-      const { data } = await supabase.from("sales_commissions").select("amount, percentage, status, sales(description, clients(name))").eq("seller_id", user!.id);
+      const { data } = await supabase.from("sales_commissions").select("amount, percentage, status, sales(description, amount, clients(name))").eq("seller_id", user!.id);
       return data ?? [];
     },
     enabled: !!user,
