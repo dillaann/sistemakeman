@@ -84,7 +84,7 @@ const SellerSalesView = () => {
   const { data: myCommissions = [] } = useQuery({
     queryKey: ["my-commissions"],
     queryFn: async () => {
-      const { data } = await supabase.from("sales_commissions").select("amount, percentage, status, sales(description, clients(name))").eq("seller_id", user!.id);
+      const { data } = await supabase.from("sales_commissions").select("amount, percentage, status, sales(description, amount, clients(name))").eq("seller_id", user!.id);
       return data ?? [];
     },
     enabled: !!user,
@@ -235,11 +235,16 @@ const SellerSalesView = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Comissões a Receber</CardTitle>
+            <CardTitle className="text-sm font-medium">Comissões Pendentes</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{fmt(monthlyCommissions)}</div>
+            <div className="text-2xl font-bold text-orange-600">
+              {fmt(myCommissions.filter((c: any) => c.status !== 'paga').reduce((s, c) => s + Number(c.amount), 0))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Recebido: {fmt(myCommissions.filter((c: any) => c.status === 'paga').reduce((s, c) => s + Number(c.amount), 0))}
+            </p>
           </CardContent>
         </Card>
         <Card>
