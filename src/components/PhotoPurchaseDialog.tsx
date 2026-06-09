@@ -23,7 +23,7 @@ interface PhotoPurchaseDialogProps {
 }
 
 const paymentMethods: Record<string, string> = {
-  dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", boleto: "Boleto", transferencia: "Transferência",
+  dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão", boleto: "Boleto", transferencia: "Transferência", cheque: "Cheque",
 };
 const paymentStatuses: Record<string, string> = {
   pago: "Pago", pendente: "Pendente", parcelado: "Parcelado",
