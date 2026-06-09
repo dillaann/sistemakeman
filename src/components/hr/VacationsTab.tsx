@@ -34,7 +34,7 @@ const VacationsTab = ({ vacations, employees, canEdit, onEdit, onDelete }: Vacat
       const vacValue = !isNaN(manualVal) && manualVal > 0 ? manualVal : (salary / 30) * days;
       const third = vacValue / 3;
       const total = Math.round((vacValue + third) * 100) / 100;
-      const { data: vac, error } = await supabase.from("employee_vacations").insert({
+      const { data: vacData, error: vacError } = await supabase.from("employee_vacations").insert({
         employee_id: vacForm.employee_id, 
         start_date: vacForm.start_date, 
         end_date: vacForm.end_date, 
@@ -45,10 +45,12 @@ const VacationsTab = ({ vacations, employees, canEdit, onEdit, onDelete }: Vacat
         total_value: total,
         notes: vacForm.notes || null,
       }).select("id").single();
-      if (error) throw error;
+      
+      const vac = vacData as any;
+      if (vacError || !vac) throw vacError || new Error("Erro ao registrar férias");
 
       // Sync to financial
-      await supabase.from("financial_transactions").insert({
+      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: `Férias — ${emp?.name} — ${formatDateBR(vacForm.start_date)} a ${formatDateBR(vacForm.end_date)}`,
         amount: total,
@@ -56,7 +58,14 @@ const VacationsTab = ({ vacations, employees, canEdit, onEdit, onDelete }: Vacat
         status: "pendente" as any,
         category: "Folha de Pagamento",
         sync_origin: "payroll"
-      });
+      }).select("id").single();
+
+      const ft = ftData as any;
+      if (ftError) console.error("Erro ao sincronizar férias com financeiro:", ftError);
+
+      if (ft?.id) {
+        await supabase.from("employee_vacations").update({ financial_transaction_id: ft.id }).eq("id", vac.id);
+      }
     },
     onSuccess: () => { 
       queryClient.invalidateQueries({ queryKey: ["employee-vacations"] }); 

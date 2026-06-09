@@ -63,7 +63,7 @@ const ThirteenthTab = ({ thirteenths, employees, selectedYear, canEdit, onEdit, 
       const empName = thirteenth.employees?.name || "Funcionário";
       const payDate = localDateString();
 
-      const { data: ft } = await supabase.from("financial_transactions").insert({
+      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: `13º Salário — ${empName} — ${installment}ª Parcela — Ano ${selectedYear}`,
         amount,
@@ -74,7 +74,10 @@ const ThirteenthTab = ({ thirteenths, employees, selectedYear, canEdit, onEdit, 
         sync_origin: "payroll"
       }).select("id").single();
 
-      const update = installment === 1
+      const ft = ftData as any;
+      if (ftError) throw ftError;
+
+      const update: any = installment === 1
         ? { first_installment_paid: true, first_installment_date: payDate, financial_transaction_id: ft?.id }
         : { second_installment_paid: true, second_installment_date: payDate, financial_transaction_id: ft?.id };
       const { error } = await supabase.from("thirteenth_salary").update(update).eq("id", id);
