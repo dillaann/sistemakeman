@@ -141,36 +141,86 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
 
   const markPaid = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: localDateString() }).eq("id", id);
+      const transaction = transactions.find(t => t.id === id);
+      const paidDate = localDateString();
+      
+      const { error } = await supabase.from("financial_transactions")
+        .update({ status: "pago" as any, paid_date: paidDate })
+        .eq("id", id);
       if (error) throw error;
+
+      // Sync back to purchases/orders if linked
+      if (transaction?.purchase_id) {
+        await supabase.from("purchases").update({ payment_status: "pago" }).eq("id", transaction.purchase_id);
+      }
+      if (transaction?.purchase_order_id) {
+        await supabase.from("purchase_orders" as any).update({ payment_status: "pago" }).eq("id", transaction.purchase_order_id);
+        await supabase.from("purchases").update({ payment_status: "pago" }).eq("order_id", transaction.purchase_order_id);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
       qc.invalidateQueries({ queryKey: ["financial-saidas"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       toast({ title: "Pagamento registrado!" });
     },
   });
 
   const editMutation = useMutation({
     mutationFn: async () => {
+      const transaction = transactions.find(t => t.id === editId);
+      const amountNum = parseFloat(editForm.amount);
+      const isPaid = editForm.status === "pago";
+      
       const payload: any = {
         due_date: editForm.due_date,
         description: editForm.description,
-        amount: parseFloat(editForm.amount),
+        amount: amountNum,
         category: editForm.category || null,
         status: editForm.status as any,
         payment_method: editForm.payment_method || null,
         account_id: editForm.account_id || null,
-        paid_date: editForm.status === "pago" ? editForm.due_date : null,
+        paid_date: isPaid ? (transaction?.paid_date || localDateString()) : null,
       };
       const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editId!);
       if (error) throw error;
+
+      // Sync back to purchases/orders if linked
+      if (transaction?.purchase_id) {
+        await supabase.from("purchases")
+          .update({ 
+            payment_status: editForm.status,
+            total: amountNum,
+            due_date: editForm.due_date,
+            payment_method: editForm.payment_method
+          } as any)
+          .eq("id", transaction.purchase_id);
+      }
+      if (transaction?.purchase_order_id) {
+        await supabase.from("purchase_orders" as any)
+          .update({ 
+            payment_status: editForm.status,
+            total: amountNum,
+            due_date: editForm.due_date,
+            payment_method: editForm.payment_method
+          } as any)
+          .eq("id", transaction.purchase_order_id);
+        
+        if (isPaid) {
+          await supabase.from("purchases")
+            .update({ payment_status: "pago" })
+            .eq("order_id", transaction.purchase_order_id);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["financial-contas-pagar"] });
       qc.invalidateQueries({ queryKey: ["financial-saidas"] });
       qc.invalidateQueries({ queryKey: ["financial"] });
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
       setEditOpen(false);
       setEditId(null);
       toast({ title: "Conta atualizada!" });
