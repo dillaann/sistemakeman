@@ -53,6 +53,15 @@ const InstallmentsTab = ({
       
       const { error } = await supabase.from("salary_installments" as any).update(payload).eq("id", id);
       if (error) throw error;
+
+      // Update associated financial transaction amount if exists
+      const inst = installments.find((i: any) => i.id === id);
+      if (inst?.payable_transaction_id && payload.amount !== undefined) {
+        await supabase.from("financial_transactions").update({ amount: payload.amount }).eq("id", inst.payable_transaction_id);
+      }
+      if (inst?.payable_transaction_id && payload.expected_date !== undefined) {
+        await supabase.from("financial_transactions").update({ due_date: payload.expected_date }).eq("id", inst.payable_transaction_id);
+      }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Quinzena atualizada!" }); },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -69,7 +78,8 @@ const InstallmentsTab = ({
 
   const addInstMutation = useMutation({
     mutationFn: async ({ employeeId, monthRef, installmentNumber, expectedDate, periodStart, periodEnd }: any) => {
-      const { error } = await supabase.from("salary_installments" as any).insert({
+      const emp = employees.find(e => e.id === employeeId);
+      const { data: instData, error: instError } = await supabase.from("salary_installments" as any).insert({
         employee_id: employeeId,
         month_ref: monthRef,
         installment_number: installmentNumber,
@@ -78,8 +88,29 @@ const InstallmentsTab = ({
         expected_date: expectedDate || localDateString(),
         period_start: periodStart,
         period_end: periodEnd,
-      });
-      if (error) throw error;
+      }).select("id").single();
+      
+      const inst = instData as any;
+      if (instError || !inst) throw instError || new Error("Erro ao criar quinzena");
+
+      // Pre-create the payable transaction in financial (pending)
+      const desc = `Salário ${emp?.name || "Funcionário"} — Referência ${monthLabel(monthRef)} — ${installmentNumber}ª Quinzena`;
+      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
+        type: "a_pagar" as any,
+        description: desc,
+        amount: 0,
+        due_date: expectedDate || localDateString(),
+        status: "pendente" as any,
+        category: "Folha de Pagamento",
+        sync_origin: "payroll"
+      }).select("id").single();
+
+      const ft = ftData as any;
+      if (ftError) console.error("Erro ao criar transação financeira:", ftError);
+
+      if (ft?.id) {
+        await supabase.from("salary_installments" as any).update({ payable_transaction_id: ft.id }).eq("id", inst.id);
+      }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-installments"] }); toast({ title: "Quinzena adicionada!" }); },
     onError: (e: any) => toast({ title: "Erro ao adicionar", description: e.message, variant: "destructive" }),
