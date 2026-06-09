@@ -291,6 +291,7 @@ const Purchases = () => {
               due_date: pForm.due_date || pForm.purchase_date,
               paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
               status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
+              payment_method: pForm.payment_method,
               client_id: pForm.client_id || null,
               work_order_id: pForm.work_order_id || null,
             })
@@ -326,6 +327,7 @@ const Purchases = () => {
           paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
           category: "Compras",
           status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
+          payment_method: pForm.payment_method,
           client_id: pForm.client_id || null,
           work_order_id: pForm.work_order_id || null,
           purchase_id: newPurchase.id,
