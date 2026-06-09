@@ -58,9 +58,25 @@ const ThirteenthTab = ({ thirteenths, employees, selectedYear, canEdit, onEdit, 
 
   const pay13thInstallmentMutation = useMutation({
     mutationFn: async ({ id, installment }: { id: string; installment: 1 | 2 }) => {
+      const thirteenth = thirteenths.find(t => t.id === id);
+      const amount = installment === 1 ? thirteenth.first_installment : thirteenth.second_installment;
+      const empName = thirteenth.employees?.name || "Funcionário";
+      const payDate = localDateString();
+
+      const { data: ft } = await supabase.from("financial_transactions").insert({
+        type: "a_pagar" as any,
+        description: `13º Salário — ${empName} — ${installment}ª Parcela — Ano ${selectedYear}`,
+        amount,
+        due_date: payDate,
+        paid_date: payDate,
+        status: "pago" as any,
+        category: "Folha de Pagamento",
+        sync_origin: "payroll"
+      }).select("id").single();
+
       const update = installment === 1
-        ? { first_installment_paid: true, first_installment_date: localDateString() }
-        : { second_installment_paid: true, second_installment_date: localDateString() };
+        ? { first_installment_paid: true, first_installment_date: payDate, financial_transaction_id: ft?.id }
+        : { second_installment_paid: true, second_installment_date: payDate, financial_transaction_id: ft?.id };
       const { error } = await supabase.from("thirteenth_salary").update(update).eq("id", id);
       if (error) throw error;
     },

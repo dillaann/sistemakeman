@@ -33,7 +33,8 @@ const VacationsTab = ({ vacations, employees, canEdit, onEdit, onDelete }: Vacat
       const manualVal = parseFloat(vacForm.vacation_value);
       const vacValue = !isNaN(manualVal) && manualVal > 0 ? manualVal : (salary / 30) * days;
       const third = vacValue / 3;
-      const { error } = await supabase.from("employee_vacations").insert({
+      const total = Math.round((vacValue + third) * 100) / 100;
+      const { data: vac, error } = await supabase.from("employee_vacations").insert({
         employee_id: vacForm.employee_id, 
         start_date: vacForm.start_date, 
         end_date: vacForm.end_date, 
@@ -41,10 +42,21 @@ const VacationsTab = ({ vacations, employees, canEdit, onEdit, onDelete }: Vacat
         base_salary: salary, 
         vacation_value: Math.round(vacValue * 100) / 100,
         constitutional_third: Math.round(third * 100) / 100, 
-        total_value: Math.round((vacValue + third) * 100) / 100,
+        total_value: total,
         notes: vacForm.notes || null,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Sync to financial
+      await supabase.from("financial_transactions").insert({
+        type: "a_pagar" as any,
+        description: `Férias — ${emp?.name} — ${formatDateBR(vacForm.start_date)} a ${formatDateBR(vacForm.end_date)}`,
+        amount: total,
+        due_date: vacForm.start_date,
+        status: "pendente" as any,
+        category: "Folha de Pagamento",
+        sync_origin: "payroll"
+      });
     },
     onSuccess: () => { 
       queryClient.invalidateQueries({ queryKey: ["employee-vacations"] }); 
