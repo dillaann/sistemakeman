@@ -88,7 +88,6 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
-      if (t.status !== "pago") return false;
       // prioritize paid_date if available, otherwise fallback to due_date
       const refDate = t.paid_date || t.due_date;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
@@ -113,7 +112,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
-  const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
+  const total = filtered.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -279,7 +278,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
           </TableHeader>
           <TableBody>
             {filtered.map(t => (
-              <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
+              <TableRow key={t.id} className={`${statusColors[t.status] || ""} ${t.status === "cancelado" ? "opacity-50" : ""}`}>
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{t.description}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
