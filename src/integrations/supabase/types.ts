@@ -499,6 +499,7 @@ export type Database = {
           days: number
           employee_id: string
           end_date: string
+          financial_transaction_id: string | null
           id: string
           notes: string | null
           reference_period: string | null
@@ -513,6 +514,7 @@ export type Database = {
           days: number
           employee_id: string
           end_date: string
+          financial_transaction_id?: string | null
           id?: string
           notes?: string | null
           reference_period?: string | null
@@ -527,6 +529,7 @@ export type Database = {
           days?: number
           employee_id?: string
           end_date?: string
+          financial_transaction_id?: string | null
           id?: string
           notes?: string | null
           reference_period?: string | null
@@ -540,6 +543,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_vacations_financial_transaction_id_fkey"
+            columns: ["financial_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1761,6 +1771,7 @@ export type Database = {
         Row: {
           created_at: string
           employee_id: string
+          financial_transaction_id: string | null
           first_installment: number
           first_installment_date: string | null
           first_installment_paid: boolean
@@ -1774,6 +1785,7 @@ export type Database = {
         Insert: {
           created_at?: string
           employee_id: string
+          financial_transaction_id?: string | null
           first_installment?: number
           first_installment_date?: string | null
           first_installment_paid?: boolean
@@ -1787,6 +1799,7 @@ export type Database = {
         Update: {
           created_at?: string
           employee_id?: string
+          financial_transaction_id?: string | null
           first_installment?: number
           first_installment_date?: string | null
           first_installment_paid?: boolean
@@ -1803,6 +1816,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thirteenth_salary_financial_transaction_id_fkey"
+            columns: ["financial_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
             referencedColumns: ["id"]
           },
         ]
