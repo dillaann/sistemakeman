@@ -79,7 +79,7 @@ const InstallmentsTab = ({
   const addInstMutation = useMutation({
     mutationFn: async ({ employeeId, monthRef, installmentNumber, expectedDate, periodStart, periodEnd }: any) => {
       const emp = employees.find(e => e.id === employeeId);
-      const { data: inst, error } = await supabase.from("salary_installments" as any).insert({
+      const { data: instData, error: instError } = await supabase.from("salary_installments" as any).insert({
         employee_id: employeeId,
         month_ref: monthRef,
         installment_number: installmentNumber,
@@ -89,11 +89,13 @@ const InstallmentsTab = ({
         period_start: periodStart,
         period_end: periodEnd,
       }).select("id").single();
-      if (error) throw error;
+      
+      const inst = instData as any;
+      if (instError || !inst) throw instError || new Error("Erro ao criar quinzena");
 
       // Pre-create the payable transaction in financial (pending)
       const desc = `Salário ${emp?.name || "Funcionário"} — Referência ${monthLabel(monthRef)} — ${installmentNumber}ª Quinzena`;
-      const { data: ft } = await supabase.from("financial_transactions").insert({
+      const { data: ftData, error: ftError } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: desc,
         amount: 0,
@@ -103,7 +105,10 @@ const InstallmentsTab = ({
         sync_origin: "payroll"
       }).select("id").single();
 
-      if (ft) {
+      const ft = ftData as any;
+      if (ftError) console.error("Erro ao criar transação financeira:", ftError);
+
+      if (ft?.id) {
         await supabase.from("salary_installments" as any).update({ payable_transaction_id: ft.id }).eq("id", inst.id);
       }
     },
