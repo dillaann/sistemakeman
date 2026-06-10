@@ -105,13 +105,19 @@ const Production = () => {
     return productionItems.filter((item: any) => {
       const wo = item.work_orders || {};
       const clientName = wo.clients?.name || "";
+      const description = wo.description || "";
+      const employeeName = wo.employees?.name || "";
+      
+      const searchTerms = search.toLowerCase();
       const matchesSearch = 
-        item.os_id.toLowerCase().includes(search.toLowerCase()) ||
-        clientName.toLowerCase().includes(search.toLowerCase()) ||
-        (wo.description || "").toLowerCase().includes(search.toLowerCase());
+        item.os_id.toLowerCase().includes(searchTerms) ||
+        clientName.toLowerCase().includes(searchTerms) ||
+        description.toLowerCase().includes(searchTerms) ||
+        employeeName.toLowerCase().includes(searchTerms);
       
       const matchesStatus = statusFilter === "todos" || item.status === statusFilter;
-      const matchesPriority = priorityFilter === "todos" || item.priority === priorityFilter;
+      const matchesPriority = priorityFilter === "todos" || 
+        (item.priority || wo.priority || "").toLowerCase() === priorityFilter.toLowerCase();
 
       return matchesSearch && matchesStatus && matchesPriority;
     });
