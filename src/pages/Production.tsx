@@ -83,14 +83,6 @@ const Production = () => {
       
       if (woErr) throw woErr;
 
-      // 3. Map status labels between tables
-      const statusMap: Record<string, string> = {
-        'aguardando': 'Fila de Produção',
-        'em_producao': 'Em Andamento',
-        'aguardando_instalacao': 'Aguardando Instalação',
-        'entregue': 'Entregue'
-      };
-
       // 4. Transform work orders not in production into virtual production items
       const virtualItems = (allWOs || [])
         .filter(wo => !prodOsIds.has(wo.id))
