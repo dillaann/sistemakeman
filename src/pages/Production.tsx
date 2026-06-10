@@ -40,6 +40,10 @@ const Production = () => {
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
+  const isViewingCurrent = useMemo(() => {
+    const now = new Date();
+    return now >= dateRange.start && now <= dateRange.end;
+  }, [dateRange]);
   
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
