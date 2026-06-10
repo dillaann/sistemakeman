@@ -498,45 +498,62 @@ const Production = () => {
                             </div>
 
                             {expanded && (
-                              <div className="space-y-2 pt-1 animate-fade-in">
-                                <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description || "Sem descrição"}</p>
+                              <div className="space-y-4 pt-3 border-t animate-in fade-in slide-in-from-top-2 duration-500">
+                                <div className="space-y-1">
+                                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Descrição</p>
+                                  <p className="text-xs text-foreground/80 leading-relaxed bg-muted/30 p-2 rounded-lg border border-dashed">
+                                    {wo?.description || "Sem descrição"}
+                                  </p>
+                                </div>
 
-                                <div className="grid grid-cols-2 gap-2 bg-muted/30 p-2 rounded text-[11px]">
-                                  <div className="space-y-1 border-r pr-2">
-                                    <p className="font-semibold text-primary flex items-center gap-1">
-                                      <DollarSign className="h-3 w-3" /> Financeiro
-                                    </p>
-                                    <p className="text-muted-foreground">Pendente: <span className="text-foreground font-medium">{fmt(Number(wo?.remaining_amount || 0))}</span></p>
-                                    <p className="text-muted-foreground">Status: <span className="text-foreground">{wo?.financial_status || "Aguardando"}</span></p>
-                                  </div>
-                                  <div className="space-y-1 pl-1">
-                                    <p className="font-semibold text-primary flex items-center gap-1">
-                                      <Calendar className="h-3 w-3" /> Cobrança
-                                    </p>
-                                    <p className="text-muted-foreground">Data: <span className="text-foreground">{wo?.billing_date ? formatDateBR(wo.billing_date) : "—"}</span></p>
-                                    <div className="pt-1 flex gap-1">
-                                      <Button 
-                                        size="sm" variant="outline" className="h-5 px-1 text-[9px]"
-                                        onClick={() => markAsPaid(item.os_id)}
-                                        disabled={wo?.financial_status === "Pago"}
-                                      >
-                                        Pagar
-                                      </Button>
-                                      <Input 
-                                        type="date" 
-                                        className="h-5 w-20 text-[9px] p-0 px-1" 
-                                        onChange={(e) => rescheduleBilling(item.os_id, e.target.value)}
-                                      />
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-2 bg-primary/5 p-3 rounded-xl border border-primary/10">
+                                    <div className="flex items-center gap-2 text-primary">
+                                      <DollarSign className="h-3.5 w-3.5" />
+                                      <span className="text-[10px] font-bold uppercase">Financeiro</span>
                                     </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] text-muted-foreground">Pendente</p>
+                                      <p className="text-xs font-black">{fmt(Number(wo?.remaining_amount || 0))}</p>
+                                    </div>
+                                    <Button 
+                                      size="sm" 
+                                      className="h-7 w-full text-[10px] font-bold bg-primary hover:bg-primary/90 shadow-sm"
+                                      onClick={() => markAsPaid(item.os_id)}
+                                      disabled={wo?.financial_status === "Pago"}
+                                    >
+                                      {wo?.financial_status === "Pago" ? "Pago ✓" : "Quitar"}
+                                    </Button>
+                                  </div>
+
+                                  <div className="space-y-2 bg-muted/30 p-3 rounded-xl border border-border/50">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                      <Calendar className="h-3.5 w-3.5" />
+                                      <span className="text-[10px] font-bold uppercase">Cobrança</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] text-muted-foreground">Próxima Data</p>
+                                      <p className="text-xs font-bold">{wo?.billing_date ? formatDateBR(wo.billing_date) : "—"}</p>
+                                    </div>
+                                    <Input 
+                                      type="date" 
+                                      className="h-7 text-[10px] p-1 h-7 border-muted-foreground/20 focus:border-primary/50" 
+                                      onChange={(e) => rescheduleBilling(item.os_id, e.target.value)}
+                                    />
                                   </div>
                                 </div>
 
                                 {wo?.items && wo.items.length > 0 && (
-                                  <div className="text-xs space-y-0.5 bg-muted/40 rounded p-1.5">
-                                    <p className="font-medium text-muted-foreground">Serviços:</p>
-                                    {wo.items.map((svc: any, idx: number) => (
-                                      <p key={idx} className="text-muted-foreground">• {svc.description} — {Number(svc.quantity)} un</p>
-                                    ))}
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Serviços</p>
+                                    <div className="grid grid-cols-1 gap-1">
+                                      {wo.items.map((svc: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between text-[11px] bg-muted/20 p-2 rounded-lg border border-border/30">
+                                          <span className="flex-1 truncate pr-2">{svc.description}</span>
+                                          <Badge variant="secondary" className="h-5 text-[9px] font-bold">{Number(svc.quantity)} UN</Badge>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 )}
 
