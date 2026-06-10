@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,18 +10,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, DollarSign, Calendar, ExternalLink } from "lucide-react";
+import { 
+  AlertTriangle, 
+  ArrowRight, 
+  MessageSquare, 
+  ChevronDown, 
+  ChevronUp, 
+  Eye, 
+  EyeOff, 
+  DollarSign, 
+  Calendar, 
+  ExternalLink,
+  Clock,
+  CheckCircle2,
+  Package,
+  Truck,
+  ArrowRightCircle,
+  MoreVertical,
+  History
+} from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 import { localDateString, formatDateBR } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const columns = [
-  { key: "Fila de Produção", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30" },
-  { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-500/10 border-blue-500/30" },
-  { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-500/10 border-orange-500/30" },
-  { key: "Aguardando Instalação", label: "Aguardando Instalação", color: "bg-green-500/10 border-green-500/30" },
+  { key: "Fila de Produção", label: "Fila", icon: Clock, color: "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400" },
+  { key: "Em Andamento", label: "Andamento", icon: CheckCircle2, color: "bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-400" },
+  { key: "Aguardando Material", label: "Materiais", icon: Package, color: "bg-orange-500/10 border-orange-500/20 text-orange-700 dark:text-orange-400" },
+  { key: "Aguardando Instalação", label: "Entrega", icon: Truck, color: "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
 ];
 
 const nextColumnMap: Record<string, string[]> = {
@@ -309,15 +333,21 @@ const Production = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">Produção</h1>
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 rounded-xl border shadow-sm sticky top-0 z-10">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Fluxo de Produção</h1>
+          <p className="text-sm text-muted-foreground">Gerencie suas ordens de serviço e prazos</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={financialFilter} onValueChange={setFinancialFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Filtro Financeiro" />
+            <SelectTrigger className="w-[160px] h-10 shadow-sm">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Financeiro" />
+              </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos os Status</SelectItem>
               <SelectItem value="cobrar_hoje">Cobrar hoje</SelectItem>
               <SelectItem value="atraso">Em atraso</SelectItem>
               <SelectItem value="esta_semana">Esta semana</SelectItem>
@@ -332,9 +362,13 @@ const Production = () => {
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="novos">Produção</TabsTrigger>
-            <TabsTrigger value="antigos">Antigos</TabsTrigger>
+          <TabsList className="mb-6 bg-muted/50 p-1.5 h-12 rounded-xl border-2">
+            <TabsTrigger value="novos" className="rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm px-6">
+              <Package className="h-4 w-4 mr-2" /> Produção Atual
+            </TabsTrigger>
+            <TabsTrigger value="antigos" className="rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm px-6">
+              <History className="h-4 w-4 mr-2" /> Pedidos Antigos
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-0">
@@ -343,60 +377,60 @@ const Production = () => {
                 const colItems = getColumnItems(col.key);
                 const isColCollapsed = !!collapsedCols[col.key];
                 return (
-                  <div key={col.key} className="space-y-3">
-                    <div className={`rounded-lg border p-3 ${col.color}`}>
-                  <h3 className="font-semibold text-sm flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      {col.label}
-                      <Badge variant="secondary">{colItems.length}</Badge>
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[10px] gap-1"
-                      onClick={() => toggleColumn(col.key)}
-                    >
-                      {isColCollapsed
-                        ? <><Eye className="h-3 w-3" /> Mostrar</>
-                        : <><EyeOff className="h-3 w-3" /> Ocultar</>
-                      }
-                    </Button>
-                  </h3>
-                </div>
-
-                {/* HIDDEN MODE: compact numbered list */}
-                {isColCollapsed && (
-                  <div className="space-y-0.5 min-h-[60px]">
-                    {colItems.length > 0 && (
-                      <p className="text-[10px] text-muted-foreground mb-1">{colItems.length} pedido{colItems.length !== 1 ? "s" : ""} oculto{colItems.length !== 1 ? "s" : ""}</p>
-                    )}
-                    {colItems.map((item: any, idx: number) => {
-                      const wo = item.work_orders;
-                      const clientName = wo?.clients?.name || "—";
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
-                          className={`w-full text-left flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted/60 transition-colors ${
-                            item.priority === "urgente" ? "text-destructive" : "text-foreground"
-                          }`}
+                  <div key={col.key} className="space-y-4">
+                    <div className={`rounded-xl border p-4 shadow-sm transition-all duration-300 ${col.color}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-background/50 backdrop-blur-sm">
+                            <col.icon className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm tracking-tight">{col.label}</h3>
+                            <p className="text-[10px] opacity-70 leading-none">{colItems.length} OS Ativas</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-black/5 rounded-full"
+                          onClick={() => toggleColumn(col.key)}
                         >
-                          <span className="text-muted-foreground shrink-0 w-4 text-right">{idx + 1}.</span>
-                          <span className="font-mono shrink-0">OS-{item.os_id?.slice(0, 6)}</span>
-                          <span className="truncate">{clientName}</span>
-                          {item.priority === "urgente" && <AlertTriangle className="h-3 w-3 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                    {colItems.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4">Nenhuma OS</p>
-                    )}
-                  </div>
-                )}
+                          {isColCollapsed ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
 
-                {/* VISIBLE MODE: full cards */}
-                {!isColCollapsed && (
-                  <div className="space-y-2 min-h-[100px]">
+                    {/* HIDDEN MODE: compact numbered list */}
+                    {isColCollapsed && (
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        {colItems.map((item: any, idx: number) => {
+                          const wo = item.work_orders;
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
+                              className="group bg-card border rounded-lg p-3 text-xs flex items-center gap-3 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer"
+                            >
+                              <span className="text-muted-foreground font-medium">{idx + 1}.</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold truncate">{wo?.clients?.name || "—"}</p>
+                                <p className="text-[10px] text-muted-foreground font-mono">OS-{item.os_id?.slice(0, 6).toUpperCase()}</p>
+                              </div>
+                              {item.priority === "urgente" && <AlertTriangle className="h-3.5 w-3.5 text-destructive animate-pulse" />}
+                            </div>
+                          );
+                        })}
+                        {colItems.length === 0 && (
+                          <div className="text-center py-6 bg-muted/20 rounded-xl border border-dashed">
+                            <p className="text-xs text-muted-foreground">Vazio</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* VISIBLE MODE: full cards */}
+                    {!isColCollapsed && (
+                      <div className="space-y-3 min-h-[100px] animate-in fade-in zoom-in-95 duration-300">
                     {colItems.map((item: any) => {
                       const wo = item.work_orders;
                       const expanded = isCardExpanded(item.id, col.key);
@@ -405,172 +439,235 @@ const Production = () => {
                       return (
                         <Card
                           key={item.id}
-                          className={`border transition-all duration-200 ${item.priority === "urgente" ? "border-destructive/50 bg-destructive/5" : ""}`}
+                          className={`group overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+                            item.priority === "urgente" 
+                              ? "border-destructive/30 bg-destructive/5 shadow-destructive/10" 
+                              : "border-border/50 bg-card"
+                          }`}
                         >
-                          <CardContent className="p-3 space-y-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className="text-xs text-muted-foreground font-mono shrink-0">
-                                  OS #{item.os_id?.slice(0, 8)}
-                                </span>
-                                <span className="text-sm font-medium truncate">
-                                  {expanded ? clientName : clientName.slice(0, 15) + (clientName.length > 15 ? "…" : "")}
-                                </span>
+                          <div className={`h-1.5 w-full ${item.priority === "urgente" ? "bg-destructive animate-pulse" : "bg-primary/20"}`} />
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="font-mono text-[10px] px-1.5 h-5 bg-background/50">
+                                    OS #{item.os_id?.slice(0, 8).toUpperCase()}
+                                  </Badge>
+                                  {item.priority === "urgente" && (
+                                    <Badge variant="destructive" className="text-[10px] h-5 px-1.5 font-bold uppercase tracking-wider">
+                                      Urgente
+                                    </Badge>
+                                  )}
+                                </div>
+                                <h4 className="font-bold text-base leading-tight truncate group-hover:text-primary transition-colors">
+                                  {clientName}
+                                </h4>
                               </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {wo?.total && (
-                                  <span className="text-xs font-semibold text-primary">{fmt(Number(wo.total))}</span>
-                                )}
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="text-sm font-black text-primary tracking-tight">
+                                  {fmt(Number(wo?.total || 0))}
+                                </span>
                                 <button
                                   onClick={() => toggleCard(item.id)}
-                                  className="p-0.5 rounded hover:bg-muted transition-colors"
+                                  className="p-1.5 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all"
                                 >
-                                  {expanded
-                                    ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                                    : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                                  }
+                                  {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                 </button>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => togglePriority(item)} className="text-xs" title="Alternar prioridade">
-                                {item.priority === "urgente" ? (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                    <AlertTriangle className="h-3 w-3 mr-1" /> URGENTE
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Normal</Badge>
+                             {/* Quick Actions Row */}
+                            <div className="flex items-center justify-between pt-1">
+                              <div className="flex -space-x-2">
+                                {wo?.employees?.name && (
+                                  <div 
+                                    className="h-7 w-7 rounded-full bg-primary/10 border-2 border-background flex items-center justify-center text-[10px] font-bold text-primary cursor-help"
+                                    title={`Responsável: ${wo.employees.name}`}
+                                  >
+                                    {wo.employees.name.charAt(0).toUpperCase()}
+                                  </div>
                                 )}
-                              </button>
+                                <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+                                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {!expanded && (
+                                  <Badge variant="outline" className="text-[10px] bg-muted/30">
+                                    Pendente: {fmt(Number(wo?.remaining_amount || 0))}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
 
                             {expanded && (
-                              <div className="space-y-2 pt-1 animate-fade-in">
-                                <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description || "Sem descrição"}</p>
+                              <div className="space-y-4 pt-3 border-t animate-in fade-in slide-in-from-top-2 duration-500">
+                                <div className="space-y-1">
+                                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Descrição</p>
+                                  <p className="text-xs text-foreground/80 leading-relaxed bg-muted/30 p-2 rounded-lg border border-dashed">
+                                    {wo?.description || "Sem descrição"}
+                                  </p>
+                                </div>
 
-                                <div className="grid grid-cols-2 gap-2 bg-muted/30 p-2 rounded text-[11px]">
-                                  <div className="space-y-1 border-r pr-2">
-                                    <p className="font-semibold text-primary flex items-center gap-1">
-                                      <DollarSign className="h-3 w-3" /> Financeiro
-                                    </p>
-                                    <p className="text-muted-foreground">Pendente: <span className="text-foreground font-medium">{fmt(Number(wo?.remaining_amount || 0))}</span></p>
-                                    <p className="text-muted-foreground">Status: <span className="text-foreground">{wo?.financial_status || "Aguardando"}</span></p>
-                                  </div>
-                                  <div className="space-y-1 pl-1">
-                                    <p className="font-semibold text-primary flex items-center gap-1">
-                                      <Calendar className="h-3 w-3" /> Cobrança
-                                    </p>
-                                    <p className="text-muted-foreground">Data: <span className="text-foreground">{wo?.billing_date ? formatDateBR(wo.billing_date) : "—"}</span></p>
-                                    <div className="pt-1 flex gap-1">
-                                      <Button 
-                                        size="sm" variant="outline" className="h-5 px-1 text-[9px]"
-                                        onClick={() => markAsPaid(item.os_id)}
-                                        disabled={wo?.financial_status === "Pago"}
-                                      >
-                                        Pagar
-                                      </Button>
-                                      <Input 
-                                        type="date" 
-                                        className="h-5 w-20 text-[9px] p-0 px-1" 
-                                        onChange={(e) => rescheduleBilling(item.os_id, e.target.value)}
-                                      />
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-2 bg-primary/5 p-3 rounded-xl border border-primary/10">
+                                    <div className="flex items-center gap-2 text-primary">
+                                      <DollarSign className="h-3.5 w-3.5" />
+                                      <span className="text-[10px] font-bold uppercase">Financeiro</span>
                                     </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] text-muted-foreground">Pendente</p>
+                                      <p className="text-xs font-black">{fmt(Number(wo?.remaining_amount || 0))}</p>
+                                    </div>
+                                    <Button 
+                                      size="sm" 
+                                      className="h-7 w-full text-[10px] font-bold bg-primary hover:bg-primary/90 shadow-sm"
+                                      onClick={() => markAsPaid(item.os_id)}
+                                      disabled={wo?.financial_status === "Pago"}
+                                    >
+                                      {wo?.financial_status === "Pago" ? "Pago ✓" : "Quitar"}
+                                    </Button>
+                                  </div>
+
+                                  <div className="space-y-2 bg-muted/30 p-3 rounded-xl border border-border/50">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                      <Calendar className="h-3.5 w-3.5" />
+                                      <span className="text-[10px] font-bold uppercase">Cobrança</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] text-muted-foreground">Próxima Data</p>
+                                      <p className="text-xs font-bold">{wo?.billing_date ? formatDateBR(wo.billing_date) : "—"}</p>
+                                    </div>
+                                    <Input 
+                                      type="date" 
+                                      className="h-7 text-[10px] p-1 h-7 border-muted-foreground/20 focus:border-primary/50" 
+                                      onChange={(e) => rescheduleBilling(item.os_id, e.target.value)}
+                                    />
                                   </div>
                                 </div>
 
                                 {wo?.items && wo.items.length > 0 && (
-                                  <div className="text-xs space-y-0.5 bg-muted/40 rounded p-1.5">
-                                    <p className="font-medium text-muted-foreground">Serviços:</p>
-                                    {wo.items.map((svc: any, idx: number) => (
-                                      <p key={idx} className="text-muted-foreground">• {svc.description} — {Number(svc.quantity)} un</p>
-                                    ))}
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Serviços</p>
+                                    <div className="grid grid-cols-1 gap-1">
+                                      {wo.items.map((svc: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between text-[11px] bg-muted/20 p-2 rounded-lg border border-border/30">
+                                          <span className="flex-1 truncate pr-2">{svc.description}</span>
+                                          <Badge variant="secondary" className="h-5 text-[9px] font-bold">{Number(svc.quantity)} UN</Badge>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 )}
 
-                                {wo?.employees?.name && (
-                                  <p className="text-xs text-muted-foreground">👤 {wo.employees.name}</p>
-                                )}
-
-                                {item.observacoes && (
-                                  <p className="text-xs italic text-muted-foreground bg-muted/50 rounded p-1.5">
-                                    📝 {item.observacoes}
-                                  </p>
-                                )}
-
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm" variant="outline" className="h-7 px-2 text-[10px] w-full"
-                                    onClick={() => navigate(`/work-orders?id=${item.os_id}`)}
-                                  >
-                                    <ExternalLink className="h-3 w-3 mr-1" /> Abrir OS
-                                  </Button>
-                                </div>
-
-                                <WorkOrderMaterials
-                                  workOrderId={item.os_id}
-                                  materialStatus={wo?.material_status || "nao_solicitado"}
-                                />
-
-                                <div className="flex items-center gap-1 pt-1">
-                                  <Button
-                                    size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                                    onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
-                                  >
-                                    <MessageSquare className="h-3 w-3 mr-1" /> Notas
-                                  </Button>
-
-                                  {col.key !== "Aguardando Instalação" && (
-                                    <Select onValueChange={(status) => moveToStatus(item.id, status)}>
-                                      <SelectTrigger className="h-7 text-xs flex-1">
-                                        <SelectValue placeholder="Mover →" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {(nextColumnMap[col.key] || []).map(s => (
-                                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                <div className="space-y-3 pt-2">
+                                  {item.observacoes && (
+                                    <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-400 p-3 rounded-r-lg">
+                                      <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase flex items-center gap-1">
+                                        <MessageSquare className="h-3 w-3" /> Observações
+                                      </p>
+                                      <p className="text-xs text-amber-800 dark:text-amber-300/80 italic mt-1 leading-relaxed">
+                                        {item.observacoes}
+                                      </p>
+                                    </div>
                                   )}
 
-                                  {col.key === "Aguardando Instalação" && (
+                                  <WorkOrderMaterials
+                                    workOrderId={item.os_id}
+                                    materialStatus={wo?.material_status || "nao_solicitado"}
+                                  />
+
+                                  <div className="grid grid-cols-2 gap-2 pt-2">
                                     <Button
-                                      size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
-                                      onClick={() => moveToStatus(item.id, "Entregue")}
+                                      size="sm" variant="outline" 
+                                      className="h-9 text-[11px] font-bold border-2 hover:bg-muted"
+                                      onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
                                     >
-                                      <ArrowRight className="h-3 w-3 mr-1" /> Entregar
+                                      <MessageSquare className="h-3.5 w-3.5 mr-2" /> Notas
                                     </Button>
-                                  )}
+
+                                    <Button
+                                      size="sm" variant="outline" 
+                                      className="h-9 text-[11px] font-bold border-2 hover:bg-primary/5 hover:text-primary hover:border-primary/30"
+                                      onClick={() => navigate(`/work-orders?id=${item.os_id}`)}
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5 mr-2" /> Abrir OS
+                                    </Button>
+                                  </div>
+
+                                  <div className="pt-2">
+                                    {col.key === "Aguardando Instalação" ? (
+                                      <Button
+                                        className="w-full h-10 font-black uppercase tracking-widest text-[11px] bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                                        onClick={() => moveToStatus(item.id, "Entregue")}
+                                      >
+                                        <ArrowRightCircle className="h-4 w-4 mr-2" /> Finalizar Entrega
+                                      </Button>
+                                    ) : (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button className="w-full h-10 font-black uppercase tracking-widest text-[11px] bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 shadow-xl">
+                                            Mover de Etapa <MoreVertical className="ml-2 h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-[200px]">
+                                          {(nextColumnMap[col.key] || []).map(s => (
+                                            <DropdownMenuItem key={s} onClick={() => moveToStatus(item.id, s)} className="font-bold text-xs p-3">
+                                              Mover para: {s}
+                                            </DropdownMenuItem>
+                                          ))}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             )}
 
                             {!expanded && (
-                              <div className="flex flex-col gap-1 pt-0.5">
-                                <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-                                  <span>{wo?.billing_date ? formatDateBR(wo.billing_date) : "Sem data"}</span>
-                                  <span className="font-medium text-primary">{fmt(Number(wo?.remaining_amount || 0))}</span>
+                              <div className="flex flex-col gap-2 pt-2 animate-in fade-in duration-300">
+                                <div className="flex items-center justify-between text-[10px] bg-muted/40 p-2 rounded-lg border border-border/30">
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>{wo?.billing_date ? formatDateBR(wo.billing_date) : "Sem data"}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-primary font-bold">
+                                    <DollarSign className="h-3 w-3" />
+                                    <span>{fmt(Number(wo?.remaining_amount || 0))}</span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  {col.key !== "Aguardando Instalação" && (
-                                    <Select onValueChange={(status) => moveToStatus(item.id, status)}>
-                                      <SelectTrigger className="h-6 text-[10px] flex-1">
-                                        <SelectValue placeholder="Mover →" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {(nextColumnMap[col.key] || []).map(s => (
-                                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                  {col.key === "Aguardando Instalação" && (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    className="h-8 text-[10px] font-bold flex-1 border-2"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setNotesText(item.observacoes || ""); }}
+                                  >
+                                    <MessageSquare className="h-3 w-3 mr-1" /> Notas
+                                  </Button>
+                                  
+                                  {col.key === "Aguardando Instalação" ? (
                                     <Button
-                                      size="sm" variant="outline" className="h-6 px-2 text-[10px] flex-1"
-                                      onClick={() => moveToStatus(item.id, "Entregue")}
+                                      className="h-8 text-[10px] font-black uppercase flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                      onClick={(e) => { e.stopPropagation(); moveToStatus(item.id, "Entregue"); }}
                                     >
-                                      Entregar
+                                      Finalizar
                                     </Button>
+                                  ) : (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button className="h-8 text-[10px] font-black uppercase flex-1 bg-slate-800 hover:bg-slate-900 shadow-sm" onClick={(e) => e.stopPropagation()}>
+                                          Próxima Etapa
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-[180px]">
+                                        {(nextColumnMap[col.key] || []).map(s => (
+                                          <DropdownMenuItem key={s} onClick={() => moveToStatus(item.id, s)} className="font-bold text-xs p-3">
+                                            {s}
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   )}
                                 </div>
                               </div>
@@ -581,7 +678,10 @@ const Production = () => {
                     })}
 
                     {colItems.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-8">Nenhuma OS</p>
+                      <div className="text-center py-12 bg-muted/20 rounded-2xl border-2 border-dashed border-border/50">
+                        <Package className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhuma OS nesta etapa</p>
+                      </div>
                     )}
                   </div>
                 )}
