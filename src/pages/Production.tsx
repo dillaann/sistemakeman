@@ -333,15 +333,21 @@ const Production = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">Produção</h1>
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 rounded-xl border shadow-sm sticky top-0 z-10">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Fluxo de Produção</h1>
+          <p className="text-sm text-muted-foreground">Gerencie suas ordens de serviço e prazos</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={financialFilter} onValueChange={setFinancialFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Filtro Financeiro" />
+            <SelectTrigger className="w-[160px] h-10 shadow-sm">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                <SelectValue placeholder="Financeiro" />
+              </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos os Status</SelectItem>
               <SelectItem value="cobrar_hoje">Cobrar hoje</SelectItem>
               <SelectItem value="atraso">Em atraso</SelectItem>
               <SelectItem value="esta_semana">Esta semana</SelectItem>
