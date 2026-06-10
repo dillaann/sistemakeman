@@ -499,7 +499,6 @@ export type Database = {
           days: number
           employee_id: string
           end_date: string
-          financial_transaction_id: string | null
           id: string
           notes: string | null
           reference_period: string | null
@@ -514,7 +513,6 @@ export type Database = {
           days: number
           employee_id: string
           end_date: string
-          financial_transaction_id?: string | null
           id?: string
           notes?: string | null
           reference_period?: string | null
@@ -529,7 +527,6 @@ export type Database = {
           days?: number
           employee_id?: string
           end_date?: string
-          financial_transaction_id?: string | null
           id?: string
           notes?: string | null
           reference_period?: string | null
@@ -543,13 +540,6 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "employee_vacations_financial_transaction_id_fkey"
-            columns: ["financial_transaction_id"]
-            isOneToOne: false
-            referencedRelation: "financial_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1380,7 +1370,6 @@ export type Database = {
       quotes: {
         Row: {
           approved_at: string | null
-          billing_date: string | null
           client_id: string
           created_at: string
           created_by: string | null
@@ -1388,7 +1377,6 @@ export type Database = {
           description: string | null
           down_payment: number | null
           down_payment_date: string | null
-          financial_status: string | null
           id: string
           issue_date: string
           origem_venda: string | null
@@ -1404,7 +1392,6 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
-          billing_date?: string | null
           client_id: string
           created_at?: string
           created_by?: string | null
@@ -1412,7 +1399,6 @@ export type Database = {
           description?: string | null
           down_payment?: number | null
           down_payment_date?: string | null
-          financial_status?: string | null
           id?: string
           issue_date?: string
           origem_venda?: string | null
@@ -1428,7 +1414,6 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
-          billing_date?: string | null
           client_id?: string
           created_at?: string
           created_by?: string | null
@@ -1436,7 +1421,6 @@ export type Database = {
           description?: string | null
           down_payment?: number | null
           down_payment_date?: string | null
-          financial_status?: string | null
           id?: string
           issue_date?: string
           origem_venda?: string | null
@@ -1777,7 +1761,6 @@ export type Database = {
         Row: {
           created_at: string
           employee_id: string
-          financial_transaction_id: string | null
           first_installment: number
           first_installment_date: string | null
           first_installment_paid: boolean
@@ -1791,7 +1774,6 @@ export type Database = {
         Insert: {
           created_at?: string
           employee_id: string
-          financial_transaction_id?: string | null
           first_installment?: number
           first_installment_date?: string | null
           first_installment_paid?: boolean
@@ -1805,7 +1787,6 @@ export type Database = {
         Update: {
           created_at?: string
           employee_id?: string
-          financial_transaction_id?: string | null
           first_installment?: number
           first_installment_date?: string | null
           first_installment_paid?: boolean
@@ -1822,13 +1803,6 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "thirteenth_salary_financial_transaction_id_fkey"
-            columns: ["financial_transaction_id"]
-            isOneToOne: false
-            referencedRelation: "financial_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -2044,21 +2018,17 @@ export type Database = {
       work_orders: {
         Row: {
           assigned_to: string | null
-          billing_date: string | null
           client_id: string
           completed_at: string | null
           created_at: string
           delivered_at: string | null
           description: string | null
-          financial_status: string | null
           id: string
           internal_notes: string | null
-          is_legacy: boolean | null
           material_status: string | null
           origem_venda: string | null
           priority: string
           quote_id: string | null
-          remaining_amount: number | null
           started_at: string | null
           status: Database["public"]["Enums"]["work_order_status"]
           total: number
@@ -2066,21 +2036,17 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
-          billing_date?: string | null
           client_id: string
           completed_at?: string | null
           created_at?: string
           delivered_at?: string | null
           description?: string | null
-          financial_status?: string | null
           id?: string
           internal_notes?: string | null
-          is_legacy?: boolean | null
           material_status?: string | null
           origem_venda?: string | null
           priority?: string
           quote_id?: string | null
-          remaining_amount?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["work_order_status"]
           total?: number
@@ -2088,21 +2054,17 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
-          billing_date?: string | null
           client_id?: string
           completed_at?: string | null
           created_at?: string
           delivered_at?: string | null
           description?: string | null
-          financial_status?: string | null
           id?: string
           internal_notes?: string | null
-          is_legacy?: boolean | null
           material_status?: string | null
           origem_venda?: string | null
           priority?: string
           quote_id?: string | null
-          remaining_amount?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["work_order_status"]
           total?: number
