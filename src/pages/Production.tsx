@@ -216,8 +216,8 @@ const Production = () => {
   }, [queryClient]);
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
-      const { error } = await supabase.from("production").update(updates as any).eq("id", id);
+    mutationFn: async ({ id, updates, table = "production" }: { id: string; updates: Record<string, any>; table?: string }) => {
+      const { error } = await supabase.from(table as any).update(updates as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -229,6 +229,14 @@ const Production = () => {
       toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
     },
   });
+
+  const markAsPaid = (woId: string) => {
+    updateMutation.mutate({ id: woId, updates: { financial_status: "Pago", remaining_amount: 0 }, table: "work_orders" });
+  };
+
+  const rescheduleBilling = (woId: string, newDate: string) => {
+    updateMutation.mutate({ id: woId, updates: { billing_date: newDate }, table: "work_orders" });
+  };
 
   const moveToStatus = (id: string, status: string) => {
     const item = productionItems.find((p: any) => p.id === id);
@@ -426,6 +434,36 @@ const Production = () => {
                               <div className="space-y-2 pt-1 animate-fade-in">
                                 <p className="text-xs text-muted-foreground line-clamp-2">{wo?.description || "Sem descrição"}</p>
 
+                                <div className="grid grid-cols-2 gap-2 bg-muted/30 p-2 rounded text-[11px]">
+                                  <div className="space-y-1 border-r pr-2">
+                                    <p className="font-semibold text-primary flex items-center gap-1">
+                                      <DollarSign className="h-3 w-3" /> Financeiro
+                                    </p>
+                                    <p className="text-muted-foreground">Pendente: <span className="text-foreground font-medium">{fmt(Number(wo?.remaining_amount || 0))}</span></p>
+                                    <p className="text-muted-foreground">Status: <span className="text-foreground">{wo?.financial_status || "Aguardando"}</span></p>
+                                  </div>
+                                  <div className="space-y-1 pl-1">
+                                    <p className="font-semibold text-primary flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" /> Cobrança
+                                    </p>
+                                    <p className="text-muted-foreground">Data: <span className="text-foreground">{wo?.billing_date ? formatDateBR(wo.billing_date) : "—"}</span></p>
+                                    <div className="pt-1 flex gap-1">
+                                      <Button 
+                                        size="sm" variant="outline" className="h-5 px-1 text-[9px]"
+                                        onClick={() => markAsPaid(item.os_id)}
+                                        disabled={wo?.financial_status === "Pago"}
+                                      >
+                                        Pagar
+                                      </Button>
+                                      <Input 
+                                        type="date" 
+                                        className="h-5 w-20 text-[9px] p-0 px-1" 
+                                        onChange={(e) => rescheduleBilling(item.os_id, e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
                                 {wo?.items && wo.items.length > 0 && (
                                   <div className="text-xs space-y-0.5 bg-muted/40 rounded p-1.5">
                                     <p className="font-medium text-muted-foreground">Serviços:</p>
@@ -444,6 +482,15 @@ const Production = () => {
                                     📝 {item.observacoes}
                                   </p>
                                 )}
+
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm" variant="outline" className="h-7 px-2 text-[10px] w-full"
+                                    onClick={() => navigate(`/work-orders?id=${item.os_id}`)}
+                                  >
+                                    <ExternalLink className="h-3 w-3 mr-1" /> Abrir OS
+                                  </Button>
+                                </div>
 
                                 <WorkOrderMaterials
                                   workOrderId={item.os_id}
@@ -484,27 +531,33 @@ const Production = () => {
                             )}
 
                             {!expanded && (
-                              <div className="flex items-center gap-1 pt-0.5">
-                                {col.key !== "Aguardando Instalação" && (
-                                  <Select onValueChange={(status) => moveToStatus(item.id, status)}>
-                                    <SelectTrigger className="h-6 text-[10px] flex-1">
-                                      <SelectValue placeholder="Mover →" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {(nextColumnMap[col.key] || []).map(s => (
-                                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                                {col.key === "Aguardando Instalação" && (
-                                  <Button
-                                    size="sm" variant="outline" className="h-6 px-2 text-[10px] flex-1"
-                                    onClick={() => moveToStatus(item.id, "Entregue")}
-                                  >
-                                    Entregar
-                                  </Button>
-                                )}
+                              <div className="flex flex-col gap-1 pt-0.5">
+                                <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+                                  <span>{wo?.billing_date ? formatDateBR(wo.billing_date) : "Sem data"}</span>
+                                  <span className="font-medium text-primary">{fmt(Number(wo?.remaining_amount || 0))}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {col.key !== "Aguardando Instalação" && (
+                                    <Select onValueChange={(status) => moveToStatus(item.id, status)}>
+                                      <SelectTrigger className="h-6 text-[10px] flex-1">
+                                        <SelectValue placeholder="Mover →" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {(nextColumnMap[col.key] || []).map(s => (
+                                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                  {col.key === "Aguardando Instalação" && (
+                                    <Button
+                                      size="sm" variant="outline" className="h-6 px-2 text-[10px] flex-1"
+                                      onClick={() => moveToStatus(item.id, "Entregue")}
+                                    >
+                                      Entregar
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </CardContent>
