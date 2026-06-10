@@ -472,16 +472,29 @@ const Production = () => {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => togglePriority(item)} className="text-xs" title="Alternar prioridade">
-                                {item.priority === "urgente" ? (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                    <AlertTriangle className="h-3 w-3 mr-1" /> URGENTE
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Normal</Badge>
+                             {/* Quick Actions Row */}
+                            <div className="flex items-center justify-between pt-1">
+                              <div className="flex -space-x-2">
+                                {wo?.employees?.name && (
+                                  <div 
+                                    className="h-7 w-7 rounded-full bg-primary/10 border-2 border-background flex items-center justify-center text-[10px] font-bold text-primary cursor-help"
+                                    title={`Responsável: ${wo.employees.name}`}
+                                  >
+                                    {wo.employees.name.charAt(0).toUpperCase()}
+                                  </div>
                                 )}
-                              </button>
+                                <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+                                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {!expanded && (
+                                  <Badge variant="outline" className="text-[10px] bg-muted/30">
+                                    Pendente: {fmt(Number(wo?.remaining_amount || 0))}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
 
                             {expanded && (
