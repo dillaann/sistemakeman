@@ -435,30 +435,39 @@ const Production = () => {
                       return (
                         <Card
                           key={item.id}
-                          className={`border transition-all duration-200 ${item.priority === "urgente" ? "border-destructive/50 bg-destructive/5" : ""}`}
+                          className={`group overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+                            item.priority === "urgente" 
+                              ? "border-destructive/30 bg-destructive/5 shadow-destructive/10" 
+                              : "border-border/50 bg-card"
+                          }`}
                         >
-                          <CardContent className="p-3 space-y-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className="text-xs text-muted-foreground font-mono shrink-0">
-                                  OS #{item.os_id?.slice(0, 8)}
-                                </span>
-                                <span className="text-sm font-medium truncate">
-                                  {expanded ? clientName : clientName.slice(0, 15) + (clientName.length > 15 ? "…" : "")}
-                                </span>
+                          <div className={`h-1.5 w-full ${item.priority === "urgente" ? "bg-destructive animate-pulse" : "bg-primary/20"}`} />
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="font-mono text-[10px] px-1.5 h-5 bg-background/50">
+                                    OS #{item.os_id?.slice(0, 8).toUpperCase()}
+                                  </Badge>
+                                  {item.priority === "urgente" && (
+                                    <Badge variant="destructive" className="text-[10px] h-5 px-1.5 font-bold uppercase tracking-wider">
+                                      Urgente
+                                    </Badge>
+                                  )}
+                                </div>
+                                <h4 className="font-bold text-base leading-tight truncate group-hover:text-primary transition-colors">
+                                  {clientName}
+                                </h4>
                               </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {wo?.total && (
-                                  <span className="text-xs font-semibold text-primary">{fmt(Number(wo.total))}</span>
-                                )}
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="text-sm font-black text-primary tracking-tight">
+                                  {fmt(Number(wo?.total || 0))}
+                                </span>
                                 <button
                                   onClick={() => toggleCard(item.id)}
-                                  className="p-0.5 rounded hover:bg-muted transition-colors"
+                                  className="p-1.5 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all"
                                 >
-                                  {expanded
-                                    ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                                    : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                                  }
+                                  {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                 </button>
                               </div>
                             </div>
