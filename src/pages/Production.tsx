@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, DollarSign, Calendar, ExternalLink } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
@@ -66,6 +67,7 @@ const Production = () => {
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const [financialFilter, setFinancialFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("novos");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   // Column-level collapse (minimize all cards in column)
@@ -130,7 +132,7 @@ const Production = () => {
 
       const { data: workOrders, error: woError } = await supabase
         .from("work_orders")
-        .select("id, description, priority, internal_notes, material_status, total, client_id, assigned_to, billing_date, financial_status, remaining_amount, clients!work_orders_client_id_fkey(name)")
+        .select("id, description, priority, internal_notes, material_status, total, client_id, assigned_to, billing_date, financial_status, remaining_amount, is_legacy, clients!work_orders_client_id_fkey(name)")
         .in("id", osIds);
 
       if (woError) throw woError;
@@ -270,6 +272,12 @@ const Production = () => {
       if (p.status !== columnKey) return false;
       
       const wo = p.work_orders;
+      
+      // Filter by tab
+      const isLegacy = !!wo?.is_legacy;
+      if (activeTab === "novos" && isLegacy) return false;
+      if (activeTab === "antigos" && !isLegacy) return false;
+
       if (financialFilter !== "all") {
         if (financialFilter === "pagos" && wo?.financial_status !== "Pago") return false;
         if (financialFilter === "atraso") {
@@ -323,13 +331,20 @@ const Production = () => {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {columns.map(col => {
-            const colItems = getColumnItems(col.key);
-            const isColCollapsed = !!collapsedCols[col.key];
-            return (
-              <div key={col.key} className="space-y-3">
-                <div className={`rounded-lg border p-3 ${col.color}`}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="novos">Produção</TabsTrigger>
+            <TabsTrigger value="antigos">Antigos</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={activeTab} className="mt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {columns.map(col => {
+                const colItems = getColumnItems(col.key);
+                const isColCollapsed = !!collapsedCols[col.key];
+                return (
+                  <div key={col.key} className="space-y-3">
+                    <div className={`rounded-lg border p-3 ${col.color}`}>
                   <h3 className="font-semibold text-sm flex items-center justify-between">
                     <span className="flex items-center gap-2">
                       {col.label}
@@ -570,10 +585,12 @@ const Production = () => {
                     )}
                   </div>
                 )}
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        </TabsContent>
+      </Tabs>
       )}
 
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
