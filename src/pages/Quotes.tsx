@@ -1157,6 +1157,7 @@ const Quotes = () => {
                     value={form.billing_date} 
                     onChange={e => setForm({ ...form, billing_date: e.target.value })} 
                   />
+                  <p className="text-xs text-muted-foreground">Data em que o financeiro deve cobrar o cliente pelo pagamento.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Prazo de Entrega</Label>
