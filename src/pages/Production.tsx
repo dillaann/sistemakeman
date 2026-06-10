@@ -19,12 +19,12 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const columns = [
-  { key: "Fila de Produção", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30 text-yellow-700" },
-  { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-500/10 border-blue-500/30 text-blue-700" },
-  { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-500/10 border-orange-500/30 text-orange-700" },
-  { key: "Aguardando Instalação", label: "Aguardando Instalação", color: "bg-green-500/10 border-green-500/30 text-green-700" },
-  { key: "Concluído", label: "Concluído", color: "bg-purple-500/10 border-purple-500/30 text-purple-700" },
-  { key: "Entregue", label: "Entregue", color: "bg-slate-500/10 border-slate-500/30 text-slate-700" },
+  { key: "Fila de Produção", label: "Fila de Produção", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
+  { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Clock },
+  { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-50/50 border-orange-200/60 text-orange-700", icon: Package },
+  { key: "Aguardando Instalação", label: "Aguardando Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: Clock },
+  { key: "Concluído", label: "Concluído", color: "bg-emerald-50/50 border-emerald-200/60 text-emerald-700", icon: CheckCircle2 },
+  { key: "Entregue", label: "Entregue", color: "bg-slate-50/50 border-slate-200/60 text-slate-700", icon: CheckCircle2 },
 ];
 
 const Production = () => {
