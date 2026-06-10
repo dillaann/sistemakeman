@@ -339,15 +339,14 @@ const Production = () => {
             <TabsTrigger value="antigos">Antigos</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="novos" className="mt-0">
+          <TabsContent value={activeTab} className="mt-0">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               {columns.map(col => {
                 const colItems = getColumnItems(col.key);
-
-            const isColCollapsed = !!collapsedCols[col.key];
-            return (
-              <div key={col.key} className="space-y-3">
-                <div className={`rounded-lg border p-3 ${col.color}`}>
+                const isColCollapsed = !!collapsedCols[col.key];
+                return (
+                  <div key={col.key} className="space-y-3">
+                    <div className={`rounded-lg border p-3 ${col.color}`}>
                   <h3 className="font-semibold text-sm flex items-center justify-between">
                     <span className="flex items-center gap-2">
                       {col.label}
@@ -588,10 +587,12 @@ const Production = () => {
                     )}
                   </div>
                 )}
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        </TabsContent>
+      </Tabs>
       )}
 
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
