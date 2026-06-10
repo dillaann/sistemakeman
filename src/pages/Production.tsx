@@ -72,7 +72,7 @@ const Production = () => {
 
   const summary = useMemo(() => {
     const total = productionItems.length;
-    const emProducao = productionItems.filter((p: any) => p.status === "Em Produção").length;
+    const emProducao = productionItems.filter((p: any) => p.status === "Em Andamento").length;
     const atrasadas = productionItems.filter((p: any) => p.data_entrega && new Date(p.data_entrega) < new Date()).length;
     const concluidas = productionItems.filter((p: any) => p.status === "Concluído").length;
     return { total, emProducao, atrasadas, concluidas };
