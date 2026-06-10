@@ -45,12 +45,13 @@ const Production = () => {
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // 1. Get explicit production entries
+      const { data: explicitProd, error: prodErr } = await supabase
         .from("production")
         .select(`
           *,
           work_orders(
-            id, description, priority, internal_notes, material_status, total, client_id, assigned_to,
+            id, description, priority, internal_notes, material_status, total, client_id, assigned_to, delivery_deadline,
             clients(name),
             employees(name)
           ),
@@ -59,8 +60,45 @@ const Production = () => {
           )
         `)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      
+      if (prodErr) throw prodErr;
+
+      // 2. Get all work orders to find ones NOT in production table
+      const prodOsIds = new Set(explicitProd?.map(p => p.os_id) || []);
+      
+      const { data: allWOs, error: woErr } = await supabase
+        .from("work_orders")
+        .select(`
+          id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at, delivery_deadline,
+          clients(name),
+          employees(name)
+        `);
+      
+      if (woErr) throw woErr;
+
+      // 3. Map status labels between tables
+      const statusMap: Record<string, string> = {
+        'aguardando': 'Fila de Produção',
+        'em_producao': 'Em Andamento',
+        'aguardando_instalacao': 'Aguardando Instalação',
+        'entregue': 'Entregue'
+      };
+
+      // 4. Transform work orders not in production into virtual production items
+      const virtualItems = (allWOs || [])
+        .filter(wo => !prodOsIds.has(wo.id))
+        .map(wo => ({
+          id: `virtual-${wo.id}`,
+          os_id: wo.id,
+          status: statusMap[wo.status as string] || 'Fila de Produção',
+          created_at: wo.created_at,
+          priority: wo.priority,
+          work_orders: wo,
+          production_occurrences: [],
+          is_virtual: true
+        }));
+
+      return [...(explicitProd || []), ...virtualItems];
     },
   });
 
