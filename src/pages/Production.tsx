@@ -27,6 +27,13 @@ const columns = [
   { key: "Entregue", label: "Entregue", color: "bg-slate-50/50 border-slate-200/60 text-slate-700", icon: CheckCircle2 },
 ];
 
+const statusMap: Record<string, string> = {
+  'aguardando': 'Fila de Produção',
+  'em_producao': 'Em Andamento',
+  'aguardando_instalacao': 'Aguardando Instalação',
+  'entregue': 'Entregue'
+};
+
 const Production = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
