@@ -2053,6 +2053,7 @@ export type Database = {
           financial_status: string | null
           id: string
           internal_notes: string | null
+          is_legacy: boolean | null
           material_status: string | null
           origem_venda: string | null
           priority: string
@@ -2074,6 +2075,7 @@ export type Database = {
           financial_status?: string | null
           id?: string
           internal_notes?: string | null
+          is_legacy?: boolean | null
           material_status?: string | null
           origem_venda?: string | null
           priority?: string
@@ -2095,6 +2097,7 @@ export type Database = {
           financial_status?: string | null
           id?: string
           internal_notes?: string | null
+          is_legacy?: boolean | null
           material_status?: string | null
           origem_venda?: string | null
           priority?: string
