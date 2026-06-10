@@ -49,8 +49,10 @@ const Production = () => {
           work_orders(
             id, description, priority, internal_notes, material_status, total, client_id, assigned_to,
             clients(name),
-            employees(name),
-            work_order_items(id, description, quantity)
+            employees(name)
+          ),
+          production_occurrences(
+            id, description, created_at, author_name
           )
         `)
         .order("created_at", { ascending: false });
