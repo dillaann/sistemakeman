@@ -499,6 +499,7 @@ export type Database = {
           days: number
           employee_id: string
           end_date: string
+          financial_transaction_id: string | null
           id: string
           notes: string | null
           reference_period: string | null
@@ -513,6 +514,7 @@ export type Database = {
           days: number
           employee_id: string
           end_date: string
+          financial_transaction_id?: string | null
           id?: string
           notes?: string | null
           reference_period?: string | null
@@ -527,6 +529,7 @@ export type Database = {
           days?: number
           employee_id?: string
           end_date?: string
+          financial_transaction_id?: string | null
           id?: string
           notes?: string | null
           reference_period?: string | null
@@ -540,6 +543,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_vacations_financial_transaction_id_fkey"
+            columns: ["financial_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1006,33 +1016,42 @@ export type Database = {
         Row: {
           created_at: string
           data_conclusao: string | null
+          data_entrega: string | null
           id: string
           observacoes: string | null
           os_id: string
+          percent_complete: number | null
           priority: string | null
           responsavel: string | null
+          started_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           data_conclusao?: string | null
+          data_entrega?: string | null
           id?: string
           observacoes?: string | null
           os_id: string
+          percent_complete?: number | null
           priority?: string | null
           responsavel?: string | null
+          started_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           data_conclusao?: string | null
+          data_entrega?: string | null
           id?: string
           observacoes?: string | null
           os_id?: string
+          percent_complete?: number | null
           priority?: string | null
           responsavel?: string | null
+          started_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -1056,6 +1075,79 @@ export type Database = {
             columns: ["responsavel"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_logs: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          new_status: string | null
+          notes: string | null
+          old_status: string | null
+          production_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          old_status?: string | null
+          production_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          old_status?: string | null
+          production_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_logs_production_id_fkey"
+            columns: ["production_id"]
+            isOneToOne: false
+            referencedRelation: "production"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_occurrences: {
+        Row: {
+          author_name: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string
+          id: string
+          production_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          id?: string
+          production_id: string
+        }
+        Update: {
+          author_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          id?: string
+          production_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_occurrences_production_id_fkey"
+            columns: ["production_id"]
+            isOneToOne: false
+            referencedRelation: "production"
             referencedColumns: ["id"]
           },
         ]
