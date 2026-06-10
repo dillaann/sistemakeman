@@ -51,7 +51,7 @@ const Production = () => {
         .select(`
           *,
           work_orders(
-            id, description, priority, internal_notes, material_status, total, client_id, assigned_to, delivery_deadline,
+            id, description, priority, internal_notes, material_status, total, client_id, assigned_to,
             clients(name),
             employees(name)
           ),
@@ -69,7 +69,7 @@ const Production = () => {
       const { data: allWOs, error: woErr } = await supabase
         .from("work_orders")
         .select(`
-          id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at, delivery_deadline,
+          id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at,
           clients(name),
           employees(name)
         `);
