@@ -5,12 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
+import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, DollarSign, Calendar, ExternalLink } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
+import { localDateString, formatDateBR } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const columns = [
@@ -55,12 +58,14 @@ function saveExpandedCards(cards: Set<string>) {
 
 const Production = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [notesText, setNotesText] = useState("");
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
+  const [financialFilter, setFinancialFilter] = useState<string>("all");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
 
   // Column-level collapse (minimize all cards in column)
@@ -125,7 +130,7 @@ const Production = () => {
 
       const { data: workOrders, error: woError } = await supabase
         .from("work_orders")
-        .select("id, description, priority, internal_notes, material_status, total, client_id, assigned_to, clients!work_orders_client_id_fkey(name)")
+        .select("id, description, priority, internal_notes, material_status, total, client_id, assigned_to, billing_date, financial_status, remaining_amount, clients!work_orders_client_id_fkey(name)")
         .in("id", osIds);
 
       if (woError) throw woError;
@@ -252,8 +257,33 @@ const Production = () => {
   };
 
   const getColumnItems = (columnKey: string) => {
+    const today = localDateString();
     return productionItems.filter((p: any) => {
       if (p.status !== columnKey) return false;
+      
+      const wo = p.work_orders;
+      if (financialFilter !== "all") {
+        if (financialFilter === "pagos" && wo?.financial_status !== "Pago") return false;
+        if (financialFilter === "atraso") {
+          const isAtrasado = wo?.billing_date && wo.billing_date < today && wo.financial_status !== "Pago";
+          if (!isAtrasado) return false;
+        }
+        if (financialFilter === "cobrar_hoje") {
+          const isCobrarHoje = wo?.billing_date === today && wo.financial_status !== "Pago";
+          if (!isCobrarHoje) return false;
+        }
+        if (financialFilter === "esta_semana") {
+          const startOfWeek = new Date();
+          startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          const sDate = localDateString(startOfWeek);
+          const eDate = localDateString(endOfWeek);
+          const isThisWeek = wo?.billing_date && wo.billing_date >= sDate && wo.billing_date <= eDate;
+          if (!isThisWeek) return false;
+        }
+      }
+
       const isOpen = p.status !== "Entregue";
       return isInRangeOrOpen(p.created_at, dateRange, isOpen, p.data_conclusao);
     });
@@ -265,7 +295,21 @@ const Production = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">Produção</h1>
-        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={financialFilter} onValueChange={setFinancialFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Filtro Financeiro" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="cobrar_hoje">Cobrar hoje</SelectItem>
+              <SelectItem value="atraso">Em atraso</SelectItem>
+              <SelectItem value="esta_semana">Esta semana</SelectItem>
+              <SelectItem value="pagos">Pagos</SelectItem>
+            </SelectContent>
+          </Select>
+          <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+        </div>
       </div>
 
       {isLoading ? (
