@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, Search, Info, Package, History, FileText, Factory, Clock, CheckCircle2, AlertCircle, LayoutGrid, List as ListIcon, User, Calendar, ChevronRight } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
-import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
+import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,6 +40,10 @@ const Production = () => {
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
+  const isViewingCurrent = useMemo(() => {
+    const now = new Date();
+    return now >= dateRange.start && now <= dateRange.end;
+  }, [dateRange]);
   
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -105,34 +109,55 @@ const Production = () => {
     return productionItems.filter((item: any) => {
       const wo = item.work_orders || {};
       const clientName = wo.clients?.name || "";
+      const description = wo.description || "";
+      const employeeName = wo.employees?.name || "";
+      
+      // Period Filtering: Open orders always show in current period, 
+      // Finished orders show in their completion period.
+      const isFinished = ["Concluído", "Entregue"].includes(item.status);
+      const completionDate = item.data_conclusao || wo.delivered_at || wo.completed_at;
+      
+      if (!isInRangeOrOpen(item.created_at, dateRange, !isFinished, completionDate)) {
+         return false;
+      }
+
+      const searchTerms = search.toLowerCase();
       const matchesSearch = 
-        item.os_id.toLowerCase().includes(search.toLowerCase()) ||
-        clientName.toLowerCase().includes(search.toLowerCase()) ||
-        (wo.description || "").toLowerCase().includes(search.toLowerCase());
+        item.os_id.toLowerCase().includes(searchTerms) ||
+        clientName.toLowerCase().includes(searchTerms) ||
+        description.toLowerCase().includes(searchTerms) ||
+        employeeName.toLowerCase().includes(searchTerms);
       
       const matchesStatus = statusFilter === "todos" || item.status === statusFilter;
-      const matchesPriority = priorityFilter === "todos" || item.priority === priorityFilter;
+      const matchesPriority = priorityFilter === "todos" || 
+        (item.priority || wo.priority || "").toLowerCase() === priorityFilter.toLowerCase();
 
       return matchesSearch && matchesStatus && matchesPriority;
     });
-  }, [productionItems, search, statusFilter, priorityFilter]);
+  }, [productionItems, search, statusFilter, priorityFilter, dateRange]);
 
   const summary = useMemo(() => {
     const total = productionItems.length;
     const emProducao = productionItems.filter((p: any) => p.status === "Em Andamento").length;
+    
+    // Total of late orders (regardless of the filter)
     const atrasadas = productionItems.filter((p: any) => {
-      const prazo = p.data_entrega || p.work_orders?.delivery_deadline;
+      const wo = p.work_orders || {};
+      const prazo = p.data_entrega || wo.delivery_deadline;
       return prazo && new Date(prazo) < new Date() && !["Concluído", "Entregue"].includes(p.status);
     }).length;
+
+    // Completed in the currently viewed month
     const concluidasMês = productionItems.filter((p: any) => {
       if (p.status !== "Concluído") return false;
-      const dataConclusao = p.data_conclusao ? new Date(p.data_conclusao) : null;
+      const wo = p.work_orders || {};
+      const dataConclusao = p.data_conclusao || wo.completed_at;
       if (!dataConclusao) return false;
-      const now = new Date();
-      return dataConclusao.getMonth() === now.getMonth() && dataConclusao.getFullYear() === now.getFullYear();
+      return isInRange(dataConclusao, dateRange);
     }).length;
+
     return { total, emProducao, atrasadas, concluidasMês };
-  }, [productionItems]);
+  }, [productionItems, dateRange]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
