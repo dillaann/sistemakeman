@@ -271,47 +271,160 @@ const Production = () => {
         </div>
       </div>
 
-      {/* List */}
+      {/* View Content */}
       {isLoading ? (
         <div className="space-y-4">
-          {[1,2,3].map(i => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-32 bg-slate-200/50 rounded-xl animate-pulse" />)}
+        </div>
+      ) : viewMode === "kanban" ? (
+        <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-slate-200">
+          {columns.map(col => {
+            const colItems = filteredItems.filter((item: any) => item.status === col.key);
+            const Icon = col.icon;
+            
+            return (
+              <div key={col.key} className="flex-shrink-0 w-80 bg-slate-100/50 rounded-2xl p-4 flex flex-col gap-4 border border-slate-200/40">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("p-1.5 rounded-lg", col.color.split(' ')[0])}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <h3 className="font-bold text-sm text-slate-700">{col.label}</h3>
+                  </div>
+                  <Badge variant="secondary" className="bg-white text-slate-500 border-slate-200">
+                    {colItems.length}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-col gap-3 min-h-[200px]">
+                  {colItems.map((item: any) => {
+                    const wo = item.work_orders || {};
+                    const isLate = (item.data_entrega || wo.delivery_deadline) && new Date(item.data_entrega || wo.delivery_deadline) < new Date() && !["Concluído", "Entregue"].includes(item.status);
+
+                    return (
+                      <Card 
+                        key={item.id} 
+                        className={cn(
+                          "cursor-pointer group hover:ring-2 hover:ring-primary/20 transition-all border-slate-200/60 shadow-sm",
+                          isLate && "border-red-200 bg-red-50/30"
+                        )}
+                        onClick={() => {
+                          setSelectedItem(item);
+                          setIsDetailOpen(true);
+                        }}
+                      >
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-mono text-xs font-bold text-slate-400 group-hover:text-primary transition-colors">
+                              OS-{item.os_id.slice(0, 8)}
+                            </span>
+                            {item.priority === "urgente" && (
+                              <Badge variant="destructive" className="h-5 px-1.5 text-[10px] animate-pulse">URGENTE</Badge>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <p className="font-bold text-sm line-clamp-1">{wo.clients?.name || "Cliente"}</p>
+                            <p className="text-xs text-slate-500 line-clamp-2 mt-1">{wo.description || "Sem descrição"}</p>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                            <div className="flex -space-x-2">
+                              <Avatar className="h-6 w-6 border-2 border-white">
+                                <AvatarFallback className="text-[10px] bg-slate-100 text-slate-500">
+                                  {wo.employees?.name?.slice(0, 2).toUpperCase() || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                            </div>
+                            <div className={cn("text-[10px] font-medium flex items-center gap-1", isLate ? "text-red-600" : "text-slate-400")}>
+                              <Calendar className="h-3 w-3" />
+                              {(item.data_entrega || wo.delivery_deadline) ? formatDateBR(item.data_entrega || wo.delivery_deadline) : "Sem prazo"}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {colItems.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Vazio</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredItems.length === 0 && <div className="text-center py-20 text-muted-foreground">Nenhuma OS encontrada.</div>}
+          {filteredItems.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+              <div className="p-4 rounded-full bg-slate-50 mb-4">
+                <Search className="h-8 w-8 text-slate-300" />
+              </div>
+              <h3 className="font-bold text-slate-600">Nenhuma OS encontrada</h3>
+              <p className="text-sm text-slate-400">Tente ajustar seus filtros de busca.</p>
+            </div>
+          )}
           {filteredItems.map((item: any) => {
             const wo = item.work_orders || {};
-            const isLate = item.data_entrega && new Date(item.data_entrega) < new Date() && item.status !== "Entregue" && item.status !== "Concluído";
+            const isLate = (item.data_entrega || wo.delivery_deadline) && new Date(item.data_entrega || wo.delivery_deadline) < new Date() && !["Concluído", "Entregue"].includes(item.status);
             
             return (
-              <Card key={item.id} className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-lg font-mono">OS-{item.os_id.slice(0, 8)}</span>
-                      <Badge variant="outline" className={columns.find(c => c.key === item.status)?.color}>{item.status}</Badge>
+              <Card 
+                key={item.id} 
+                className={cn(
+                  "hover:shadow-md hover:border-primary/20 transition-all cursor-pointer border-slate-200/60 group",
+                  isLate && "bg-red-50/30 border-red-100"
+                )}
+                onClick={() => {
+                  setSelectedItem(item);
+                  setIsDetailOpen(true);
+                }}
+              >
+                <div className="flex flex-col md:flex-row md:items-center p-4 gap-4">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex flex-col gap-1 min-w-[120px]">
+                      <span className="font-bold text-lg font-mono text-slate-400 group-hover:text-primary transition-colors">
+                        OS-{item.os_id.slice(0, 8)}
+                      </span>
+                      <Badge variant="outline" className={cn("w-fit text-[10px] font-bold py-0 h-5", columns.find(c => c.key === item.status)?.color)}>
+                        {item.status}
+                      </Badge>
                     </div>
-                    <div>
-                      <p className="font-semibold text-lg">{wo.clients?.name || "Cliente"}</p>
-                      <p className="text-sm text-muted-foreground">{wo.description || "Sem descrição"}</p>
+                    <div className="h-10 w-[1px] bg-slate-100 hidden md:block" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-lg text-slate-800">{wo.clients?.name || "Cliente não informado"}</p>
+                        {item.priority === "urgente" && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">URGENTE</Badge>}
+                      </div>
+                      <p className="text-sm text-slate-500 line-clamp-1">{wo.description || "Sem descrição disponível para este serviço."}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Prazo</p>
-                      <p className={`font-semibold ${isLate ? "text-red-500" : ""}`}>
-                        {item.data_entrega ? new Date(item.data_entrega).toLocaleDateString("pt-BR") : "—"}
-                      </p>
+
+                  <div className="flex items-center gap-6 justify-between md:justify-end">
+                    <div className="flex flex-col items-end">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Responsável</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm font-medium text-slate-700">{wo.employees?.name || "Pendente"}</span>
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                            {wo.employees?.name?.slice(0, 2).toUpperCase() || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                     </div>
-                    {item.priority === "urgente" && <Badge variant="destructive">URGENTE</Badge>}
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setIsDetailOpen(true);
-                      }}
-                    >
-                      Ver Detalhes
+
+                    <div className="flex flex-col items-end min-w-[100px]">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Prazo Final</p>
+                      <div className={cn("flex items-center gap-1.5 mt-1 font-bold", isLate ? "text-red-500" : "text-slate-700")}>
+                        <Clock className="h-3.5 w-3.5" />
+                        {(item.data_entrega || wo.delivery_deadline) ? formatDateBR(item.data_entrega || wo.delivery_deadline) : "—"}
+                      </div>
+                    </div>
+                    
+                    <Button variant="ghost" size="icon" className="text-slate-300 group-hover:text-primary transition-colors">
+                      <ChevronRight className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
