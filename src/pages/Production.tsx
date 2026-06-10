@@ -15,12 +15,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 
 const columns = [
-  { key: "Aguardando Início", label: "Aguardando Início", color: "bg-gray-500/10 border-gray-500/30" },
-  { key: "Em Produção", label: "Em Produção", color: "bg-blue-500/10 border-blue-500/30" },
-  { key: "Pausado", label: "Pausado", color: "bg-yellow-500/10 border-yellow-500/30" },
-  { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-500/10 border-orange-500/30" },
-  { key: "Concluído", label: "Concluído", color: "bg-indigo-500/10 border-indigo-500/30" },
-  { key: "Entregue", label: "Entregue", color: "bg-green-500/10 border-green-500/30" },
+  { key: "Fila de Produção", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30 text-yellow-700" },
+  { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-500/10 border-blue-500/30 text-blue-700" },
+  { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-500/10 border-orange-500/30 text-orange-700" },
+  { key: "Aguardando Instalação", label: "Aguardando Instalação", color: "bg-green-500/10 border-green-500/30 text-green-700" },
+  { key: "Concluído", label: "Concluído", color: "bg-purple-500/10 border-purple-500/30 text-purple-700" },
+  { key: "Entregue", label: "Entregue", color: "bg-slate-500/10 border-slate-500/30 text-slate-700" },
 ];
 
 const Production = () => {
