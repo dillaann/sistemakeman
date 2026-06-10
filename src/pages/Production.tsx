@@ -139,19 +139,25 @@ const Production = () => {
   const summary = useMemo(() => {
     const total = productionItems.length;
     const emProducao = productionItems.filter((p: any) => p.status === "Em Andamento").length;
+    
+    // Total of late orders (regardless of the filter)
     const atrasadas = productionItems.filter((p: any) => {
-      const prazo = p.data_entrega || p.work_orders?.delivery_deadline;
+      const wo = p.work_orders || {};
+      const prazo = p.data_entrega || wo.delivery_deadline;
       return prazo && new Date(prazo) < new Date() && !["Concluído", "Entregue"].includes(p.status);
     }).length;
+
+    // Completed in the currently viewed month
     const concluidasMês = productionItems.filter((p: any) => {
       if (p.status !== "Concluído") return false;
-      const dataConclusao = p.data_conclusao ? new Date(p.data_conclusao) : null;
+      const wo = p.work_orders || {};
+      const dataConclusao = p.data_conclusao || wo.completed_at;
       if (!dataConclusao) return false;
-      const now = new Date();
-      return dataConclusao.getMonth() === now.getMonth() && dataConclusao.getFullYear() === now.getFullYear();
+      return isInRange(dataConclusao, dateRange);
     }).length;
+
     return { total, emProducao, atrasadas, concluidasMês };
-  }, [productionItems]);
+  }, [productionItems, dateRange]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
