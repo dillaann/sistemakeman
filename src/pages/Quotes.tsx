@@ -65,20 +65,7 @@ const Quotes = () => {
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ 
-    client_id: "", 
-    description: "", 
-    valid_until: "", 
-    seller_id: "", 
-    delivery_deadline: "", 
-    origem_venda: "", 
-    issue_date: localDateString(),
-    payment_method: "pix",
-    down_payment: "",
-    remaining_amount: "",
-    billing_date: "",
-    financial_status: "Aguardando entrada"
-  });
+  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
 
   // Edit state
@@ -257,9 +244,6 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
 
       if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
-      if (!form.payment_method) throw new Error("Selecione a Forma de Pagamento");
-      if (!form.billing_date) throw new Error("Selecione a Data de Cobrança");
-      
       const { data: quote, error } = await supabase.from("quotes").insert({
         client_id: form.client_id,
         description: form.description,
@@ -270,11 +254,6 @@ const Quotes = () => {
         delivery_deadline: form.delivery_deadline || null,
         origem_venda: form.origem_venda,
         issue_date: form.issue_date || localDateString(),
-        payment_method: form.payment_method,
-        down_payment: parseFloat(form.down_payment) || 0,
-        remaining_amount: parseFloat(form.remaining_amount) || 0,
-        billing_date: form.billing_date,
-        financial_status: form.financial_status,
       } as any).select().single();
       if (error) throw error;
 
@@ -292,20 +271,7 @@ const Quotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
-      setForm({ 
-        client_id: "", 
-        description: "", 
-        valid_until: "", 
-        seller_id: "", 
-        delivery_deadline: "", 
-        origem_venda: "", 
-        issue_date: localDateString(),
-        payment_method: "pix",
-        down_payment: "",
-        remaining_amount: "",
-        billing_date: "",
-        financial_status: "Aguardando entrada"
-      });
+      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
       setItems([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
       toast({ 
         title: "Orçamento criado!",
@@ -333,12 +299,7 @@ const Quotes = () => {
       delivery_deadline: (quote as any).delivery_deadline || "",
       origem_venda: (quote as any).origem_venda || "",
       issue_date: (quote as any).issue_date || "",
-      payment_method: (quote as any).payment_method || "pix",
-      down_payment: String((quote as any).down_payment || ""),
-      remaining_amount: String((quote as any).remaining_amount || ""),
-      billing_date: (quote as any).billing_date || "",
-      financial_status: (quote as any).financial_status || "Aguardando entrada",
-    } as any);
+    });
     setEditPayment({
       payment_type: (quote as any).payment_type || "a_vista",
       down_payment: String((quote as any).down_payment || ""),
@@ -1097,79 +1058,10 @@ const Quotes = () => {
                 <div className="text-right font-bold text-lg border-t pt-2">Total: {fmt(grandTotal)}</div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-                <div className="space-y-2">
-                  <Label>Forma de Pagamento *</Label>
-                  <Select value={form.payment_method} onValueChange={v => setForm({ ...form, payment_method: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pix">PIX</SelectItem>
-                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                      <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                      <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                      <SelectItem value="transferencia">Transferência Bancária</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="boleto">Boleto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Status Financeiro *</Label>
-                  <Select value={form.financial_status} onValueChange={v => setForm({ ...form, financial_status: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Aguardando entrada">Aguardando entrada</SelectItem>
-                      <SelectItem value="Entrada recebida">Entrada recebida</SelectItem>
-                      <SelectItem value="Cobrar saldo">Cobrar saldo</SelectItem>
-                      <SelectItem value="Pago">Pago</SelectItem>
-                      <SelectItem value="Em atraso">Em atraso</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor da Entrada (R$)</Label>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    placeholder="0,00" 
-                    value={form.down_payment} 
-                    onChange={e => {
-                      const val = e.target.value;
-                      const rem = Math.max(grandTotal - (parseFloat(val) || 0), 0);
-                      setForm({ ...form, down_payment: val, remaining_amount: String(rem.toFixed(2)) });
-                    }} 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Valor Restante (R$)</Label>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    placeholder="0,00" 
-                    value={form.remaining_amount} 
-                    onChange={e => setForm({ ...form, remaining_amount: e.target.value })} 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data de Cobrança *</Label>
-                  <Input 
-                    type="date" 
-                    value={form.billing_date} 
-                    onChange={e => setForm({ ...form, billing_date: e.target.value })} 
-                  />
-                  <p className="text-xs text-muted-foreground">Data em que o financeiro deve cobrar o cliente pelo pagamento.</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Prazo de Entrega</Label>
-                  <Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} />
-                </div>
-              </div>
-
               <div><Label>Observações</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+              <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
               <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda || !form.billing_date || !form.payment_method}>
-                Salvar Orçamento
-              </Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
