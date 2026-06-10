@@ -172,7 +172,15 @@ const Production = () => {
                       </p>
                     </div>
                     {item.priority === "urgente" && <Badge variant="destructive">URGENTE</Badge>}
-                    <Button variant="outline">Ver Detalhes</Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setSelectedItem(item);
+                        setIsDetailOpen(true);
+                      }}
+                    >
+                      Ver Detalhes
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -180,6 +188,140 @@ const Production = () => {
           })}
         </div>
       )}
+
+      {/* OS Detail Drawer/Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {selectedItem && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between gap-4">
+                  <DialogTitle className="text-2xl font-bold font-mono">
+                    OS-{selectedItem.os_id.slice(0, 8)}
+                  </DialogTitle>
+                  <div className="flex gap-2">
+                    <Badge variant="outline" className={columns.find(c => c.key === selectedItem.status)?.color}>
+                      {selectedItem.status}
+                    </Badge>
+                    {selectedItem.priority === "urgente" && (
+                      <Badge variant="destructive">URGENTE</Badge>
+                    )}
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <Tabs defaultValue="info" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="info"><Info className="h-4 w-4 mr-2" /> Informações</TabsTrigger>
+                  <TabsTrigger value="materials"><Package className="h-4 w-4 mr-2" /> Materiais</TabsTrigger>
+                  <TabsTrigger value="occurrences"><History className="h-4 w-4 mr-2" /> Ocorrências</TabsTrigger>
+                  <TabsTrigger value="budget"><FileText className="h-4 w-4 mr-2" /> Orçamento</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="info" className="space-y-4 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Cliente</p>
+                      <p className="font-semibold text-lg">{selectedItem.work_orders?.clients?.name || "Não informado"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Responsável</p>
+                      <p className="font-semibold">{selectedItem.work_orders?.employees?.name || "Não atribuído"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Data de Entrada</p>
+                      <p className="font-semibold">{formatDateBR(selectedItem.created_at)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Prazo de Entrega</p>
+                      <p className="font-semibold">{selectedItem.data_entrega ? formatDateBR(selectedItem.data_entrega) : "Não definido"}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 border-t pt-4">
+                    <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Descrição do Serviço</p>
+                    <p className="text-sm leading-relaxed">{selectedItem.work_orders?.description || "Sem descrição disponível."}</p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="materials" className="pt-4">
+                  <WorkOrderMaterials 
+                    workOrderId={selectedItem.os_id} 
+                    materialStatus={selectedItem.work_orders?.material_status} 
+                  />
+                </TabsContent>
+
+                <TabsContent value="occurrences" className="pt-4 space-y-4">
+                  <div className="space-y-4">
+                    {selectedItem.production_occurrences?.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedItem.production_occurrences.map((occ: any) => (
+                          <div key={occ.id} className="p-4 rounded border border-slate-200 bg-white shadow-sm">
+                            <div className="flex items-center justify-between space-x-2 mb-1">
+                              <div className="font-bold text-slate-900">{occ.author_name || "Sistema"}</div>
+                              <time className="text-xs text-muted-foreground">{formatDateBR(occ.created_at)}</time>
+                            </div>
+                            <div className="text-slate-500 text-sm">{occ.description}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10 text-muted-foreground">
+                        Nenhuma ocorrência registrada.
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="budget" className="pt-4">
+                  <div className="bg-muted p-4 rounded-lg">
+                    <p className="text-sm font-medium mb-2">Valor total vinculado:</p>
+                    <p className="text-2xl font-bold text-primary">{fmt(Number(selectedItem.work_orders?.total || 0))}</p>
+                    <Button variant="link" className="p-0 mt-2 h-auto text-primary" onClick={() => window.open(`/orcamentos?id=${selectedItem.work_orders?.quote_id}`, '_blank')}>
+                      Ver orçamento original →
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              <div className="flex justify-between items-center mt-6 pt-6 border-t">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">Status:</p>
+                  <Select 
+                    value={selectedItem.status} 
+                    onValueChange={(val) => {
+                      supabase.from('production').update({ status: val }).eq('id', selectedItem.id).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ["production"] });
+                        toast({ title: "Status atualizado!" });
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {columns.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Fechar</Button>
+                  {selectedItem.status !== "Entregue" && selectedItem.status !== "Concluído" && (
+                    <Button onClick={() => {
+                       supabase.from('production').update({ status: 'Concluído', data_conclusao: new Date().toISOString() }).eq('id', selectedItem.id).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ["production"] });
+                        setIsDetailOpen(false);
+                        toast({ title: "OS marcada como concluída!" });
+                      });
+                    }}>
+                      Concluir OS
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
