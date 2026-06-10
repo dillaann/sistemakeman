@@ -150,7 +150,7 @@ const Production = () => {
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col">
                       <span className="font-bold text-lg font-mono">OS-{item.os_id.slice(0, 8)}</span>
-                      <Badge className={columns.find(c => c.key === item.status)?.color}>{item.status}</Badge>
+                      <Badge variant="outline" className={columns.find(c => c.key === item.status)?.color}>{item.status}</Badge>
                     </div>
                     <div>
                       <p className="font-semibold text-lg">{wo.clients?.name || "Cliente"}</p>
