@@ -373,51 +373,56 @@ const Production = () => {
                 const colItems = getColumnItems(col.key);
                 const isColCollapsed = !!collapsedCols[col.key];
                 return (
-                  <div key={col.key} className="space-y-3">
-                    <div className={`rounded-lg border p-3 ${col.color}`}>
-                  <h3 className="font-semibold text-sm flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      {col.label}
-                      <Badge variant="secondary">{colItems.length}</Badge>
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-[10px] gap-1"
-                      onClick={() => toggleColumn(col.key)}
-                    >
-                      {isColCollapsed
-                        ? <><Eye className="h-3 w-3" /> Mostrar</>
-                        : <><EyeOff className="h-3 w-3" /> Ocultar</>
-                      }
-                    </Button>
-                  </h3>
-                </div>
-
-                {/* HIDDEN MODE: compact numbered list */}
-                {isColCollapsed && (
-                  <div className="space-y-0.5 min-h-[60px]">
-                    {colItems.length > 0 && (
-                      <p className="text-[10px] text-muted-foreground mb-1">{colItems.length} pedido{colItems.length !== 1 ? "s" : ""} oculto{colItems.length !== 1 ? "s" : ""}</p>
-                    )}
-                    {colItems.map((item: any, idx: number) => {
-                      const wo = item.work_orders;
-                      const clientName = wo?.clients?.name || "—";
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
-                          className={`w-full text-left flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted/60 transition-colors ${
-                            item.priority === "urgente" ? "text-destructive" : "text-foreground"
-                          }`}
+                  <div key={col.key} className="space-y-4">
+                    <div className={`rounded-xl border p-4 shadow-sm transition-all duration-300 ${col.color}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-background/50 backdrop-blur-sm">
+                            <col.icon className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm tracking-tight">{col.label}</h3>
+                            <p className="text-[10px] opacity-70 leading-none">{colItems.length} OS Ativas</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-black/5 rounded-full"
+                          onClick={() => toggleColumn(col.key)}
                         >
-                          <span className="text-muted-foreground shrink-0 w-4 text-right">{idx + 1}.</span>
-                          <span className="font-mono shrink-0">OS-{item.os_id?.slice(0, 6)}</span>
-                          <span className="truncate">{clientName}</span>
-                          {item.priority === "urgente" && <AlertTriangle className="h-3 w-3 shrink-0" />}
-                        </button>
-                      );
-                    })}
+                          {isColCollapsed ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* HIDDEN MODE: compact numbered list */}
+                    {isColCollapsed && (
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        {colItems.map((item: any, idx: number) => {
+                          const wo = item.work_orders;
+                          return (
+                            <div
+                              key={item.id}
+                              onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
+                              className="group bg-card border rounded-lg p-3 text-xs flex items-center gap-3 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer"
+                            >
+                              <span className="text-muted-foreground font-medium">{idx + 1}.</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold truncate">{wo?.clients?.name || "—"}</p>
+                                <p className="text-[10px] text-muted-foreground font-mono">OS-{item.os_id?.slice(0, 6).toUpperCase()}</p>
+                              </div>
+                              {item.priority === "urgente" && <AlertTriangle className="h-3.5 w-3.5 text-destructive animate-pulse" />}
+                            </div>
+                          );
+                        })}
+                        {colItems.length === 0 && (
+                          <div className="text-center py-6 bg-muted/20 rounded-xl border border-dashed">
+                            <p className="text-xs text-muted-foreground">Vazio</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {colItems.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-4">Nenhuma OS</p>
                     )}
