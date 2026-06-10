@@ -678,7 +678,10 @@ const Production = () => {
                     })}
 
                     {colItems.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-8">Nenhuma OS</p>
+                      <div className="text-center py-12 bg-muted/20 rounded-2xl border-2 border-dashed border-border/50">
+                        <Package className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nenhuma OS nesta etapa</p>
+                      </div>
                     )}
                   </div>
                 )}
