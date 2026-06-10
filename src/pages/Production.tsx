@@ -112,6 +112,15 @@ const Production = () => {
       const description = wo.description || "";
       const employeeName = wo.employees?.name || "";
       
+      // Period Filtering: Open orders always show in current period, 
+      // Finished orders show in their completion period.
+      const isFinished = ["Concluído", "Entregue"].includes(item.status);
+      const completionDate = item.data_conclusao || wo.delivered_at || wo.completed_at;
+      
+      if (!isInRangeOrOpen(item.created_at, dateRange, !isFinished, completionDate)) {
+         return false;
+      }
+
       const searchTerms = search.toLowerCase();
       const matchesSearch = 
         item.os_id.toLowerCase().includes(searchTerms) ||
@@ -125,7 +134,7 @@ const Production = () => {
 
       return matchesSearch && matchesStatus && matchesPriority;
     });
-  }, [productionItems, search, statusFilter, priorityFilter]);
+  }, [productionItems, search, statusFilter, priorityFilter, dateRange]);
 
   const summary = useMemo(() => {
     const total = productionItems.length;
