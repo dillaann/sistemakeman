@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,18 +10,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, DollarSign, Calendar, ExternalLink } from "lucide-react";
+import { 
+  AlertTriangle, 
+  ArrowRight, 
+  MessageSquare, 
+  ChevronDown, 
+  ChevronUp, 
+  Eye, 
+  EyeOff, 
+  DollarSign, 
+  Calendar, 
+  ExternalLink,
+  Clock,
+  CheckCircle2,
+  Package,
+  Truck,
+  ArrowRightCircle,
+  MoreVertical,
+  History
+} from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 import { localDateString, formatDateBR } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const columns = [
-  { key: "Fila de Produção", label: "Fila de Produção", color: "bg-yellow-500/10 border-yellow-500/30" },
-  { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-500/10 border-blue-500/30" },
-  { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-500/10 border-orange-500/30" },
-  { key: "Aguardando Instalação", label: "Aguardando Instalação", color: "bg-green-500/10 border-green-500/30" },
+  { key: "Fila de Produção", label: "Fila", icon: Clock, color: "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400" },
+  { key: "Em Andamento", label: "Andamento", icon: CheckCircle2, color: "bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-400" },
+  { key: "Aguardando Material", label: "Materiais", icon: Package, color: "bg-orange-500/10 border-orange-500/20 text-orange-700 dark:text-orange-400" },
+  { key: "Aguardando Instalação", label: "Entrega", icon: Truck, color: "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400" },
 ];
 
 const nextColumnMap: Record<string, string[]> = {
