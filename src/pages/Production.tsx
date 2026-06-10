@@ -83,12 +83,48 @@ const Production = () => {
   const summary = useMemo(() => {
     const total = productionItems.length;
     const emProducao = productionItems.filter((p: any) => p.status === "Em Andamento").length;
-    const atrasadas = productionItems.filter((p: any) => p.data_entrega && new Date(p.data_entrega) < new Date()).length;
-    const concluidas = productionItems.filter((p: any) => p.status === "Concluído").length;
-    return { total, emProducao, atrasadas, concluidas };
+    const atrasadas = productionItems.filter((p: any) => {
+      const prazo = p.data_entrega || p.work_orders?.delivery_deadline;
+      return prazo && new Date(prazo) < new Date() && !["Concluído", "Entregue"].includes(p.status);
+    }).length;
+    const concluidasMês = productionItems.filter((p: any) => {
+      if (p.status !== "Concluído") return false;
+      const dataConclusao = p.data_conclusao ? new Date(p.data_conclusao) : null;
+      if (!dataConclusao) return false;
+      const now = new Date();
+      return dataConclusao.getMonth() === now.getMonth() && dataConclusao.getFullYear() === now.getFullYear();
+    }).length;
+    return { total, emProducao, atrasadas, concluidasMês };
   }, [productionItems]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('production')
+        .update({ 
+          status: newStatus,
+          data_conclusao: newStatus === 'Concluído' ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+
+      // Log the change
+      await supabase.from('production_logs').insert({
+        production_id: id,
+        new_status: newStatus,
+        notes: `Status alterado para ${newStatus}`
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["production"] });
+      toast({ title: "Status atualizado!", description: `OS movida para ${newStatus}` });
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
