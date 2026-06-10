@@ -278,8 +278,6 @@ const Production = () => {
       if (activeTab === "novos" && isLegacy) return false;
       if (activeTab === "antigos" && !isLegacy) return false;
 
-      
-      const wo = p.work_orders;
       if (financialFilter !== "all") {
         if (financialFilter === "pagos" && wo?.financial_status !== "Pago") return false;
         if (financialFilter === "atraso") {
