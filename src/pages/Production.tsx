@@ -622,31 +622,48 @@ const Production = () => {
                             )}
 
                             {!expanded && (
-                              <div className="flex flex-col gap-1 pt-0.5">
-                                <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
-                                  <span>{wo?.billing_date ? formatDateBR(wo.billing_date) : "Sem data"}</span>
-                                  <span className="font-medium text-primary">{fmt(Number(wo?.remaining_amount || 0))}</span>
+                              <div className="flex flex-col gap-2 pt-2 animate-in fade-in duration-300">
+                                <div className="flex items-center justify-between text-[10px] bg-muted/40 p-2 rounded-lg border border-border/30">
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>{wo?.billing_date ? formatDateBR(wo.billing_date) : "Sem data"}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-primary font-bold">
+                                    <DollarSign className="h-3 w-3" />
+                                    <span>{fmt(Number(wo?.remaining_amount || 0))}</span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  {col.key !== "Aguardando Instalação" && (
-                                    <Select onValueChange={(status) => moveToStatus(item.id, status)}>
-                                      <SelectTrigger className="h-6 text-[10px] flex-1">
-                                        <SelectValue placeholder="Mover →" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {(nextColumnMap[col.key] || []).map(s => (
-                                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                  {col.key === "Aguardando Instalação" && (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    className="h-8 text-[10px] font-bold flex-1 border-2"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setNotesText(item.observacoes || ""); }}
+                                  >
+                                    <MessageSquare className="h-3 w-3 mr-1" /> Notas
+                                  </Button>
+                                  
+                                  {col.key === "Aguardando Instalação" ? (
                                     <Button
-                                      size="sm" variant="outline" className="h-6 px-2 text-[10px] flex-1"
-                                      onClick={() => moveToStatus(item.id, "Entregue")}
+                                      className="h-8 text-[10px] font-black uppercase flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                      onClick={(e) => { e.stopPropagation(); moveToStatus(item.id, "Entregue"); }}
                                     >
-                                      Entregar
+                                      Finalizar
                                     </Button>
+                                  ) : (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button className="h-8 text-[10px] font-black uppercase flex-1 bg-slate-800 hover:bg-slate-900 shadow-sm" onClick={(e) => e.stopPropagation()}>
+                                          Próxima Etapa
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-[180px]">
+                                        {(nextColumnMap[col.key] || []).map(s => (
+                                          <DropdownMenuItem key={s} onClick={() => moveToStatus(item.id, s)} className="font-bold text-xs p-3">
+                                            {s}
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   )}
                                 </div>
                               </div>
