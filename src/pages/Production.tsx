@@ -362,9 +362,13 @@ const Production = () => {
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="novos">Produção</TabsTrigger>
-            <TabsTrigger value="antigos">Antigos</TabsTrigger>
+          <TabsList className="mb-6 bg-muted/50 p-1.5 h-12 rounded-xl border-2">
+            <TabsTrigger value="novos" className="rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm px-6">
+              <Package className="h-4 w-4 mr-2" /> Produção Atual
+            </TabsTrigger>
+            <TabsTrigger value="antigos" className="rounded-lg font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm px-6">
+              <History className="h-4 w-4 mr-2" /> Pedidos Antigos
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-0">
