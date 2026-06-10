@@ -127,55 +127,110 @@ const Production = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Produção</h1>
-        <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+    <div className="p-4 md:p-6 space-y-6 bg-slate-50/30 min-h-screen">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Módulo de Produção</h1>
+          <p className="text-muted-foreground">Gerencie o fluxo de trabalho da serralheria em tempo real.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+            <TabsList className="h-9">
+              <TabsTrigger value="cards" className="text-xs"><ListIcon className="h-3.5 w-3.5 mr-1.5" /> Lista</TabsTrigger>
+              <TabsTrigger value="kanban" className="text-xs"><LayoutGrid className="h-3.5 w-3.5 mr-1.5" /> Kanban</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+        </div>
       </div>
 
       {/* Summary Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white/50 border-none shadow-sm">
-          <p className="text-muted-foreground text-xs font-bold uppercase">Total Abertas</p>
-          <p className="text-3xl font-bold">{summary.total}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-primary/30 transition-colors">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-slate-100 text-slate-600 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+              <Factory className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Abertas</p>
+              <p className="text-2xl font-bold">{summary.total}</p>
+            </div>
+          </CardContent>
         </Card>
-        <Card className="p-4 bg-white/50 border-none shadow-sm">
-          <p className="text-muted-foreground text-xs font-bold uppercase">Em Produção Hoje</p>
-          <p className="text-3xl font-bold text-blue-600">{summary.emProducao}</p>
+
+        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-blue-500/30 transition-colors">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-blue-50 text-blue-600">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-blue-500/80 text-xs font-bold uppercase tracking-wider">Em Produção Hoje</p>
+              <p className="text-2xl font-bold text-blue-700">{summary.emProducao}</p>
+            </div>
+          </CardContent>
         </Card>
-        <Card className="p-4 bg-white/50 border-none shadow-sm border-l-4 border-l-red-500">
-          <p className="text-red-500 text-xs font-bold uppercase">Atrasadas</p>
-          <p className="text-3xl font-bold text-red-600">{summary.atrasadas}</p>
+
+        <Card className="shadow-sm border-slate-200/60 border-l-4 border-l-red-500 overflow-hidden group hover:border-red-500/30 transition-colors">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-red-50 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-red-500/80 text-xs font-bold uppercase tracking-wider">Atrasadas</p>
+              <p className="text-2xl font-bold text-red-700">{summary.atrasadas}</p>
+            </div>
+          </CardContent>
         </Card>
-        <Card className="p-4 bg-white/50 border-none shadow-sm">
-          <p className="text-muted-foreground text-xs font-bold uppercase">Concluídas Mês</p>
-          <p className="text-3xl font-bold text-green-600">{summary.concluidas}</p>
+
+        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-green-500/30 transition-colors">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-green-50 text-green-600">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-green-500/80 text-xs font-bold uppercase tracking-wider">Concluídas Mês</p>
+              <p className="text-2xl font-bold text-green-700">{summary.concluidasMês}</p>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center bg-white p-4 rounded-xl shadow-sm border">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar OS, cliente ou serviço..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+      <div className="flex flex-wrap gap-3 items-center bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-slate-200/60">
+        <div className="relative flex-1 min-w-[280px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input 
+            placeholder="Pesquisar por OS, cliente, serviço ou responsável..." 
+            value={search} 
+            onChange={e => setSearch(e.target.value)} 
+            className="pl-9 bg-white border-slate-200 focus-visible:ring-primary/20" 
+          />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos Status</SelectItem>
-            {columns.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Prioridade" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todas</SelectItem>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="alta">Alta</SelectItem>
-            <SelectItem value="urgente">Urgente</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button variant="ghost" onClick={() => { setSearch(""); setStatusFilter("todos"); setPriorityFilter("todos"); }}>Limpar</Button>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px] bg-white border-slate-200">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os Status</SelectItem>
+              {columns.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[140px] bg-white border-slate-200">
+              <SelectValue placeholder="Prioridade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas</SelectItem>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="alta">Alta</SelectItem>
+              <SelectItem value="urgente">Urgente</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" className="text-slate-500 hover:text-slate-900 px-3" onClick={() => { setSearch(""); setStatusFilter("todos"); setPriorityFilter("todos"); }}>
+            Limpar
+          </Button>
+        </div>
       </div>
 
       {/* List */}
