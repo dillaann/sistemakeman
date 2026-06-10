@@ -556,15 +556,19 @@ const Production = () => {
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Fechar</Button>
                   {selectedItem.status !== "Entregue" && selectedItem.status !== "Concluído" && (
-                    <Button onClick={() => {
+                    <Button onClick={async () => {
                       const table = selectedItem.is_virtual ? 'work_orders' : 'production';
-                      const updates = selectedItem.is_virtual ? { status: 'concluido' } : { status: 'Concluído', data_conclusao: new Date().toISOString() };
+                      const updates: any = selectedItem.is_virtual ? { status: 'concluido' } : { status: 'Concluído', data_conclusao: new Date().toISOString() };
 
-                       supabase.from(table).update(updates).eq('id', selectedItem.os_id || selectedItem.id).then(() => {
+                      const { error } = await supabase.from(table).update(updates).eq('id', selectedItem.os_id || selectedItem.id);
+                      
+                      if (!error) {
                         queryClient.invalidateQueries({ queryKey: ["production"] });
                         setIsDetailOpen(false);
                         toast({ title: "OS marcada como concluída!" });
-                      });
+                      } else {
+                        toast({ title: "Erro ao concluir OS", description: error.message, variant: "destructive" });
+                      }
                     }}>
                       Concluir OS
                     </Button>
