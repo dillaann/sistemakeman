@@ -40,6 +40,7 @@ const Production = () => {
 
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"cards" | "kanban">("cards");
 
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
