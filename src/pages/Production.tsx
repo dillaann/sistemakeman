@@ -557,59 +557,66 @@ const Production = () => {
                                   </div>
                                 )}
 
-                                {wo?.employees?.name && (
-                                  <p className="text-xs text-muted-foreground">👤 {wo.employees.name}</p>
-                                )}
-
-                                {item.observacoes && (
-                                  <p className="text-xs italic text-muted-foreground bg-muted/50 rounded p-1.5">
-                                    📝 {item.observacoes}
-                                  </p>
-                                )}
-
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm" variant="outline" className="h-7 px-2 text-[10px] w-full"
-                                    onClick={() => navigate(`/work-orders?id=${item.os_id}`)}
-                                  >
-                                    <ExternalLink className="h-3 w-3 mr-1" /> Abrir OS
-                                  </Button>
-                                </div>
-
-                                <WorkOrderMaterials
-                                  workOrderId={item.os_id}
-                                  materialStatus={wo?.material_status || "nao_solicitado"}
-                                />
-
-                                <div className="flex items-center gap-1 pt-1">
-                                  <Button
-                                    size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                                    onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
-                                  >
-                                    <MessageSquare className="h-3 w-3 mr-1" /> Notas
-                                  </Button>
-
-                                  {col.key !== "Aguardando Instalação" && (
-                                    <Select onValueChange={(status) => moveToStatus(item.id, status)}>
-                                      <SelectTrigger className="h-7 text-xs flex-1">
-                                        <SelectValue placeholder="Mover →" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {(nextColumnMap[col.key] || []).map(s => (
-                                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                <div className="space-y-3 pt-2">
+                                  {item.observacoes && (
+                                    <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-400 p-3 rounded-r-lg">
+                                      <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase flex items-center gap-1">
+                                        <MessageSquare className="h-3 w-3" /> Observações
+                                      </p>
+                                      <p className="text-xs text-amber-800 dark:text-amber-300/80 italic mt-1 leading-relaxed">
+                                        {item.observacoes}
+                                      </p>
+                                    </div>
                                   )}
 
-                                  {col.key === "Aguardando Instalação" && (
+                                  <WorkOrderMaterials
+                                    workOrderId={item.os_id}
+                                    materialStatus={wo?.material_status || "nao_solicitado"}
+                                  />
+
+                                  <div className="grid grid-cols-2 gap-2 pt-2">
                                     <Button
-                                      size="sm" variant="outline" className="h-7 px-2 text-xs flex-1"
-                                      onClick={() => moveToStatus(item.id, "Entregue")}
+                                      size="sm" variant="outline" 
+                                      className="h-9 text-[11px] font-bold border-2 hover:bg-muted"
+                                      onClick={() => { setSelectedItem(item); setNotesText(item.observacoes || ""); }}
                                     >
-                                      <ArrowRight className="h-3 w-3 mr-1" /> Entregar
+                                      <MessageSquare className="h-3.5 w-3.5 mr-2" /> Notas
                                     </Button>
-                                  )}
+
+                                    <Button
+                                      size="sm" variant="outline" 
+                                      className="h-9 text-[11px] font-bold border-2 hover:bg-primary/5 hover:text-primary hover:border-primary/30"
+                                      onClick={() => navigate(`/work-orders?id=${item.os_id}`)}
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5 mr-2" /> Abrir OS
+                                    </Button>
+                                  </div>
+
+                                  <div className="pt-2">
+                                    {col.key === "Aguardando Instalação" ? (
+                                      <Button
+                                        className="w-full h-10 font-black uppercase tracking-widest text-[11px] bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                                        onClick={() => moveToStatus(item.id, "Entregue")}
+                                      >
+                                        <ArrowRightCircle className="h-4 w-4 mr-2" /> Finalizar Entrega
+                                      </Button>
+                                    ) : (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button className="w-full h-10 font-black uppercase tracking-widest text-[11px] bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 shadow-xl">
+                                            Mover de Etapa <MoreVertical className="ml-2 h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-[200px]">
+                                          {(nextColumnMap[col.key] || []).map(s => (
+                                            <DropdownMenuItem key={s} onClick={() => moveToStatus(item.id, s)} className="font-bold text-xs p-3">
+                                              Mover para: {s}
+                                            </DropdownMenuItem>
+                                          ))}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             )}
