@@ -36,6 +36,9 @@ const Production = () => {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [priorityFilter, setPriorityFilter] = useState("todos");
 
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
     queryFn: async () => {
