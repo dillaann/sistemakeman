@@ -534,7 +534,13 @@ const Production = () => {
                   <Select 
                     value={selectedItem.status} 
                     onValueChange={(val) => {
-                      supabase.from('production').update({ status: val }).eq('id', selectedItem.id).then(() => {
+                      const table = selectedItem.is_virtual ? 'work_orders' : 'production';
+                      const dbStatus = selectedItem.is_virtual ? 
+                        Object.keys(statusMap).find(key => statusMap[key] === val) : val;
+
+                      supabase.from(table).update(
+                        selectedItem.is_virtual ? { status: dbStatus } : { status: val }
+                      ).eq('id', selectedItem.os_id || selectedItem.id).then(() => {
                         queryClient.invalidateQueries({ queryKey: ["production"] });
                         toast({ title: "Status atualizado!" });
                       });
