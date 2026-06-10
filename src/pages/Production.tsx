@@ -423,15 +423,10 @@ const Production = () => {
                         )}
                       </div>
                     )}
-                    {colItems.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4">Nenhuma OS</p>
-                    )}
-                  </div>
-                )}
 
-                {/* VISIBLE MODE: full cards */}
-                {!isColCollapsed && (
-                  <div className="space-y-2 min-h-[100px]">
+                    {/* VISIBLE MODE: full cards */}
+                    {!isColCollapsed && (
+                      <div className="space-y-3 min-h-[100px] animate-in fade-in zoom-in-95 duration-300">
                     {colItems.map((item: any) => {
                       const wo = item.work_orders;
                       const expanded = isCardExpanded(item.id, col.key);
