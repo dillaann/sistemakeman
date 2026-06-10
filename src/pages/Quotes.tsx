@@ -1097,10 +1097,78 @@ const Quotes = () => {
                 <div className="text-right font-bold text-lg border-t pt-2">Total: {fmt(grandTotal)}</div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                <div className="space-y-2">
+                  <Label>Forma de Pagamento *</Label>
+                  <Select value={form.payment_method} onValueChange={v => setForm({ ...form, payment_method: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                      <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                      <SelectItem value="transferencia">Transferência Bancária</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                      <SelectItem value="boleto">Boleto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status Financeiro *</Label>
+                  <Select value={form.financial_status} onValueChange={v => setForm({ ...form, financial_status: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Aguardando entrada">Aguardando entrada</SelectItem>
+                      <SelectItem value="Entrada recebida">Entrada recebida</SelectItem>
+                      <SelectItem value="Cobrar saldo">Cobrar saldo</SelectItem>
+                      <SelectItem value="Pago">Pago</SelectItem>
+                      <SelectItem value="Em atraso">Em atraso</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor da Entrada (R$)</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0,00" 
+                    value={form.down_payment} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      const rem = Math.max(grandTotal - (parseFloat(val) || 0), 0);
+                      setForm({ ...form, down_payment: val, remaining_amount: String(rem.toFixed(2)) });
+                    }} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor Restante (R$)</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0,00" 
+                    value={form.remaining_amount} 
+                    onChange={e => setForm({ ...form, remaining_amount: e.target.value })} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data de Cobrança *</Label>
+                  <Input 
+                    type="date" 
+                    value={form.billing_date} 
+                    onChange={e => setForm({ ...form, billing_date: e.target.value })} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Prazo de Entrega</Label>
+                  <Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} />
+                </div>
+              </div>
+
               <div><Label>Observações</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-              <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
               <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda}>Salvar Orçamento</Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda || !form.billing_date || !form.payment_method}>
+                Salvar Orçamento
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
