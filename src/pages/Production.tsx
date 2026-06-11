@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, Search, Info, Package, History, FileText, Factory, Clock, CheckCircle2, AlertCircle, LayoutGrid, List as ListIcon, User, Calendar, ChevronRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, Search, Info, Package, History, FileText, Factory, Clock, CheckCircle2, AlertCircle, LayoutGrid, List as ListIcon, User, Calendar, ChevronRight, FileSpreadsheet } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -17,6 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateBR, cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+const PRODUCTION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_IKiOkNRyy6P-PG5WKL5RYjFCr14pAmca2mhhHs2Cg4/edit";
+
 
 const columns = [
   { key: "Fila de Produção", label: "Fila de Produção", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
@@ -206,6 +209,21 @@ const Production = () => {
             </TabsList>
           </Tabs>
           <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+          <Button
+            variant="outline"
+            className="h-9 gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            onClick={async () => {
+              window.open(PRODUCTION_SHEET_URL, "_blank");
+              try {
+                await supabase.functions.invoke("sync-production-sheet");
+                toast({ title: "Planilha atualizada!", description: "Os dados mais recentes foram enviados ao Google Sheets." });
+              } catch (e: any) {
+                toast({ title: "Aviso", description: "A planilha foi aberta, mas a atualização automática falhou.", variant: "destructive" });
+              }
+            }}
+          >
+            <FileSpreadsheet className="h-4 w-4" /> Planilha Google
+          </Button>
         </div>
       </div>
 
