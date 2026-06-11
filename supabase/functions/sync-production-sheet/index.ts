@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch quotes with their work orders. Filter by client_id if provided.
+    // Fetch ONLY approved quotes with their work orders.
     let query = supabase
       .from("quotes")
       .select(`
@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
         client_id, 
         clients(name, phone),
         work_orders(status_producao)
-      `);
+      `)
+      .eq("status", "aprovado");
     
     const { data: quotesData, error: qErr } = await query.order("created_at", { ascending: false });
     
