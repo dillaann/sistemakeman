@@ -18,6 +18,9 @@ import { formatDateBR, cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+const PRODUCTION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_IKiOkNRyy6P-PG5WKL5RYjFCr14pAmca2mhhHs2Cg4/edit";
+
+
 const columns = [
   { key: "Fila de Produção", label: "Fila de Produção", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
   { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Clock },
