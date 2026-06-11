@@ -1072,6 +1072,7 @@ const Quotes = () => {
                     <SelectContent>
                       <SelectItem value="dinheiro">Dinheiro</SelectItem>
                       <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="50/50">50/50</SelectItem>
                       <SelectItem value="cartao">Cartão</SelectItem>
                       <SelectItem value="boleto">Boleto</SelectItem>
                       <SelectItem value="transferencia">Transferência</SelectItem>
