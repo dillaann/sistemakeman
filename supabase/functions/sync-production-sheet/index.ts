@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SPREADSHEET_ID = "1_IKiOkNRyy6P-PG5WKL5RYjFCr14pAmca2mhhHs2Cg4";
-const SHEET_NAME = "PRODUÇÃO - KEMAN";
+const SHEET_NAME = "Produção";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
 const STATUS_ORDER: Record<string, number> = {
