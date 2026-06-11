@@ -1418,6 +1418,11 @@ const Quotes = () => {
                   </div>
 
                   <div>
+                    <Label>Data de Cobrança *</Label>
+                    <Input type="date" value={editPayment.collection_date} onChange={e => setEditPayment({ ...editPayment, collection_date: e.target.value })} required />
+                  </div>
+
+                  <div>
                     <Label>Status do Pagamento</Label>
                     <Select value={editPayment.payment_status} onValueChange={v => setEditPayment({ ...editPayment, payment_status: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
