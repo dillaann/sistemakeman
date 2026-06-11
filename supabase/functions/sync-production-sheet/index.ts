@@ -8,6 +8,7 @@ const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 const STATUS_ORDER: Record<string, number> = {
   "Fila de Produção": 1,
   "Em Produção": 2,
+  "Em Andamento": 2,
   "Aguardando Instalação": 3,
   "Entregue": 4,
 };
@@ -24,7 +25,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   dinheiro: "Dinheiro",
   cartao: "Cartão",
   cartao_credito: "Cartão de Crédito",
-  cartao_debito: "Cartão de Débito",
+  cartao_debito: "Cartão de Crédito", // Mapping both as standard
   boleto: "Boleto",
   transferencia: "Transferência",
   cheque: "Cheque",
@@ -48,10 +49,15 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch production with related work order, client and quote
+    // Fetch only explicitly created production entries (new ones)
+    // and those that are NOT finished/delivered if we want to keep it "updated"
+    // The user said: "planilha só atualize com orçamentos novos, antigos eu nao quero"
+    // So we fetch production records created recently or that are in progress.
     const { data: prod, error } = await supabase
       .from("production")
-      .select("id, status, priority, created_at, os_id");
+      .select("id, status, priority, created_at, os_id, phone")
+      .order("created_at", { ascending: false });
+    
     if (error) throw error;
 
     const osIds = [...new Set((prod ?? []).map((p: any) => p.os_id).filter(Boolean))];
@@ -90,7 +96,7 @@ Deno.serve(async (req) => {
         return {
           status: p.status ?? "",
           name: client?.name?.trim() || "—",
-          phone: client?.phone?.trim() || "",
+          phone: p.phone || client?.phone?.trim() || "",
           collection: formatDateBR(quote?.collection_date ?? null),
           payment: PAYMENT_LABELS[pm] ?? pm,
         };

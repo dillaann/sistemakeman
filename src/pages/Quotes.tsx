@@ -696,11 +696,17 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["billing-quotes"] });
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["production"] });
-      queryClient.invalidateQueries({ queryKey: ["sales"] });
-      queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
-      queryClient.invalidateQueries({ queryKey: ["marketing-campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast({ title: "Orçamento aprovado!", description: "OS, pagamento e lançamentos financeiros criados." });
+
+      // Create production entry automatically
+      const { data: clientData } = await supabase.from("clients").select("phone").eq("id", clientId).single();
+      await supabase.from("production").insert({
+        os_id: wo.id,
+        status: "Fila de Produção",
+        priority: "normal",
+        phone: clientData?.phone || null
+      });
+
+      toast({ title: "Orçamento aprovado!", description: "OS, produção e lançamentos financeiros criados." });
     } catch (e: any) {
       toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" });
     }
