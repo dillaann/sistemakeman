@@ -299,7 +299,7 @@ const Quotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
-      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString(), payment_method: "pix", collection_date: localDateString() });
+      setForm({ client_id: "", phone: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString(), payment_method: "pix", collection_date: localDateString() });
       setItems([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
       toast({ 
         title: "Orçamento criado!",
