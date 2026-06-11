@@ -6,10 +6,12 @@ const SHEET_NAME = "Produção";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
 const STATUS_ORDER: Record<string, number> = {
+  "aguardando_aprovacao": 0,
   "aguardando": 1,
   "em_producao": 2,
   "instalando": 3,
   "entregue": 4,
+  "rejeitado": 5,
 };
 
 const STATUS_LABELS: Record<string, string> = {
