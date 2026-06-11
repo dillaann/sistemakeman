@@ -110,6 +110,21 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     };
 
+    // Debug: Get spreadsheet metadata to verify sheet names
+    const metaRes = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}`, {
+      headers: ghHeaders,
+    });
+    if (!metaRes.ok) {
+      throw new Error(`Erro ao buscar metadados (${metaRes.status}): ${await metaRes.text()}`);
+    }
+    const metadata = await metaRes.json();
+    const sheetNames = metadata.sheets?.map((s: any) => s.properties.title) || [];
+    console.log("Sheet names found:", sheetNames);
+
+    if (!sheetNames.includes(SHEET_NAME)) {
+      throw new Error(`A aba "${SHEET_NAME}" não foi encontrada. Abas disponíveis: ${sheetNames.join(", ")}`);
+    }
+
     // Clear existing content - use single quotes for sheet names with spaces
     const clearRes = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000:clear`, {
       method: "POST",
@@ -124,6 +139,9 @@ Deno.serve(async (req) => {
       `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1?valueInputOption=USER_ENTERED`,
       { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values }) },
     );
+    if (!writeRes.ok) {
+      throw new Error(`Erro ao escrever planilha (${writeRes.status}): ${await writeRes.text()}`);
+    }
     if (!writeRes.ok) {
       throw new Error(`Erro ao escrever planilha (${writeRes.status}): ${await writeRes.text()}`);
     }
