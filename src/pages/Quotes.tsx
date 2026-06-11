@@ -518,6 +518,8 @@ const Quotes = () => {
         ? `Atualizado: ${syncMessages.join(", ")}`
         : undefined;
       toast({ title: "Orçamento editado com sucesso!", description: desc });
+      // Sync with Production Spreadsheet
+      supabase.functions.invoke("sync-production-sheet");
     },
     onError: (e: any) => toast({ title: "Erro ao editar", description: e.message, variant: "destructive" }),
   });
