@@ -276,6 +276,9 @@ const Quotes = () => {
       } as any));
       const { error: itemsError } = await supabase.from("quote_items").insert(itemsToInsert);
       if (itemsError) throw itemsError;
+
+      // Sync with Production Spreadsheet
+      await supabase.functions.invoke("sync-production-sheet");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
