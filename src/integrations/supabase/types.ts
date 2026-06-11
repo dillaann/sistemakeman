@@ -1463,6 +1463,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           client_id: string
+          collection_date: string | null
           created_at: string
           created_by: string | null
           delivery_deadline: string | null
@@ -1485,6 +1486,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           client_id: string
+          collection_date?: string | null
           created_at?: string
           created_by?: string | null
           delivery_deadline?: string | null
@@ -1507,6 +1509,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           client_id?: string
+          collection_date?: string | null
           created_at?: string
           created_by?: string | null
           delivery_deadline?: string | null
