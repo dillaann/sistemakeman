@@ -47,9 +47,7 @@ const Clients = () => {
         const { data: newClient, error } = await supabase.from("clients").insert(client).select("id").single();
         if (error) throw error;
         // Sync sheet only for the newly added contact's quotes
-        await supabase.functions.invoke("sync-production-sheet", {
-          body: { client_id: newClient.id }
-        });
+        await supabase.functions.invoke("sync-production-sheet");
       }
     },
     onSuccess: () => {
