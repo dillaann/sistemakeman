@@ -51,18 +51,34 @@ const Production = () => {
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
     queryFn: async () => {
-      const { data: allWOs, error: woErr } = await supabase
-        .from("work_orders")
-        .select(`
-          id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at, status_producao,
-          clients(name),
-          employees(name)
-        `)
-        .order("created_at", { ascending: false });
+      // Fetch both Work Orders AND Approved Quotes to ensure everyone on the sheet is here
+      const [woRes, quotesRes] = await Promise.all([
+        supabase
+          .from("work_orders")
+          .select(`
+            id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at, status_producao, quote_id,
+            clients(name),
+            employees(name)
+          `)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("quotes")
+          .select(`
+            id, status, payment_method, collection_date, created_at,
+            clients(name)
+          `)
+          .eq("status", "aprovado")
+          .order("created_at", { ascending: false })
+      ]);
       
-      if (woErr) throw woErr;
+      if (woRes.error) throw woRes.error;
+      if (quotesRes.error) throw quotesRes.error;
 
-      return (allWOs || []).map(wo => ({
+      const workOrders = woRes.data || [];
+      const approvedQuotes = quotesRes.data || [];
+
+      // Map Work Orders
+      const productionItems = workOrders.map(wo => ({
         id: wo.id,
         os_id: wo.id,
         status: wo.status_producao || 'aguardando',
@@ -70,7 +86,35 @@ const Production = () => {
         priority: wo.priority,
         work_orders: wo,
         production_occurrences: [],
+        source: 'work_order'
       }));
+
+      // Find approved quotes that DON'T have a matching work order yet
+      const quotesWithoutWO = approvedQuotes.filter(quote => 
+        !workOrders.some(wo => wo.quote_id === quote.id)
+      );
+
+      // Add them as production items
+      const quoteItems = quotesWithoutWO.map(quote => ({
+        id: quote.id,
+        os_id: quote.id,
+        status: 'aguardando', // Default status for approved quotes without WO
+        created_at: quote.created_at,
+        priority: 'normal',
+        work_orders: {
+          id: quote.id,
+          description: "Orçamento Aprovado (Aguardando OS)",
+          clients: quote.clients,
+          created_at: quote.created_at,
+          status_producao: 'aguardando'
+        },
+        production_occurrences: [],
+        source: 'quote'
+      }));
+
+      return [...productionItems, ...quoteItems].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
     },
   });
 
@@ -133,8 +177,13 @@ const Production = () => {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const updateStatus = async (id: string, newStatus: string) => {
+  const updateStatus = async (id: string, newStatus: string, source?: string) => {
     try {
+      if (source === 'quote') {
+        toast({ title: "Aviso", description: "Crie uma Ordem de Serviço para este orçamento para gerenciar a produção.", variant: "default" });
+        return;
+      }
+
       const { error } = await supabase
         .from('work_orders')
         .update({ 
