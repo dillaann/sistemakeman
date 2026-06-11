@@ -1410,6 +1410,7 @@ const Quotes = () => {
                       <SelectContent>
                         <SelectItem value="dinheiro">Dinheiro</SelectItem>
                         <SelectItem value="pix">PIX</SelectItem>
+                        <SelectItem value="50/50">50/50</SelectItem>
                         <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
                         <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
                         <SelectItem value="boleto">Boleto</SelectItem>
