@@ -22,20 +22,12 @@ const PRODUCTION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_IKiOkNRyy
 
 
 const columns = [
-  { key: "Fila de Produção", label: "Fila de Produção", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
-  { key: "Em Andamento", label: "Em Andamento", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Clock },
-  { key: "Aguardando Material", label: "Aguardando Material", color: "bg-orange-50/50 border-orange-200/60 text-orange-700", icon: Package },
-  { key: "Aguardando Instalação", label: "Aguardando Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: Clock },
-  { key: "Concluído", label: "Concluído", color: "bg-emerald-50/50 border-emerald-200/60 text-emerald-700", icon: CheckCircle2 },
-  { key: "Entregue", label: "Entregue", color: "bg-slate-50/50 border-slate-200/60 text-slate-700", icon: CheckCircle2 },
+  { key: "aguardando", label: "Aguardando Início", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
+  { key: "em_producao", label: "Em Produção", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Clock },
+  { key: "instalando", label: "Em Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: Clock },
+  { key: "entregue", label: "Entregue", color: "bg-emerald-50/50 border-emerald-200/60 text-emerald-700", icon: CheckCircle2 },
 ];
 
-const statusMap: Record<string, string> = {
-  'aguardando': 'Fila de Produção',
-  'em_producao': 'Em Andamento',
-  'aguardando_instalacao': 'Aguardando Instalação',
-  'entregue': 'Entregue'
-};
 
 const Production = () => {
   const { toast } = useToast();
@@ -59,52 +51,26 @@ const Production = () => {
   const { data: productionItems = [], isLoading } = useQuery({
     queryKey: ["production"],
     queryFn: async () => {
-      // 1. Get explicit production entries
-      const { data: explicitProd, error: prodErr } = await supabase
-        .from("production")
-        .select(`
-          *,
-          work_orders(
-            id, description, priority, internal_notes, material_status, total, client_id, assigned_to,
-            clients(name),
-            employees(name)
-          ),
-          production_occurrences(
-            id, description, created_at, author_name
-          )
-        `)
-        .order("created_at", { ascending: false });
-      
-      if (prodErr) throw prodErr;
-
-      // 2. Get all work orders to find ones NOT in production table
-      const prodOsIds = new Set(explicitProd?.map(p => p.os_id) || []);
-      
       const { data: allWOs, error: woErr } = await supabase
         .from("work_orders")
         .select(`
-          id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at,
+          id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at, status_producao,
           clients(name),
           employees(name)
-        `);
+        `)
+        .order("created_at", { ascending: false });
       
       if (woErr) throw woErr;
 
-      // 4. Transform work orders not in production into virtual production items
-      const virtualItems = (allWOs || [])
-        .filter(wo => !prodOsIds.has(wo.id))
-        .map(wo => ({
-          id: `virtual-${wo.id}`,
-          os_id: wo.id,
-          status: statusMap[wo.status as string] || 'Fila de Produção',
-          created_at: wo.created_at,
-          priority: wo.priority,
-          work_orders: wo,
-          production_occurrences: [],
-          is_virtual: true
-        }));
-
-      return [...(explicitProd || []), ...virtualItems];
+      return (allWOs || []).map(wo => ({
+        id: wo.id,
+        os_id: wo.id,
+        status: wo.status_producao || 'aguardando',
+        created_at: wo.created_at,
+        priority: wo.priority,
+        work_orders: wo,
+        production_occurrences: [],
+      }));
     },
   });
 
@@ -117,9 +83,9 @@ const Production = () => {
       
       // No period filtering for production items to ensure visibility
       // unless they are explicitly finished/delivered.
-      const isFinished = ["Concluído", "Entregue"].includes(item.status);
+      const isFinished = item.status === "entregue";
       if (isFinished) {
-        const completionDate = item.data_conclusao || wo.delivered_at || wo.completed_at;
+        const completionDate = wo.delivered_at || wo.completed_at;
         if (!isInRangeOrOpen(item.created_at, dateRange, false, completionDate)) {
            return false;
         }
@@ -142,19 +108,19 @@ const Production = () => {
 
   const summary = useMemo(() => {
     const total = productionItems.length;
-    const emProducao = productionItems.filter((p: any) => p.status === "Em Andamento").length;
+    const emProducao = productionItems.filter((p: any) => p.status === "em_producao").length;
     
     // Total of late orders (regardless of the filter)
     const atrasadas = productionItems.filter((p: any) => {
       const wo = p.work_orders || {};
       const prazo = p.data_entrega || wo.delivery_deadline;
-      const isFinished = ["Concluído", "Entregue"].includes(p.status);
+      const isFinished = p.status === "entregue";
       return prazo && new Date(prazo) < new Date() && !isFinished;
     }).length;
 
     // Completed in the currently viewed month
     const concluidasMês = productionItems.filter((p: any) => {
-      const isFinished = ["Concluído", "Entregue"].includes(p.status);
+      const isFinished = p.status === "entregue";
       if (!isFinished) return false;
       const wo = p.work_orders || {};
       const dataConclusao = p.data_conclusao || wo.delivered_at || wo.completed_at;
@@ -170,25 +136,18 @@ const Production = () => {
   const updateStatus = async (id: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from('production')
+        .from('work_orders')
         .update({ 
-          status: newStatus,
-          data_conclusao: newStatus === 'Concluído' ? new Date().toISOString() : null,
+          status_producao: newStatus,
+          completed_at: newStatus === 'entregue' ? new Date().toISOString() : null,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
       
       if (error) throw error;
 
-      // Log the change
-      await supabase.from('production_logs').insert({
-        production_id: id,
-        new_status: newStatus,
-        notes: `Status alterado para ${newStatus}`
-      });
-
       queryClient.invalidateQueries({ queryKey: ["production"] });
-      toast({ title: "Status atualizado!", description: `OS movida para ${newStatus}` });
+      toast({ title: "Status atualizado!", description: `OS movida para ${columns.find(c => c.key === newStatus)?.label}` });
     } catch (error: any) {
       toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
     }
@@ -344,7 +303,7 @@ const Production = () => {
                 <div className="flex flex-col gap-3 min-h-[200px]">
                   {colItems.map((item: any) => {
                     const wo = item.work_orders || {};
-                    const isLate = (item.data_entrega || wo.delivery_deadline) && new Date(item.data_entrega || wo.delivery_deadline) < new Date() && !["Concluído", "Entregue"].includes(item.status);
+                    const isLate = (wo.delivery_deadline) && new Date(wo.delivery_deadline) < new Date() && item.status !== "entregue";
 
                     return (
                       <Card 
@@ -383,7 +342,7 @@ const Production = () => {
                             </div>
                             <div className={cn("text-[10px] font-medium flex items-center gap-1", isLate ? "text-red-600" : "text-slate-400")}>
                               <Calendar className="h-3 w-3" />
-                              {(item.data_entrega || wo.delivery_deadline) ? formatDateBR(item.data_entrega || wo.delivery_deadline) : "Sem prazo"}
+                              {wo.delivery_deadline ? formatDateBR(wo.delivery_deadline) : "Sem prazo"}
                             </div>
                           </div>
                         </CardContent>
@@ -413,7 +372,7 @@ const Production = () => {
           )}
           {filteredItems.map((item: any) => {
             const wo = item.work_orders || {};
-            const isLate = (item.data_entrega || wo.delivery_deadline) && new Date(item.data_entrega || wo.delivery_deadline) < new Date() && !["Concluído", "Entregue"].includes(item.status);
+            const isLate = (wo.delivery_deadline) && new Date(wo.delivery_deadline) < new Date() && item.status !== "entregue";
             
             return (
               <Card 
@@ -464,7 +423,7 @@ const Production = () => {
                       <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Prazo Final</p>
                       <div className={cn("flex items-center gap-1.5 mt-1 font-bold", isLate ? "text-red-500" : "text-slate-700")}>
                         <Clock className="h-3.5 w-3.5" />
-                        {(item.data_entrega || wo.delivery_deadline) ? formatDateBR(item.data_entrega || wo.delivery_deadline) : "—"}
+                        {wo.delivery_deadline ? formatDateBR(wo.delivery_deadline) : "—"}
                       </div>
                     </div>
                     
@@ -524,7 +483,7 @@ const Production = () => {
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Prazo de Entrega</p>
-                      <p className="font-semibold">{selectedItem.data_entrega ? formatDateBR(selectedItem.data_entrega) : "Não definido"}</p>
+                      <p className="font-semibold">{selectedItem.work_orders?.delivery_deadline ? formatDateBR(selectedItem.work_orders.delivery_deadline) : "Não definido"}</p>
                     </div>
                   </div>
                   <div className="space-y-1 border-t pt-4">
@@ -579,16 +538,8 @@ const Production = () => {
                   <Select 
                     value={selectedItem.status} 
                     onValueChange={(val) => {
-                      const table = selectedItem.is_virtual ? 'work_orders' : 'production';
-                      const dbStatus = selectedItem.is_virtual ? 
-                        Object.keys(statusMap).find(key => statusMap[key] === val) : val;
-
-                      supabase.from(table).update(
-                        selectedItem.is_virtual ? { status: dbStatus } : { status: val }
-                      ).eq('id', selectedItem.os_id || selectedItem.id).then(() => {
-                        queryClient.invalidateQueries({ queryKey: ["production"] });
-                        toast({ title: "Status atualizado!" });
-                      });
+                      updateStatus(selectedItem.id, val);
+                      setSelectedItem({...selectedItem, status: val});
                     }}
                   >
                     <SelectTrigger className="w-[180px] h-9">
@@ -601,22 +552,12 @@ const Production = () => {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setIsDetailOpen(false)}>Fechar</Button>
-                  {selectedItem.status !== "Entregue" && selectedItem.status !== "Concluído" && (
+                  {selectedItem.status !== "entregue" && (
                     <Button onClick={async () => {
-                      const table = selectedItem.is_virtual ? 'work_orders' : 'production';
-                      const updates: any = selectedItem.is_virtual ? { status: 'concluido' } : { status: 'Concluído', data_conclusao: new Date().toISOString() };
-
-                      const { error } = await supabase.from(table).update(updates).eq('id', selectedItem.os_id || selectedItem.id);
-                      
-                      if (!error) {
-                        queryClient.invalidateQueries({ queryKey: ["production"] });
-                        setIsDetailOpen(false);
-                        toast({ title: "OS marcada como concluída!" });
-                      } else {
-                        toast({ title: "Erro ao concluir OS", description: error.message, variant: "destructive" });
-                      }
+                      await updateStatus(selectedItem.id, 'entregue');
+                      setIsDetailOpen(false);
                     }}>
-                      Concluir OS
+                      Marcar como Entregue
                     </Button>
                   )}
                 </div>
