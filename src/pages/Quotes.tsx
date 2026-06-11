@@ -1133,7 +1133,7 @@ const Quotes = () => {
                 <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
                 <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
               </div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda || !form.payment_method || !form.collection_date}>Salvar Orçamento</Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.phone || !form.origem_venda || !form.payment_method || !form.collection_date}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
