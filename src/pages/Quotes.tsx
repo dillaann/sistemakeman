@@ -203,25 +203,6 @@ const Quotes = () => {
     };
   }, [queryClient]);
 
-  // Sync phone when client is selected
-  useEffect(() => {
-    if (form.client_id) {
-      const client = clients.find(c => c.id === form.client_id);
-      if (client && !form.phone) {
-        setForm(prev => ({ ...prev, phone: client.phone || "" }));
-      }
-    }
-  }, [form.client_id, clients]);
-
-  useEffect(() => {
-    if (editForm.client_id) {
-      const client = clients.find(c => c.id === editForm.client_id);
-      if (client && !editForm.phone) {
-        setEditForm(prev => ({ ...prev, phone: client.phone || "" }));
-      }
-    }
-  }, [editForm.client_id, clients]);
-
   // Compute dynamic payment status for each approved quote
   const computedPaymentStatus = useMemo(() => {
     const statusMap: Record<string, string> = {};
