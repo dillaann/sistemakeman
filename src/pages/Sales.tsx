@@ -110,6 +110,10 @@ const SellerSalesView = () => {
     mutationFn: async () => {
       const { data, error } = await supabase.from("clients").insert({ name: newClientName, phone: newClientPhone || null }).select("id").single();
       if (error) throw error;
+      // Sync sheet only for the newly added contact's quotes
+      await supabase.functions.invoke("sync-production-sheet", {
+        body: { client_id: data.id }
+      });
       return data;
     },
     onSuccess: (data) => {

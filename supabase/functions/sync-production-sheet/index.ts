@@ -44,6 +44,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { client_id } = await req.json().catch(() => ({ client_id: null }));
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const GOOGLE_SHEETS_API_KEY = Deno.env.get("GOOGLE_SHEETS_API_KEY");
     if (!LOVABLE_API_KEY || !GOOGLE_SHEETS_API_KEY) {
@@ -55,8 +57,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch only work orders (which now represent the production board)
-    const { data: wos, error: woErr } = await supabase
+    // Fetch work orders. Filter by client_id if provided.
+    let query = supabase
       .from("work_orders")
       .select(`
         id, 
@@ -67,8 +69,13 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone),
         quotes(payment_method, collection_date)
-      `)
-      .order("created_at", { ascending: false });
+      `);
+    
+    if (client_id) {
+      query = query.eq("client_id", client_id);
+    }
+
+    const { data: wos, error: woErr } = await query.order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
 
