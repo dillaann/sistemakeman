@@ -586,6 +586,7 @@ const Quotes = () => {
           total,
           description: description || "OS gerada a partir de orçamento",
           status: "aguardando" as any,
+          status_producao: "aguardando",
           origem_venda: origemVenda,
         } as any).select().single();
         if (woError) throw woError;
