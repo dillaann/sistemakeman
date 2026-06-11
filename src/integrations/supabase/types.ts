@@ -2129,6 +2129,7 @@ export type Database = {
           quote_id: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["work_order_status"]
+          status_producao: string | null
           total: number
           updated_at: string
         }
@@ -2147,6 +2148,7 @@ export type Database = {
           quote_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["work_order_status"]
+          status_producao?: string | null
           total?: number
           updated_at?: string
         }
@@ -2165,6 +2167,7 @@ export type Database = {
           quote_id?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["work_order_status"]
+          status_producao?: string | null
           total?: number
           updated_at?: string
         }
