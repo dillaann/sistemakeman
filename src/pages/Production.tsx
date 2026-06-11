@@ -125,12 +125,11 @@ const Production = () => {
       const description = wo.description || "";
       const employeeName = wo.employees?.name || "";
       
-      // No period filtering for production items to ensure visibility
-      // unless they are explicitly finished/delivered.
+      // For list view, we keep everything unless it's delivered and outside date range
+      // But if it's NOT delivered, it should ALWAYS show regardless of date range
       const isFinished = item.status === "entregue";
       if (isFinished) {
         const completionDate = wo.delivered_at || wo.completed_at;
-        // Skip filtering if we don't have a completion date yet but status is entregue
         if (completionDate && !isInRangeOrOpen(item.created_at, dateRange, false, completionDate)) {
            return false;
         }
