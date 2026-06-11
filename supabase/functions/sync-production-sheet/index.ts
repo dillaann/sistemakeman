@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
           statusKey: statusKey,
           name: client?.name?.trim() || "—",
           phone: client?.phone?.trim() || "",
-          collection: formatDateBR(quote?.collection_date ?? null),
+          collection: formatDateBR(q.collection_date ?? null),
           payment: PAYMENT_LABELS[pm] || pm,
         };
       })
