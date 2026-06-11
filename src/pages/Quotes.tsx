@@ -518,6 +518,8 @@ const Quotes = () => {
         ? `Atualizado: ${syncMessages.join(", ")}`
         : undefined;
       toast({ title: "Orçamento editado com sucesso!", description: desc });
+      // Sync with Production Spreadsheet
+      supabase.functions.invoke("sync-production-sheet");
     },
     onError: (e: any) => toast({ title: "Erro ao editar", description: e.message, variant: "destructive" }),
   });
@@ -730,7 +732,12 @@ const Quotes = () => {
       const { error } = await supabase.from("quotes").update({ status: status as any }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["quotes"] }); toast({ title: "Status atualizado!" }); },
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ["quotes"] }); 
+      toast({ title: "Status atualizado!" });
+      // Sync with Production Spreadsheet
+      supabase.functions.invoke("sync-production-sheet");
+    },
   });
 
   const deleteQuoteMutation = useMutation({
@@ -784,6 +791,8 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setDeleteTarget(null);
       toast({ title: "Orçamento e registros vinculados removidos!" });
+      // Sync with Production Spreadsheet
+      supabase.functions.invoke("sync-production-sheet");
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });

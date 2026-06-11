@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SPREADSHEET_ID = "1_IKiOkNRyy6P-PG5WKL5RYjFCr14pAmca2mhhHs2Cg4";
-const SHEET_NAME = "PRODUÇÃO - KEMAN";
+const SHEET_NAME = "Produção";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
 const STATUS_ORDER: Record<string, number> = {
@@ -110,8 +110,8 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // Clear existing content
-    const clearRes = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A1:Z10000:clear`, {
+    // Clear existing content - use single quotes for sheet names with spaces
+    const clearRes = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000:clear`, {
       method: "POST",
       headers: ghHeaders,
     });
@@ -119,9 +119,9 @@ Deno.serve(async (req) => {
       throw new Error(`Erro ao limpar planilha (${clearRes.status}): ${await clearRes.text()}`);
     }
 
-    // Write new values
+    // Write new values - use single quotes for sheet names with spaces
     const writeRes = await fetch(
-      `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A1?valueInputOption=USER_ENTERED`,
+      `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1?valueInputOption=USER_ENTERED`,
       { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values }) },
     );
     if (!writeRes.ok) {
