@@ -1326,7 +1326,13 @@ const Quotes = () => {
           <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><Label>Cliente *</Label>
-                <Select value={editForm.client_id} onValueChange={v => setEditForm({ ...editForm, client_id: v })}>
+                <Select 
+                  value={editForm.client_id} 
+                  onValueChange={v => {
+                    const client = clients.find(c => c.id === v);
+                    setEditForm({ ...editForm, client_id: v, phone: client?.phone || "" });
+                  }}
+                >
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
