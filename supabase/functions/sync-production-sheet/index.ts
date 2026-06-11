@@ -74,10 +74,6 @@ Deno.serve(async (req) => {
         work_orders(status_producao)
       `);
     
-    if (client_id) {
-      query = query.eq("client_id", client_id);
-    }
-
     const { data: quotesData, error: qErr } = await query.order("created_at", { ascending: false });
     
     if (qErr) throw qErr;
