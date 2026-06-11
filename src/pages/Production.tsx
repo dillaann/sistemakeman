@@ -112,13 +112,14 @@ const Production = () => {
       const description = wo.description || "";
       const employeeName = wo.employees?.name || "";
       
-      // Period Filtering: Open orders always show in current period, 
-      // Finished orders show in their completion period.
+      // No period filtering for production items to ensure visibility
+      // unless they are explicitly finished/delivered.
       const isFinished = ["Concluído", "Entregue"].includes(item.status);
-      const completionDate = item.data_conclusao || wo.delivered_at || wo.completed_at;
-      
-      if (!isInRangeOrOpen(item.created_at, dateRange, !isFinished, completionDate)) {
-         return false;
+      if (isFinished) {
+        const completionDate = item.data_conclusao || wo.delivered_at || wo.completed_at;
+        if (!isInRangeOrOpen(item.created_at, dateRange, false, completionDate)) {
+           return false;
+        }
       }
 
       const searchTerms = search.toLowerCase();
