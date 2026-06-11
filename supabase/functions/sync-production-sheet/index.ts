@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
         collection_date,
         client_id, 
         clients(name, phone),
-        work_orders(status_producao)
+        work_orders(status_producao, quote_id)
       `)
       .eq("status", "aprovado");
     
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
         const client = q.clients;
         const pm = q.payment_method ?? "";
         // Get status from work order if approved, otherwise from quote
-        const wo = q.work_orders?.[0];
+        const wo = q.work_orders?.find((w: any) => w.quote_id === q.id);
         let statusKey = "aguardando_aprovacao";
         
         if (q.status === "aprovado") {
