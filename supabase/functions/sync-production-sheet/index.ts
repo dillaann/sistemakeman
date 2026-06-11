@@ -20,6 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
   "instalando": "Em Instalação",
   "entregue": "Entregue",
   "aguardando_aprovacao": "Orçamento Pendente",
+  "rejeitado": "Rejeitado",
 };
 
 function formatDateBR(value: string | null): string {
