@@ -263,6 +263,13 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
 
       if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
+      if (!form.phone) throw new Error("O número de telefone é obrigatório");
+
+      // Update client phone
+      if (form.client_id && form.phone) {
+        await supabase.from("clients").update({ phone: form.phone }).eq("id", form.client_id);
+      }
+
       const { data: quote, error } = await supabase.from("quotes").insert({
         client_id: form.client_id,
         description: form.description,
