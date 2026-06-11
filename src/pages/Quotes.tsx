@@ -276,6 +276,9 @@ const Quotes = () => {
       } as any));
       const { error: itemsError } = await supabase.from("quote_items").insert(itemsToInsert);
       if (itemsError) throw itemsError;
+
+      // Sync with Production Spreadsheet
+      await supabase.functions.invoke("sync-production-sheet");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
@@ -402,6 +405,9 @@ const Quotes = () => {
       } as any));
       const { error: itemsError } = await supabase.from("quote_items").insert(itemsToInsert);
       if (itemsError) throw itemsError;
+
+      // Sync with Production Spreadsheet
+      await supabase.functions.invoke("sync-production-sheet");
 
       const syncMessages: string[] = [];
 
@@ -699,6 +705,9 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["production"] });
 
       toast({ title: "Orçamento aprovado!", description: "OS criada e enviada para Produção." });
+      
+      // Sync with Production Spreadsheet after approval (as OS is created)
+      await supabase.functions.invoke("sync-production-sheet");
     } catch (e: any) {
       toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" });
     }
