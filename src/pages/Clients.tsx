@@ -44,8 +44,12 @@ const Clients = () => {
         const { error } = await supabase.from("clients").update(client).eq("id", client.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("clients").insert(client);
+        const { data: newClient, error } = await supabase.from("clients").insert(client).select("id").single();
         if (error) throw error;
+        // Sync sheet only for the newly added contact's quotes
+        await supabase.functions.invoke("sync-production-sheet", {
+          body: { client_id: newClient.id }
+        });
       }
     },
     onSuccess: () => {
