@@ -321,6 +321,7 @@ const Quotes = () => {
     setEditQuote(quote);
     setEditForm({
       client_id: quote.client_id,
+      phone: (quote.clients as any)?.phone || "",
       description: quote.description || "",
       valid_until: quote.valid_until || "",
       seller_id: (quote as any).seller_id || "",
