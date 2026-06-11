@@ -1009,7 +1009,13 @@ const Quotes = () => {
             <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><Label>Cliente *</Label>
-                  <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
+                  <Select 
+                    value={form.client_id} 
+                    onValueChange={v => {
+                      const client = clients.find(c => c.id === v);
+                      setForm({ ...form, client_id: v, phone: client?.phone || "" });
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
