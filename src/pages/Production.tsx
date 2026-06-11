@@ -144,14 +144,16 @@ const Production = () => {
     const atrasadas = productionItems.filter((p: any) => {
       const wo = p.work_orders || {};
       const prazo = p.data_entrega || wo.delivery_deadline;
-      return prazo && new Date(prazo) < new Date() && !["Concluído", "Entregue"].includes(p.status);
+      const isFinished = ["Concluído", "Entregue"].includes(p.status);
+      return prazo && new Date(prazo) < new Date() && !isFinished;
     }).length;
 
     // Completed in the currently viewed month
     const concluidasMês = productionItems.filter((p: any) => {
-      if (p.status !== "Concluído") return false;
+      const isFinished = ["Concluído", "Entregue"].includes(p.status);
+      if (!isFinished) return false;
       const wo = p.work_orders || {};
-      const dataConclusao = p.data_conclusao || wo.completed_at;
+      const dataConclusao = p.data_conclusao || wo.delivered_at || wo.completed_at;
       if (!dataConclusao) return false;
       return isInRange(dataConclusao, dateRange);
     }).length;
