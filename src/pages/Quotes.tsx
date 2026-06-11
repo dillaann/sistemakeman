@@ -364,12 +364,13 @@ const Quotes = () => {
         delivery_deadline: editForm.delivery_deadline || null,
         origem_venda: editForm.origem_venda,
         issue_date: editForm.issue_date || null,
+        payment_method: editPayment.payment_method,
+        collection_date: editPayment.collection_date || null,
         ...(isApproved ? {
           payment_type: editPayment.payment_type,
           down_payment: effectivePaidAmount,
           down_payment_date: dpDate,
           remaining_amount: Math.max(newTotal - effectivePaidAmount, 0),
-          payment_method: editPayment.payment_method,
           payment_status: paymentStatus === "entrada_recebida" ? "pagamento_parcial" : paymentStatus,
         } : {}),
       } as any).eq("id", quoteId);
