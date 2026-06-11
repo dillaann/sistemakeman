@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { client_id } = await req.json().catch(() => ({ client_id: null }));
+    const { client_id: _ignored } = await req.json().catch(() => ({ client_id: null }));
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const GOOGLE_SHEETS_API_KEY = Deno.env.get("GOOGLE_SHEETS_API_KEY");
