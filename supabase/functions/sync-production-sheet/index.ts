@@ -58,34 +58,41 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch work orders. Filter by client_id if provided.
+    // Fetch quotes with their work orders. Filter by client_id if provided.
     let query = supabase
-      .from("work_orders")
+      .from("quotes")
       .select(`
         id, 
-        status_producao, 
-        priority, 
-        created_at, 
+        status, 
+        payment_method, 
+        collection_date,
         client_id, 
-        quote_id,
         clients(name, phone),
-        quotes(payment_method, collection_date)
+        work_orders(status_producao)
       `);
     
     if (client_id) {
       query = query.eq("client_id", client_id);
     }
 
-    const { data: wos, error: woErr } = await query.order("created_at", { ascending: false });
+    const { data: quotesData, error: qErr } = await query.order("created_at", { ascending: false });
     
-    if (woErr) throw woErr;
+    if (qErr) throw qErr;
 
-    const rows = (wos ?? [])
-      .map((wo: any) => {
-        const client = wo.clients;
-        const quote = wo.quotes;
-        const pm = quote?.payment_method ?? "";
-        const statusKey = wo.status_producao || "aguardando";
+    const rows = (quotesData ?? [])
+      .map((q: any) => {
+        const client = q.clients;
+        const pm = q.payment_method ?? "";
+        // Get status from work order if approved, otherwise from quote
+        const wo = q.work_orders?.[0];
+        let statusKey = "aguardando_aprovacao";
+        
+        if (q.status === "aprovado") {
+          statusKey = wo?.status_producao || "aguardando";
+        } else if (q.status === "rejeitado") {
+          statusKey = "rejeitado";
+        }
+
         
         return {
           status: STATUS_LABELS[statusKey] || statusKey,
