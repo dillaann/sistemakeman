@@ -206,6 +206,21 @@ const Production = () => {
             </TabsList>
           </Tabs>
           <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+          <Button
+            variant="outline"
+            className="h-9 gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            onClick={async () => {
+              window.open(PRODUCTION_SHEET_URL, "_blank");
+              try {
+                await supabase.functions.invoke("sync-production-sheet");
+                toast({ title: "Planilha atualizada!", description: "Os dados mais recentes foram enviados ao Google Sheets." });
+              } catch (e: any) {
+                toast({ title: "Aviso", description: "A planilha foi aberta, mas a atualização automática falhou.", variant: "destructive" });
+              }
+            }}
+          >
+            <FileSpreadsheet className="h-4 w-4" /> Planilha Google
+          </Button>
         </div>
       </div>
 
