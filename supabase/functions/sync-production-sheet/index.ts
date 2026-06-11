@@ -6,11 +6,17 @@ const SHEET_NAME = "Produção";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
 const STATUS_ORDER: Record<string, number> = {
-  "Fila de Produção": 1,
-  "Em Produção": 2,
-  "Em Andamento": 2,
-  "Aguardando Instalação": 3,
-  "Entregue": 4,
+  "aguardando": 1,
+  "em_producao": 2,
+  "instalando": 3,
+  "entregue": 4,
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  "aguardando": "Aguardando Início",
+  "em_producao": "Em Produção",
+  "instalando": "Em Instalação",
+  "entregue": "Entregue",
 };
 
 function formatDateBR(value: string | null): string {
@@ -49,59 +55,40 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch only explicitly created production entries (new ones)
-    // and those that are NOT finished/delivered if we want to keep it "updated"
-    // The user said: "planilha só atualize com orçamentos novos, antigos eu nao quero"
-    // So we fetch production records created recently or that are in progress.
-    const { data: prod, error } = await supabase
-      .from("production")
-      .select("id, status, priority, created_at, os_id, phone")
+    // Fetch only work orders (which now represent the production board)
+    const { data: wos, error: woErr } = await supabase
+      .from("work_orders")
+      .select(`
+        id, 
+        status_producao, 
+        priority, 
+        created_at, 
+        client_id, 
+        quote_id,
+        clients(name, phone),
+        quotes(payment_method, collection_date)
+      `)
       .order("created_at", { ascending: false });
     
-    if (error) throw error;
+    if (woErr) throw woErr;
 
-    const osIds = [...new Set((prod ?? []).map((p: any) => p.os_id).filter(Boolean))];
-    let woMap = new Map<string, any>();
-    if (osIds.length) {
-      const { data: wos } = await supabase
-        .from("work_orders")
-        .select("id, client_id, quote_id")
-        .in("id", osIds);
-      (wos ?? []).forEach((w: any) => woMap.set(w.id, w));
-    }
-
-    const clientIds = [...new Set([...woMap.values()].map((w) => w.client_id).filter(Boolean))];
-    const quoteIds = [...new Set([...woMap.values()].map((w) => w.quote_id).filter(Boolean))];
-
-    let clientMap = new Map<string, any>();
-    if (clientIds.length) {
-      const { data: cs } = await supabase.from("clients").select("id, name, phone").in("id", clientIds);
-      (cs ?? []).forEach((c: any) => clientMap.set(c.id, c));
-    }
-    let quoteMap = new Map<string, any>();
-    if (quoteIds.length) {
-      const { data: qs } = await supabase
-        .from("quotes")
-        .select("id, payment_method, collection_date")
-        .in("id", quoteIds);
-      (qs ?? []).forEach((q: any) => quoteMap.set(q.id, q));
-    }
-
-    const rows = (prod ?? [])
-      .map((p: any) => {
-        const wo = woMap.get(p.os_id);
-        const client = wo ? clientMap.get(wo.client_id) : null;
-        const quote = wo ? quoteMap.get(wo.quote_id) : null;
+    const rows = (wos ?? [])
+      .map((wo: any) => {
+        const client = wo.clients;
+        const quote = wo.quotes;
         const pm = quote?.payment_method ?? "";
+        const statusKey = wo.status_producao || "aguardando";
+        
         return {
-          status: p.status ?? "",
+          status: STATUS_LABELS[statusKey] || statusKey,
+          statusKey: statusKey,
           name: client?.name?.trim() || "—",
-          phone: p.phone || client?.phone?.trim() || "",
+          phone: client?.phone?.trim() || "",
           collection: formatDateBR(quote?.collection_date ?? null),
-          payment: PAYMENT_LABELS[pm] ?? pm,
+          payment: PAYMENT_LABELS[pm] || pm,
         };
       })
-      .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9) || a.name.localeCompare(b.name));
+      .sort((a, b) => (STATUS_ORDER[a.statusKey] ?? 9) - (STATUS_ORDER[b.statusKey] ?? 9) || a.name.localeCompare(b.name));
 
     const header = ["Nome", "Telefone", "Data de Cobrança", "Método de Pagamento", "Status"];
     const values = [
