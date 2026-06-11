@@ -71,7 +71,7 @@ const Quotes = () => {
   // Edit state
   const [editOpen, setEditOpen] = useState(false);
   const [editQuote, setEditQuote] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
+  const [editForm, setEditForm] = useState({ client_id: "", phone: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
   const [editItems, setEditItems] = useState<ItemRow[]>([]);
   const [editPayment, setEditPayment] = useState({ payment_type: "a_vista", down_payment: "", down_payment_date: "", payment_method: "pix", payment_status: "aguardando", payment_notes: "", collection_date: "" });
 
