@@ -309,6 +309,7 @@ const Quotes = () => {
       payment_method: (quote as any).payment_method || "pix",
       payment_status: (quote as any).payment_status || "aguardando",
       payment_notes: "",
+      collection_date: (quote as any).collection_date || "",
     });
     const quoteItems = (quote.quote_items ?? []) as any[];
     setEditItems(
