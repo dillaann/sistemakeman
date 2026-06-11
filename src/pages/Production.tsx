@@ -125,12 +125,12 @@ const Production = () => {
       const description = wo.description || "";
       const employeeName = wo.employees?.name || "";
       
-      // No period filtering for production items to ensure visibility
-      // unless they are explicitly finished/delivered.
+      // For list view, we keep everything unless it's delivered and outside date range
+      // But if it's NOT delivered, it should ALWAYS show regardless of date range
       const isFinished = item.status === "entregue";
       if (isFinished) {
         const completionDate = wo.delivered_at || wo.completed_at;
-        if (!isInRangeOrOpen(item.created_at, dateRange, false, completionDate)) {
+        if (completionDate && !isInRangeOrOpen(item.created_at, dateRange, false, completionDate)) {
            return false;
         }
       }
@@ -439,10 +439,10 @@ const Production = () => {
                   <div className="flex items-center gap-4 flex-1">
                     <div className="flex flex-col gap-1 min-w-[120px]">
                       <span className="font-bold text-lg font-mono text-slate-400 group-hover:text-primary transition-colors">
-                        OS-{item.os_id.slice(0, 8)}
+                        {item.source === 'quote' ? `ORC-${item.os_id.slice(0, 8)}` : `OS-${item.os_id.slice(0, 8)}`}
                       </span>
                       <Badge variant="outline" className={cn("w-fit text-[10px] font-bold py-0 h-5", columns.find(c => c.key === item.status)?.color)}>
-                        {item.status}
+                        {columns.find(c => c.key === item.status)?.label || item.status}
                       </Badge>
                     </div>
                     <div className="h-10 w-[1px] bg-slate-100 hidden md:block" />
