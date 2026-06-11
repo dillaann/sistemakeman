@@ -65,13 +65,13 @@ const Quotes = () => {
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString(), payment_method: "pix", collection_date: localDateString() });
+  const [form, setForm] = useState({ client_id: "", phone: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString(), payment_method: "pix", collection_date: localDateString() });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
 
   // Edit state
   const [editOpen, setEditOpen] = useState(false);
   const [editQuote, setEditQuote] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
+  const [editForm, setEditForm] = useState({ client_id: "", phone: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: "" });
   const [editItems, setEditItems] = useState<ItemRow[]>([]);
   const [editPayment, setEditPayment] = useState({ payment_type: "a_vista", down_payment: "", down_payment_date: "", payment_method: "pix", payment_status: "aguardando", payment_notes: "", collection_date: "" });
 
@@ -244,6 +244,13 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
 
       if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
+      if (!form.phone) throw new Error("O número de telefone é obrigatório");
+
+      // Update client phone
+      if (form.client_id && form.phone) {
+        await supabase.from("clients").update({ phone: form.phone }).eq("id", form.client_id);
+      }
+
       const { data: quote, error } = await supabase.from("quotes").insert({
         client_id: form.client_id,
         description: form.description,
@@ -273,7 +280,7 @@ const Quotes = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
-      setForm({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString(), payment_method: "pix", collection_date: localDateString() });
+      setForm({ client_id: "", phone: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString(), payment_method: "pix", collection_date: localDateString() });
       setItems([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
       toast({ 
         title: "Orçamento criado!",
@@ -295,6 +302,7 @@ const Quotes = () => {
     setEditQuote(quote);
     setEditForm({
       client_id: quote.client_id,
+      phone: (quote.clients as any)?.phone || "",
       description: quote.description || "",
       valid_until: quote.valid_until || "",
       seller_id: (quote as any).seller_id || "",
@@ -327,6 +335,12 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
       if (!editForm.client_id) throw new Error("Selecione um cliente");
       if (!editForm.origem_venda) throw new Error("Selecione a Origem da Venda");
+      if (!editForm.phone) throw new Error("O número de telefone é obrigatório");
+
+      // Update client phone
+      if (editForm.client_id && editForm.phone) {
+        await supabase.from("clients").update({ phone: editForm.phone }).eq("id", editForm.client_id);
+      }
 
       const oldTotal = Number(editQuote.total);
       const newTotal = editGrandTotal;
@@ -974,11 +988,27 @@ const Quotes = () => {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Novo Orçamento</DialogTitle></DialogHeader>
             <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
-              <div><Label>Cliente *</Label>
-                <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><Label>Cliente *</Label>
+                  <Select 
+                    value={form.client_id} 
+                    onValueChange={v => {
+                      const client = clients.find(c => c.id === v);
+                      setForm({ ...form, client_id: v, phone: client?.phone || "" });
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Número de Telefone *</Label>
+                  <Input 
+                    placeholder="(00) 00000-0000" 
+                    value={form.phone} 
+                    onChange={e => setForm({ ...form, phone: e.target.value })} 
+                    required
+                  />
+                </div>
               </div>
 
               <div><Label>Vendedor Responsável</Label>
@@ -1090,7 +1120,7 @@ const Quotes = () => {
                 <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
                 <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
               </div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda || !form.payment_method || !form.collection_date}>Salvar Orçamento</Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.phone || !form.origem_venda || !form.payment_method || !form.collection_date}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -1275,11 +1305,27 @@ const Quotes = () => {
             )}
           </DialogHeader>
           <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4">
-            <div><Label>Cliente *</Label>
-              <Select value={editForm.client_id} onValueChange={v => setEditForm({ ...editForm, client_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><Label>Cliente *</Label>
+                <Select 
+                  value={editForm.client_id} 
+                  onValueChange={v => {
+                    const client = clients.find(c => c.id === v);
+                    setEditForm({ ...editForm, client_id: v, phone: client?.phone || "" });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Número de Telefone *</Label>
+                <Input 
+                  placeholder="(00) 00000-0000" 
+                  value={editForm.phone} 
+                  onChange={e => setEditForm({ ...editForm, phone: e.target.value })} 
+                  required
+                />
+              </div>
             </div>
 
             {userRole === "admin" && (
@@ -1465,7 +1511,7 @@ const Quotes = () => {
             <div><Label>Data de Emissão</Label><Input type="date" value={editForm.issue_date} onChange={e => setEditForm({ ...editForm, issue_date: e.target.value })} /></div>
             <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={editForm.delivery_deadline} onChange={e => setEditForm({ ...editForm, delivery_deadline: e.target.value })} /></div>
             <div><Label>Válido até</Label><Input type="date" value={editForm.valid_until} onChange={e => setEditForm({ ...editForm, valid_until: e.target.value })} /></div>
-            <Button type="submit" className="w-full" disabled={editMutation.isPending || !editForm.client_id || !editForm.origem_venda}>
+            <Button type="submit" className="w-full" disabled={editMutation.isPending || !editForm.client_id || !editForm.phone || !editForm.origem_venda}>
               {editMutation.isPending ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </form>
