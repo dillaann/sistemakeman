@@ -698,16 +698,7 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["production"] });
 
-      // Create production entry automatically
-      const { data: clientData } = await supabase.from("clients").select("phone").eq("id", clientId).single();
-      await supabase.from("production").insert({
-        os_id: wo.id,
-        status: "Fila de Produção",
-        priority: "normal",
-        phone: clientData?.phone || null
-      });
-
-      toast({ title: "Orçamento aprovado!", description: "OS, produção e lançamentos financeiros criados." });
+      toast({ title: "Orçamento aprovado!", description: "OS criada e enviada para Produção." });
     } catch (e: any) {
       toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" });
     }
