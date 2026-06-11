@@ -1021,6 +1021,7 @@ export type Database = {
           observacoes: string | null
           os_id: string
           percent_complete: number | null
+          phone: string | null
           priority: string | null
           responsavel: string | null
           started_at: string | null
@@ -1035,6 +1036,7 @@ export type Database = {
           observacoes?: string | null
           os_id: string
           percent_complete?: number | null
+          phone?: string | null
           priority?: string | null
           responsavel?: string | null
           started_at?: string | null
@@ -1049,6 +1051,7 @@ export type Database = {
           observacoes?: string | null
           os_id?: string
           percent_complete?: number | null
+          phone?: string | null
           priority?: string | null
           responsavel?: string | null
           started_at?: string | null
