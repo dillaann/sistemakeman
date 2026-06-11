@@ -65,7 +65,7 @@ const Quotes = () => {
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
   const dateRange = useMemo(() => getDateRange(refDate, periodMode), [refDate, periodMode]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString() });
+  const [form, setForm] = useState({ client_id: "", description: "", valid_until: "", seller_id: "", delivery_deadline: "", origem_venda: "", issue_date: localDateString(), payment_method: "pix", collection_date: localDateString() });
   const [items, setItems] = useState<ItemRow[]>([{ description: "", quantity: "1", unit_price: "", unit: "un" }]);
 
   // Edit state
