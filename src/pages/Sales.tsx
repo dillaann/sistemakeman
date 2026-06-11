@@ -151,6 +151,9 @@ const SellerSalesView = () => {
         origem_venda: form.origem_venda,
       } as any);
       if (saleErr) throw saleErr;
+      
+      // Sync sheet
+      await supabase.functions.invoke("sync-production-sheet");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-sales"] });
