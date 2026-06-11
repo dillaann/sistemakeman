@@ -127,9 +127,6 @@ Deno.serve(async (req) => {
     if (!writeRes.ok) {
       throw new Error(`Erro ao escrever planilha (${writeRes.status}): ${await writeRes.text()}`);
     }
-    if (!writeRes.ok) {
-      throw new Error(`Erro ao escrever planilha (${writeRes.status}): ${await writeRes.text()}`);
-    }
 
     return new Response(
       JSON.stringify({ success: true, count: rows.length, url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit` }),
