@@ -1007,11 +1007,21 @@ const Quotes = () => {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Novo Orçamento</DialogTitle></DialogHeader>
             <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
-              <div><Label>Cliente *</Label>
-                <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><Label>Cliente *</Label>
+                  <Select value={form.client_id} onValueChange={v => setForm({ ...form, client_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Número de Telefone *</Label>
+                  <Input 
+                    placeholder="(00) 00000-0000" 
+                    value={form.phone} 
+                    onChange={e => setForm({ ...form, phone: e.target.value })} 
+                    required
+                  />
+                </div>
               </div>
 
               <div><Label>Vendedor Responsável</Label>
