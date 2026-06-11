@@ -94,8 +94,8 @@ const App = () => (
                 <Route index element={<DefaultRedirect />} />
                 <Route path="clientes" element={<RoleGuard allowed={["admin", "vendedor"]}><Clients /></RoleGuard>} />
                 <Route path="orcamentos" element={<RoleGuard allowed={["admin", "vendedor"]}><Quotes /></RoleGuard>} />
+                <Route path="producao" element={<RoleGuard allowed={["admin", "vendedor", "producao"]}><Production /></RoleGuard>} />
                 <Route path="ordens" element={<RoleGuard allowed={["admin", "producao", "financeiro", "vendedor", "compras"]}><WorkOrders /></RoleGuard>} />
-                <Route path="producao" element={<RoleGuard allowed={["admin", "producao"]}><Production /></RoleGuard>} />
                 <Route path="financeiro" element={<RoleGuard allowed={["admin", "financeiro"]}><Financial /></RoleGuard>} />
                 <Route path="faturamento" element={<RoleGuard allowed={["admin", "financeiro"]}><Billing /></RoleGuard>} />
                 <Route path="dre" element={<RoleGuard allowed={["admin", "financeiro"]}><DREPage /></RoleGuard>} />
