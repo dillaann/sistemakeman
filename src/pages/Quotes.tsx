@@ -1518,7 +1518,7 @@ const Quotes = () => {
             <div><Label>Data de Emissão</Label><Input type="date" value={editForm.issue_date} onChange={e => setEditForm({ ...editForm, issue_date: e.target.value })} /></div>
             <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={editForm.delivery_deadline} onChange={e => setEditForm({ ...editForm, delivery_deadline: e.target.value })} /></div>
             <div><Label>Válido até</Label><Input type="date" value={editForm.valid_until} onChange={e => setEditForm({ ...editForm, valid_until: e.target.value })} /></div>
-            <Button type="submit" className="w-full" disabled={editMutation.isPending || !editForm.client_id || !editForm.origem_venda}>
+            <Button type="submit" className="w-full" disabled={editMutation.isPending || !editForm.client_id || !editForm.phone || !editForm.origem_venda}>
               {editMutation.isPending ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </form>
