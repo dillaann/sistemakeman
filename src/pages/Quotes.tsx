@@ -1058,10 +1058,34 @@ const Quotes = () => {
                 <div className="text-right font-bold text-lg border-t pt-2">Total: {fmt(grandTotal)}</div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div>
+                  <Label>Forma de Pagamento *</Label>
+                  <Select value={form.payment_method} onValueChange={v => setForm({ ...form, payment_method: v })} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="cartao">Cartão</SelectItem>
+                      <SelectItem value="boleto">Boleto</SelectItem>
+                      <SelectItem value="transferencia">Transferência</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Data de Cobrança *</Label>
+                  <Input type="date" value={form.collection_date} onChange={e => setForm({ ...form, collection_date: e.target.value })} required />
+                </div>
+              </div>
+
               <div><Label>Observações</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-              <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
-              <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda}>Salvar Orçamento</Button>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
+                <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
+              </div>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda || !form.payment_method || !form.collection_date}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
