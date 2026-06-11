@@ -922,6 +922,8 @@ const Quotes = () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setPayRegDialog(null);
       toast({ title: "Pagamento registrado!" });
+      // Sync with Production Spreadsheet
+      supabase.functions.invoke("sync-production-sheet");
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
