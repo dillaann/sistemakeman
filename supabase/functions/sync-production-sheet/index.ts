@@ -81,7 +81,9 @@ Deno.serve(async (req) => {
     const rows = (woData ?? [])
       .map((wo: any) => {
         const client = wo.clients;
-        const createdAt = new Date(wo.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+        // Check if created_at exists, otherwise use now as fallback
+        const dateObj = wo.created_at ? new Date(wo.created_at) : new Date();
+        const createdAt = dateObj.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
         
         return {
           name: client?.name?.trim() || "—",
@@ -91,6 +93,8 @@ Deno.serve(async (req) => {
           total: wo.total || 0
         };
       });
+
+    console.log(`Syncing ${rows.length} rows to Google Sheets`);
 
     const header = ["Data/Hora Pedido", "Nome", "Telefone", "Descrição", "Valor Total"];
     const values = [
