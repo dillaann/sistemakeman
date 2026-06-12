@@ -14,7 +14,7 @@ import { Plus, Search, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
-import MonthFilter, { getDateRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
+import MonthFilter, { getDateRange, isInRange, type PeriodMode } from "@/components/MonthFilter";
 
 const statusColors: Record<string, string> = {
   aguardando: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
@@ -146,9 +146,8 @@ const WorkOrders = () => {
   };
 
   const filtered = orders.filter(o => {
-    const isOpen = ["aguardando", "em_producao", "aguardando_instalacao"].includes(o.status);
-    const completionDate = o.completed_at || o.delivered_at;
-    if (!isInRangeOrOpen(o.created_at, dateRange, isOpen, completionDate)) return false;
+    // A OS sempre fica fixa no mês em que foi criada, independente do status.
+    if (!isInRange(o.created_at, dateRange)) return false;
     if (statusFilter !== "todos" && o.status !== statusFilter) return false;
     return (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       (o.description ?? "").toLowerCase().includes(search.toLowerCase());
