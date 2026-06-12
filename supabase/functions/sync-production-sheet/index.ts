@@ -61,7 +61,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch all work orders for production
+    // Fetch only work orders created from today onwards (2026-06-12)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+
     const { data: woData, error: woErr } = await supabase
       .from("work_orders")
       .select(`
@@ -74,6 +78,7 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone)
       `)
+      .gte("created_at", todayISO)
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
