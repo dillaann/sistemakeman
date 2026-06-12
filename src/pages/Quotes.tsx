@@ -245,7 +245,7 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
 
       if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
-      if (!form.phone) throw new Error("O número de telefone é obrigatório");
+      // phone is optional as per user request
 
       // Update client phone
       if (form.client_id && form.phone) {
