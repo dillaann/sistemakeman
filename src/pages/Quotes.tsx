@@ -245,7 +245,7 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
 
       if (!form.origem_venda) throw new Error("Selecione a Origem da Venda");
-      if (!form.phone) throw new Error("O número de telefone é obrigatório");
+      // phone is optional as per user request
 
       // Update client phone
       if (form.client_id && form.phone) {
@@ -338,7 +338,7 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
       if (!editForm.client_id) throw new Error("Selecione um cliente");
       if (!editForm.origem_venda) throw new Error("Selecione a Origem da Venda");
-      if (!editForm.phone) throw new Error("O número de telefone é obrigatório");
+      // phone is optional as per user request
 
       // Update client phone
       if (editForm.client_id && editForm.phone) {
@@ -1021,12 +1021,11 @@ const Quotes = () => {
                     <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div><Label>Número de Telefone *</Label>
+                <div><Label>Número de Telefone</Label>
                   <Input 
                     placeholder="(00) 00000-0000" 
                     value={form.phone} 
                     onChange={e => setForm({ ...form, phone: e.target.value })} 
-                    required
                   />
                 </div>
               </div>
@@ -1136,7 +1135,7 @@ const Quotes = () => {
                 <div><Label>Prazo de Entrega</Label><Input placeholder="Ex: 15 dias úteis" value={form.delivery_deadline} onChange={e => setForm({ ...form, delivery_deadline: e.target.value })} /></div>
                 <div><Label>Válido até</Label><Input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })} /></div>
               </div>
-              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.phone || !form.origem_venda || !form.payment_method}>Salvar Orçamento</Button>
+              <Button type="submit" className="w-full" disabled={saveMutation.isPending || !form.client_id || !form.origem_venda || !form.payment_method}>Salvar Orçamento</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -1334,12 +1333,11 @@ const Quotes = () => {
                   <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Número de Telefone *</Label>
+              <div><Label>Número de Telefone</Label>
                 <Input 
                   placeholder="(00) 00000-0000" 
                   value={editForm.phone} 
                   onChange={e => setEditForm({ ...editForm, phone: e.target.value })} 
-                  required
                 />
               </div>
             </div>
