@@ -62,8 +62,8 @@ Deno.serve(async (req) => {
     );
 
     // Fetch only work orders created from NOW onwards
-    // Records created before Friday, June 12, 2026, 11:15 AM (UTC) are ignored
-    const filterTimestamp = "2026-06-12T11:15:00Z";
+    // Records created before Friday, June 12, 2026, 11:30 AM (UTC) are ignored
+    const filterTimestamp = "2026-06-12T11:30:00.000Z";
 
     const { data: woData, error: woErr } = await supabase
       .from("work_orders")
@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
         clients(name, phone)
       `)
       .eq("status", "entregue")
+      .gte("created_at", filterTimestamp)
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
