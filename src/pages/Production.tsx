@@ -194,6 +194,9 @@ const Production = () => {
         .eq('id', id);
       
       if (error) throw error;
+      
+      // Invoke sync function
+      supabase.functions.invoke("sync-production-sheet");
 
       queryClient.invalidateQueries({ queryKey: ["production"] });
       toast({ title: "Status atualizado!", description: `OS movida para ${columns.find(c => c.key === newStatus)?.label}` });
