@@ -146,9 +146,8 @@ const WorkOrders = () => {
   };
 
   const filtered = orders.filter(o => {
-    const isOpen = ["aguardando", "em_producao", "aguardando_instalacao"].includes(o.status);
-    const completionDate = o.completed_at || o.delivered_at;
-    if (!isInRangeOrOpen(o.created_at, dateRange, isOpen, completionDate)) return false;
+    // A OS sempre fica fixa no mês em que foi criada, independente do status.
+    if (!isInRange(o.created_at, dateRange)) return false;
     if (statusFilter !== "todos" && o.status !== statusFilter) return false;
     return (o.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       (o.description ?? "").toLowerCase().includes(search.toLowerCase());
