@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone)
       `)
-      .eq("status", "entregue")
+      .eq("status_producao", "entregue")
       .gte("created_at", filterTimestamp)
       .order("created_at", { ascending: false });
     
