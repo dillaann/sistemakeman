@@ -71,13 +71,13 @@ Deno.serve(async (req) => {
         id, 
         total,
         description,
-        status_producao,
+        status,
         completed_at,
         created_at,
         quote_id,
         clients(name, phone)
       `)
-      .eq("status_producao", "entregue")
+      .eq("status", "entregue")
       .gte("created_at", filterTimestamp)
       .order("created_at", { ascending: false });
     
