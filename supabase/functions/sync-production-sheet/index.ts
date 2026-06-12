@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch ONLY finished (entregue) work orders
+    // Fetch all work orders for production
     const { data: woData, error: woErr } = await supabase
       .from("work_orders")
       .select(`
@@ -74,15 +74,16 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone)
       `)
-      .eq("status_producao", "entregue")
-      .order("completed_at", { ascending: false });
+      .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
 
     const rows = (woData ?? [])
       .map((wo: any) => {
         const client = wo.clients;
-        const createdAt = new Date(wo.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+        // Check if created_at exists, otherwise use now as fallback
+        const dateObj = wo.created_at ? new Date(wo.created_at) : new Date();
+        const createdAt = dateObj.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
         
         return {
           name: client?.name?.trim() || "—",
@@ -92,6 +93,8 @@ Deno.serve(async (req) => {
           total: wo.total || 0
         };
       });
+
+    console.log(`Syncing ${rows.length} rows to Google Sheets`);
 
     const header = ["Data/Hora Pedido", "Nome", "Telefone", "Descrição", "Valor Total"];
     const values = [
