@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch ONLY finished (entregue) work orders
+    // Fetch work orders and approved quotes that are on the production dashboard
+    // Filters only orders in status: em_producao, instalando or entregue
     const { data: woData, error: woErr } = await supabase
       .from("work_orders")
       .select(`
@@ -74,8 +75,8 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone)
       `)
-      .eq("status_producao", "entregue")
-      .order("completed_at", { ascending: false });
+      .in("status_producao", ["em_producao", "instalando", "entregue"])
+      .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
 
