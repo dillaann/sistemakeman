@@ -338,7 +338,7 @@ const Quotes = () => {
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
       if (!editForm.client_id) throw new Error("Selecione um cliente");
       if (!editForm.origem_venda) throw new Error("Selecione a Origem da Venda");
-      if (!editForm.phone) throw new Error("O número de telefone é obrigatório");
+      // phone is optional as per user request
 
       // Update client phone
       if (editForm.client_id && editForm.phone) {
