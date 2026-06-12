@@ -1606,6 +1606,10 @@ const Quotes = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>Data de Cobrança *</Label>
+                    <Input type="date" value={collectionDate} onChange={e => setCollectionDate(e.target.value)} required />
+                  </div>
                 </CardContent>
               </Card>
 
