@@ -61,55 +61,43 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch ONLY approved quotes with their work orders.
-    let query = supabase
-      .from("quotes")
+    // Fetch ONLY finished (entregue) work orders
+    const { data: woData, error: woErr } = await supabase
+      .from("work_orders")
       .select(`
         id, 
-        status, 
-        payment_method, 
-        collection_date,
-        client_id, 
-        clients(name, phone),
-        work_orders(status_producao, quote_id)
+        total,
+        description,
+        status_producao,
+        completed_at,
+        created_at,
+        quote_id,
+        clients(name, phone)
       `)
-      .eq("status", "aprovado");
+      .eq("status_producao", "entregue")
+      .order("completed_at", { ascending: false });
     
-    const { data: quotesData, error: qErr } = await query.order("created_at", { ascending: false });
-    
-    if (qErr) throw qErr;
+    if (woErr) throw woErr;
 
-    const rows = (quotesData ?? [])
-      .map((q: any) => {
-        const client = q.clients;
-        const pm = q.payment_method ?? "";
-        // Get status from work order if approved, otherwise from quote
-        const wo = q.work_orders?.find((w: any) => w.quote_id === q.id);
-        let statusKey = "aguardando_aprovacao";
-        
-        if (q.status === "aprovado") {
-          statusKey = wo?.status_producao || "aguardando";
-        } else if (q.status === "rejeitado") {
-          statusKey = "rejeitado";
-        }
-
+    const rows = (woData ?? [])
+      .map((wo: any) => {
+        const client = wo.clients;
+        const createdAt = new Date(wo.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
         
         return {
-          status: STATUS_LABELS[statusKey] || statusKey,
-          statusKey: statusKey,
           name: client?.name?.trim() || "—",
           phone: client?.phone?.trim() || "",
-          collection: formatDateBR(q.collection_date ?? null),
-          payment: PAYMENT_LABELS[pm] || pm,
+          description: wo.description || "—",
+          created_at: createdAt,
+          total: wo.total || 0
         };
-      })
-      .sort((a, b) => (STATUS_ORDER[a.statusKey] ?? 9) - (STATUS_ORDER[b.statusKey] ?? 9) || a.name.localeCompare(b.name));
+      });
 
-    const header = ["Nome", "Telefone", "Data de Cobrança", "Método de Pagamento", "Status"];
+    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Descrição", "Valor Total"];
     const values = [
-      [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
+      [`Produção Keman (Concluídos) — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
       header,
-      ...rows.map((r) => [r.name, r.phone, r.collection, r.payment, r.status]),
+      ...rows.map((r) => [r.created_at, r.name, r.phone, r.description, r.total]),
     ];
 
     const ghHeaders = {

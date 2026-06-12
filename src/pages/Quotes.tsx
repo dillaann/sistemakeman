@@ -1482,10 +1482,7 @@ const Quotes = () => {
                     </Select>
                   </div>
 
-                  <div>
-                    <Label>Data de Cobrança *</Label>
-                    <Input type="date" value={editPayment.collection_date} onChange={e => setEditPayment({ ...editPayment, collection_date: e.target.value })} required />
-                  </div>
+                  {/* Collection date removed as per user request */}
 
                   <div>
                     <Label>Status do Pagamento</Label>
@@ -1606,10 +1603,7 @@ const Quotes = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label>Data de Cobrança *</Label>
-                    <Input type="date" value={collectionDate} onChange={e => setCollectionDate(e.target.value)} required />
-                  </div>
+                  {/* Collection date removed as per user request */}
                 </CardContent>
               </Card>
 
