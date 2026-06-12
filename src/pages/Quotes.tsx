@@ -1333,12 +1333,11 @@ const Quotes = () => {
                   <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div><Label>Número de Telefone *</Label>
+              <div><Label>Número de Telefone</Label>
                 <Input 
                   placeholder="(00) 00000-0000" 
                   value={editForm.phone} 
                   onChange={e => setEditForm({ ...editForm, phone: e.target.value })} 
-                  required
                 />
               </div>
             </div>
