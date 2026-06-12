@@ -61,8 +61,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch only work orders created from the exact moment of this update onwards
-    // Using a fixed timestamp to exclude all current 191 records
+    // Fetch only work orders created from NOW onwards
+    // Records created before Friday, June 12, 2026, 11:15 AM (UTC) are ignored
     const filterTimestamp = "2026-06-12T11:15:00Z";
 
     const { data: woData, error: woErr } = await supabase
