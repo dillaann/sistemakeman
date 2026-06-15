@@ -185,13 +185,14 @@ const Production = () => {
         return;
       }
 
+      const updates: any = { status: newStatus, updated_at: new Date().toISOString() };
+      if (newStatus === 'em_producao') updates.started_at = new Date().toISOString();
+      if (newStatus === 'aguardando_instalacao') updates.completed_at = new Date().toISOString();
+      if (newStatus === 'entregue') updates.delivered_at = new Date().toISOString();
+
       const { error } = await supabase
         .from('work_orders')
-        .update({ 
-          status_producao: newStatus,
-          completed_at: newStatus === 'entregue' ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', id);
       
       if (error) throw error;
