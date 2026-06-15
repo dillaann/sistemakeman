@@ -15,8 +15,9 @@ const STATUS_ORDER: Record<string, number> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  "aguardando": "Aguardando Início",
+  "aguardando": "Aguardando",
   "em_producao": "Em Produção",
+  "aguardando_instalacao": "Aguardando Instalação",
   "instalando": "Em Instalação",
   "entregue": "Entregue",
   "aguardando_aprovacao": "Orçamento Pendente",
