@@ -77,6 +77,21 @@ const Production = () => {
       const workOrders = woRes.data || [];
       const approvedQuotes = quotesRes.data || [];
 
+      // Fetch the individual services (items) of each work order
+      const woIds = workOrders.map((wo: any) => wo.id);
+      const itemsMap = new Map<string, any[]>();
+      if (woIds.length > 0) {
+        const { data: items } = await supabase
+          .from("work_order_items" as any)
+          .select("work_order_id, description, quantity, unit_price, total")
+          .in("work_order_id", woIds);
+        (items || []).forEach((item: any) => {
+          const list = itemsMap.get(item.work_order_id) || [];
+          list.push(item);
+          itemsMap.set(item.work_order_id, list);
+        });
+      }
+
       // Map Work Orders
       const productionItems = workOrders.map(wo => ({
         id: wo.id,
@@ -85,6 +100,7 @@ const Production = () => {
         created_at: wo.created_at,
         priority: wo.priority,
         work_orders: wo,
+        items: itemsMap.get(wo.id) || [],
         production_occurrences: [],
         source: 'work_order'
       }));
