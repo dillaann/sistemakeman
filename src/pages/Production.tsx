@@ -519,7 +519,7 @@ const Production = () => {
                   </DialogTitle>
                   <div className="flex gap-2">
                     <Badge variant="outline" className={columns.find(c => c.key === selectedItem.status)?.color}>
-                      {selectedItem.status}
+                      {columns.find(c => c.key === selectedItem.status)?.label || selectedItem.status}
                     </Badge>
                     {selectedItem.priority === "urgente" && (
                       <Badge variant="destructive">URGENTE</Badge>
