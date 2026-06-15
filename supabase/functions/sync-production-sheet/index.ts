@@ -15,8 +15,9 @@ const STATUS_ORDER: Record<string, number> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  "aguardando": "Aguardando Início",
+  "aguardando": "Aguardando",
   "em_producao": "Em Produção",
+  "aguardando_instalacao": "Aguardando Instalação",
   "instalando": "Em Instalação",
   "entregue": "Entregue",
   "aguardando_aprovacao": "Orçamento Pendente",
@@ -61,10 +62,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Fetch only work orders created from NOW onwards
-    // Records created before Friday, June 12, 2026, 11:30 AM (UTC) are ignored
-    const filterTimestamp = "2026-06-12T11:30:00.000Z";
-
     const { data: woData, error: woErr } = await supabase
       .from("work_orders")
       .select(`
@@ -73,39 +70,57 @@ Deno.serve(async (req) => {
         description,
         status,
         completed_at,
+        delivered_at,
         created_at,
         quote_id,
         clients(name, phone)
       `)
-      .eq("status", "entregue")
-      .gte("created_at", filterTimestamp)
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
 
+    const woIds = (woData ?? []).map((wo: any) => wo.id);
+    const itemsMap = new Map<string, any[]>();
+    if (woIds.length > 0) {
+      const { data: items, error: itemsErr } = await supabase
+        .from("work_order_items")
+        .select("work_order_id, description, quantity")
+        .in("work_order_id", woIds);
+      if (itemsErr) throw itemsErr;
+      (items ?? []).forEach((item: any) => {
+        const list = itemsMap.get(item.work_order_id) || [];
+        list.push(item);
+        itemsMap.set(item.work_order_id, list);
+      });
+    }
+
     const rows = (woData ?? [])
       .map((wo: any) => {
         const client = wo.clients;
-        // Check if created_at exists, otherwise use now as fallback
         const dateObj = wo.created_at ? new Date(wo.created_at) : new Date();
         const createdAt = dateObj.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+        const services = (itemsMap.get(wo.id) || [])
+          .map((item: any) => `${Number(item.quantity || 1)}x ${item.description || "Serviço"}`)
+          .join("; ");
         
         return {
           name: client?.name?.trim() || "—",
           phone: client?.phone?.trim() || "",
-          description: wo.description || "—",
+          status: STATUS_LABELS[wo.status] || wo.status || "Aguardando",
+          description: services || wo.description || "—",
           created_at: createdAt,
+          completed_at: formatDateBR(wo.delivered_at || wo.completed_at),
           total: wo.total || 0
         };
       });
 
     console.log(`Syncing ${rows.length} rows to Google Sheets`);
 
-    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Descrição", "Valor Total"];
+    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total"];
     const values = [
-      [`Produção Keman (Concluídos) — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
+      [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
       header,
-      ...rows.map((r) => [r.created_at, r.name, r.phone, r.description, r.total]),
+      ...rows.map((r) => [r.created_at, r.name, r.phone, r.status, r.description, r.completed_at, r.total]),
     ];
 
     const ghHeaders = {
