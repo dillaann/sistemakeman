@@ -22,9 +22,9 @@ const PRODUCTION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_IKiOkNRyy
 
 
 const columns = [
-  { key: "aguardando", label: "Aguardando Início", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
-  { key: "em_producao", label: "Em Produção", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Clock },
-  { key: "instalando", label: "Em Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: Clock },
+  { key: "aguardando", label: "Aguardando", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
+  { key: "em_producao", label: "Em Produção", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Factory },
+  { key: "aguardando_instalacao", label: "Aguardando Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: AlertCircle },
   { key: "entregue", label: "Entregue", color: "bg-emerald-50/50 border-emerald-200/60 text-emerald-700", icon: CheckCircle2 },
 ];
 
@@ -95,7 +95,7 @@ const Production = () => {
       const productionItems = workOrders.map(wo => ({
         id: wo.id,
         os_id: wo.id,
-        status: wo.status_producao || 'aguardando',
+        status: wo.status || 'aguardando',
         created_at: wo.created_at,
         priority: wo.priority,
         work_orders: wo,
@@ -168,33 +168,13 @@ const Production = () => {
 
   const summary = useMemo(() => {
     const total = productionItems.length;
-    const emProducao = productionItems.filter((p: any) => p.status === "em_producao").length;
-    
-    // Total of late orders (regardless of the filter)
-    const atrasadas = productionItems.filter((p: any) => {
-      const wo = p.work_orders || {};
-      const prazo = p.data_entrega || wo.delivery_deadline;
-      const isFinished = p.status === "entregue";
-      return prazo && new Date(prazo) < new Date() && !isFinished;
-    }).length;
-
-    // Completed in the currently viewed month
-    const concluidasMês = productionItems.filter((p: any) => {
-      const isFinished = p.status === "entregue";
-      if (!isFinished) return false;
-      const wo = p.work_orders || {};
-      const dataConclusao = p.data_conclusao || wo.delivered_at || wo.completed_at;
-      if (!dataConclusao) return false;
-      return isInRange(dataConclusao, dateRange);
-    }).length;
-
-    // Total of pending services (items) on orders not yet delivered
-    const servicosPendentes = productionItems
-      .filter((p: any) => p.status !== "entregue")
-      .reduce((acc: number, p: any) => acc + (p.items?.length || 0), 0);
-
-    return { total, emProducao, atrasadas, concluidasMês, servicosPendentes };
-  }, [productionItems, dateRange]);
+    const counts: Record<string, number> = {};
+    columns.forEach(c => { counts[c.key] = 0; });
+    productionItems.forEach((p: any) => {
+      if (counts[p.status] !== undefined) counts[p.status]++;
+    });
+    return { total, counts };
+  }, [productionItems]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -205,13 +185,14 @@ const Production = () => {
         return;
       }
 
+      const updates: any = { status: newStatus, updated_at: new Date().toISOString() };
+      if (newStatus === 'em_producao') updates.started_at = new Date().toISOString();
+      if (newStatus === 'aguardando_instalacao') updates.completed_at = new Date().toISOString();
+      if (newStatus === 'entregue') updates.delivered_at = new Date().toISOString();
+
       const { error } = await supabase
         .from('work_orders')
-        .update({ 
-          status_producao: newStatus,
-          completed_at: newStatus === 'entregue' ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', id);
       
       if (error) throw error;
@@ -259,68 +240,49 @@ const Production = () => {
         </div>
       </div>
 
-      {/* Summary Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-indigo-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-indigo-500/80 text-xs font-bold uppercase tracking-wider">Serviços a Fazer</p>
-              <p className="text-2xl font-bold text-indigo-700">{summary.servicosPendentes}</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary Bar — same statuses as the OS, click to filter */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <button type="button" onClick={() => setStatusFilter("todos")} className="text-left">
+          <Card className={cn(
+            "shadow-sm border-slate-200/60 overflow-hidden transition-all hover:shadow-md",
+            statusFilter === "todos" ? "ring-2 ring-primary border-primary/40" : "hover:border-primary/30"
+          )}>
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-slate-100 text-slate-600">
+                <Factory className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total</p>
+                <p className="text-2xl font-bold">{summary.total}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
 
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-primary/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-slate-100 text-slate-600 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-              <Factory className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Abertas</p>
-              <p className="text-2xl font-bold">{summary.total}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-blue-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-50 text-blue-600">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-blue-500/80 text-xs font-bold uppercase tracking-wider">Em Produção Hoje</p>
-              <p className="text-2xl font-bold text-blue-700">{summary.emProducao}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-slate-200/60 border-l-4 border-l-red-500 overflow-hidden group hover:border-red-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-red-50 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-red-500/80 text-xs font-bold uppercase tracking-wider">Atrasadas</p>
-              <p className="text-2xl font-bold text-red-700">{summary.atrasadas}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-green-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-green-50 text-green-600">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-green-500/80 text-xs font-bold uppercase tracking-wider">Concluídas Mês</p>
-              <p className="text-2xl font-bold text-green-700">{summary.concluidasMês}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {columns.map(col => {
+          const Icon = col.icon;
+          const active = statusFilter === col.key;
+          return (
+            <button key={col.key} type="button" onClick={() => setStatusFilter(col.key)} className="text-left">
+              <Card className={cn(
+                "shadow-sm border-slate-200/60 overflow-hidden transition-all hover:shadow-md",
+                active ? "ring-2 ring-primary border-primary/40" : "hover:border-primary/30"
+              )}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className={cn("p-3 rounded-xl", col.color)}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{col.label}</p>
+                    <p className="text-2xl font-bold">{summary.counts[col.key] || 0}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </button>
+          );
+        })}
       </div>
+
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-slate-200/60">
@@ -557,7 +519,7 @@ const Production = () => {
                   </DialogTitle>
                   <div className="flex gap-2">
                     <Badge variant="outline" className={columns.find(c => c.key === selectedItem.status)?.color}>
-                      {selectedItem.status}
+                      {columns.find(c => c.key === selectedItem.status)?.label || selectedItem.status}
                     </Badge>
                     {selectedItem.priority === "urgente" && (
                       <Badge variant="destructive">URGENTE</Badge>
