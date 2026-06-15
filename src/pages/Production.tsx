@@ -416,7 +416,13 @@ const Production = () => {
                           <div>
                             <p className="font-bold text-sm line-clamp-1">{wo.clients?.name || "Cliente"}</p>
                             <p className="text-xs text-slate-500 line-clamp-2 mt-1">{wo.description || "Sem descrição"}</p>
+                            {item.items?.length > 0 && (
+                              <Badge variant="secondary" className="mt-2 h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                                <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
+                              </Badge>
+                            )}
                           </div>
+
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                             <div className="flex -space-x-2">
