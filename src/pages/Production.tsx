@@ -124,6 +124,7 @@ const Production = () => {
           created_at: quote.created_at,
           status_producao: 'aguardando'
         },
+        items: [],
         production_occurrences: [],
         source: 'quote'
       }));
