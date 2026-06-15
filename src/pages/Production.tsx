@@ -57,8 +57,7 @@ const Production = () => {
           .from("work_orders")
           .select(`
             id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at, status_producao, quote_id,
-            clients(name),
-            employees(name)
+            clients(name)
           `)
           .order("created_at", { ascending: false }),
         supabase
