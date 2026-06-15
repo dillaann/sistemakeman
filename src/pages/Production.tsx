@@ -189,7 +189,12 @@ const Production = () => {
       return isInRange(dataConclusao, dateRange);
     }).length;
 
-    return { total, emProducao, atrasadas, concluidasMês };
+    // Total of pending services (items) on orders not yet delivered
+    const servicosPendentes = productionItems
+      .filter((p: any) => p.status !== "entregue")
+      .reduce((acc: number, p: any) => acc + (p.items?.length || 0), 0);
+
+    return { total, emProducao, atrasadas, concluidasMês, servicosPendentes };
   }, [productionItems, dateRange]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
