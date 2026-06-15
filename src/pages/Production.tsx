@@ -95,7 +95,7 @@ const Production = () => {
       const productionItems = workOrders.map(wo => ({
         id: wo.id,
         os_id: wo.id,
-        status: wo.status_producao || 'aguardando',
+        status: wo.status || 'aguardando',
         created_at: wo.created_at,
         priority: wo.priority,
         work_orders: wo,
