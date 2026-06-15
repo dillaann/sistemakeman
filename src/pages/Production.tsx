@@ -261,7 +261,19 @@ const Production = () => {
       </div>
 
       {/* Summary Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-indigo-500/30 transition-colors">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-indigo-500/80 text-xs font-bold uppercase tracking-wider">Serviços a Fazer</p>
+              <p className="text-2xl font-bold text-indigo-700">{summary.servicosPendentes}</p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-primary/30 transition-colors">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-slate-100 text-slate-600 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
