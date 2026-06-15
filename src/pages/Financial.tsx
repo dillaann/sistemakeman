@@ -67,6 +67,7 @@ const Financial = () => {
         <TabsContent value="movimentacoes"><MovimentacoesTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="notas"><NotasFiscaisTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="movimentacao"><MovimentacaoTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="desp_rec"><DespesasReceitasTab /></TabsContent>
       </Tabs>
     </div>
   );
