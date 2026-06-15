@@ -598,6 +598,31 @@ const Production = () => {
                     <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Descrição do Serviço</p>
                     <p className="text-sm leading-relaxed">{selectedItem.work_orders?.description || "Sem descrição disponível."}</p>
                   </div>
+                  <div className="space-y-2 border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-indigo-600" />
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">
+                        Serviços a Fazer ({selectedItem.items?.length || 0})
+                      </p>
+                    </div>
+                    {selectedItem.items?.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedItem.items.map((it: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Badge variant="secondary" className="h-6 px-2 text-xs font-bold bg-indigo-100 text-indigo-700 shrink-0">
+                                {it.quantity || 1}x
+                              </Badge>
+                              <p className="text-sm font-medium text-slate-700 truncate">{it.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Nenhum serviço detalhado nesta OS.</p>
+                    )}
+                  </div>
+
                 </TabsContent>
 
                 <TabsContent value="materials" className="pt-4">
