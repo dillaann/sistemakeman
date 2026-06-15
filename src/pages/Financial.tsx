@@ -54,6 +54,9 @@ const Financial = () => {
           <TabsTrigger value="movimentacao" className="flex items-center gap-1 text-xs">
             <BarChart3 className="h-4 w-4" /> Visão Geral
           </TabsTrigger>
+          <TabsTrigger value="desp_rec" className="flex items-center gap-1 text-xs">
+            <Scale className="h-4 w-4" /> Despesas x Receitas
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
