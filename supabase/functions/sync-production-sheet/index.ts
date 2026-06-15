@@ -5,6 +5,9 @@ const SPREADSHEET_ID = "1_IKiOkNRyy6P-PG5WKL5RYjFCr14pAmca2mhhHs2Cg4";
 const SHEET_NAME = "Produção";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
+// Conta na planilha somente OS criadas a partir deste momento
+const CUTOFF_TIMESTAMP = "2026-06-15T14:16:26.000Z";
+
 const STATUS_ORDER: Record<string, number> = {
   "aguardando_aprovacao": 0,
   "aguardando": 1,
@@ -75,6 +78,7 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone)
       `)
+      .gte("created_at", CUTOFF_TIMESTAMP)
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
