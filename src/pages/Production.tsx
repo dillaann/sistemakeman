@@ -22,9 +22,9 @@ const PRODUCTION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_IKiOkNRyy
 
 
 const columns = [
-  { key: "aguardando", label: "Aguardando Início", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
-  { key: "em_producao", label: "Em Produção", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Clock },
-  { key: "instalando", label: "Em Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: Clock },
+  { key: "aguardando", label: "Aguardando", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
+  { key: "em_producao", label: "Em Produção", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Factory },
+  { key: "aguardando_instalacao", label: "Aguardando Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: AlertCircle },
   { key: "entregue", label: "Entregue", color: "bg-emerald-50/50 border-emerald-200/60 text-emerald-700", icon: CheckCircle2 },
 ];
 
