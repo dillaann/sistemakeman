@@ -168,33 +168,13 @@ const Production = () => {
 
   const summary = useMemo(() => {
     const total = productionItems.length;
-    const emProducao = productionItems.filter((p: any) => p.status === "em_producao").length;
-    
-    // Total of late orders (regardless of the filter)
-    const atrasadas = productionItems.filter((p: any) => {
-      const wo = p.work_orders || {};
-      const prazo = p.data_entrega || wo.delivery_deadline;
-      const isFinished = p.status === "entregue";
-      return prazo && new Date(prazo) < new Date() && !isFinished;
-    }).length;
-
-    // Completed in the currently viewed month
-    const concluidasMês = productionItems.filter((p: any) => {
-      const isFinished = p.status === "entregue";
-      if (!isFinished) return false;
-      const wo = p.work_orders || {};
-      const dataConclusao = p.data_conclusao || wo.delivered_at || wo.completed_at;
-      if (!dataConclusao) return false;
-      return isInRange(dataConclusao, dateRange);
-    }).length;
-
-    // Total of pending services (items) on orders not yet delivered
-    const servicosPendentes = productionItems
-      .filter((p: any) => p.status !== "entregue")
-      .reduce((acc: number, p: any) => acc + (p.items?.length || 0), 0);
-
-    return { total, emProducao, atrasadas, concluidasMês, servicosPendentes };
-  }, [productionItems, dateRange]);
+    const counts: Record<string, number> = {};
+    columns.forEach(c => { counts[c.key] = 0; });
+    productionItems.forEach((p: any) => {
+      if (counts[p.status] !== undefined) counts[p.status]++;
+    });
+    return { total, counts };
+  }, [productionItems]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
