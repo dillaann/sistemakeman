@@ -77,6 +77,21 @@ const Production = () => {
       const workOrders = woRes.data || [];
       const approvedQuotes = quotesRes.data || [];
 
+      // Fetch the individual services (items) of each work order
+      const woIds = workOrders.map((wo: any) => wo.id);
+      const itemsMap = new Map<string, any[]>();
+      if (woIds.length > 0) {
+        const { data: items } = await supabase
+          .from("work_order_items" as any)
+          .select("work_order_id, description, quantity, unit_price, total")
+          .in("work_order_id", woIds);
+        (items || []).forEach((item: any) => {
+          const list = itemsMap.get(item.work_order_id) || [];
+          list.push(item);
+          itemsMap.set(item.work_order_id, list);
+        });
+      }
+
       // Map Work Orders
       const productionItems = workOrders.map(wo => ({
         id: wo.id,
@@ -85,6 +100,7 @@ const Production = () => {
         created_at: wo.created_at,
         priority: wo.priority,
         work_orders: wo,
+        items: itemsMap.get(wo.id) || [],
         production_occurrences: [],
         source: 'work_order'
       }));
@@ -108,6 +124,7 @@ const Production = () => {
           created_at: quote.created_at,
           status_producao: 'aguardando'
         },
+        items: [],
         production_occurrences: [],
         source: 'quote'
       }));
@@ -172,7 +189,12 @@ const Production = () => {
       return isInRange(dataConclusao, dateRange);
     }).length;
 
-    return { total, emProducao, atrasadas, concluidasMês };
+    // Total of pending services (items) on orders not yet delivered
+    const servicosPendentes = productionItems
+      .filter((p: any) => p.status !== "entregue")
+      .reduce((acc: number, p: any) => acc + (p.items?.length || 0), 0);
+
+    return { total, emProducao, atrasadas, concluidasMês, servicosPendentes };
   }, [productionItems, dateRange]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -239,7 +261,19 @@ const Production = () => {
       </div>
 
       {/* Summary Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-indigo-500/30 transition-colors">
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-indigo-500/80 text-xs font-bold uppercase tracking-wider">Serviços a Fazer</p>
+              <p className="text-2xl font-bold text-indigo-700">{summary.servicosPendentes}</p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-primary/30 transition-colors">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-slate-100 text-slate-600 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
@@ -382,7 +416,13 @@ const Production = () => {
                           <div>
                             <p className="font-bold text-sm line-clamp-1">{wo.clients?.name || "Cliente"}</p>
                             <p className="text-xs text-slate-500 line-clamp-2 mt-1">{wo.description || "Sem descrição"}</p>
+                            {item.items?.length > 0 && (
+                              <Badge variant="secondary" className="mt-2 h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                                <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
+                              </Badge>
+                            )}
                           </div>
+
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                             <div className="flex -space-x-2">
@@ -455,8 +495,24 @@ const Production = () => {
                         {item.priority === "urgente" && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">URGENTE</Badge>}
                       </div>
                       <p className="text-sm text-slate-500 line-clamp-1">{wo.description || "Sem descrição disponível para este serviço."}</p>
+                      {item.items?.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                            <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
+                          </Badge>
+                          {item.items.slice(0, 3).map((it: any, idx: number) => (
+                            <Badge key={idx} variant="outline" className="h-5 px-1.5 text-[10px] font-normal text-slate-600 border-slate-200 max-w-[180px] truncate">
+                              {it.quantity ? `${it.quantity}x ` : ""}{it.description}
+                            </Badge>
+                          ))}
+                          {item.items.length > 3 && (
+                            <span className="text-[10px] text-slate-400 font-medium">+{item.items.length - 3}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
+
 
                   <div className="flex items-center gap-6 justify-between md:justify-end">
                     <div className="flex flex-col items-end">
@@ -542,6 +598,31 @@ const Production = () => {
                     <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Descrição do Serviço</p>
                     <p className="text-sm leading-relaxed">{selectedItem.work_orders?.description || "Sem descrição disponível."}</p>
                   </div>
+                  <div className="space-y-2 border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-indigo-600" />
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">
+                        Serviços a Fazer ({selectedItem.items?.length || 0})
+                      </p>
+                    </div>
+                    {selectedItem.items?.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedItem.items.map((it: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Badge variant="secondary" className="h-6 px-2 text-xs font-bold bg-indigo-100 text-indigo-700 shrink-0">
+                                {it.quantity || 1}x
+                              </Badge>
+                              <p className="text-sm font-medium text-slate-700 truncate">{it.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Nenhum serviço detalhado nesta OS.</p>
+                    )}
+                  </div>
+
                 </TabsContent>
 
                 <TabsContent value="materials" className="pt-4">
