@@ -489,8 +489,24 @@ const Production = () => {
                         {item.priority === "urgente" && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">URGENTE</Badge>}
                       </div>
                       <p className="text-sm text-slate-500 line-clamp-1">{wo.description || "Sem descrição disponível para este serviço."}</p>
+                      {item.items?.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                            <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
+                          </Badge>
+                          {item.items.slice(0, 3).map((it: any, idx: number) => (
+                            <Badge key={idx} variant="outline" className="h-5 px-1.5 text-[10px] font-normal text-slate-600 border-slate-200 max-w-[180px] truncate">
+                              {it.quantity ? `${it.quantity}x ` : ""}{it.description}
+                            </Badge>
+                          ))}
+                          {item.items.length > 3 && (
+                            <span className="text-[10px] text-slate-400 font-medium">+{item.items.length - 3}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
+
 
                   <div className="flex items-center gap-6 justify-between md:justify-end">
                     <div className="flex flex-col items-end">
