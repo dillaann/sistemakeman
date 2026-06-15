@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
+import DespesasReceitasTab from "@/components/financial/DespesasReceitasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
 import MovimentacaoTab from "@/components/financial/MovimentacaoTab";
 import ContasTab from "@/components/financial/ContasTab";
@@ -28,7 +29,7 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
             <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
@@ -53,6 +54,9 @@ const Financial = () => {
           <TabsTrigger value="movimentacao" className="flex items-center gap-1 text-xs">
             <BarChart3 className="h-4 w-4" /> Visão Geral
           </TabsTrigger>
+          <TabsTrigger value="desp_rec" className="flex items-center gap-1 text-xs">
+            <Scale className="h-4 w-4" /> Despesas x Receitas
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
@@ -63,6 +67,7 @@ const Financial = () => {
         <TabsContent value="movimentacoes"><MovimentacoesTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="notas"><NotasFiscaisTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="movimentacao"><MovimentacaoTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="desp_rec"><DespesasReceitasTab /></TabsContent>
       </Tabs>
     </div>
   );
