@@ -239,68 +239,49 @@ const Production = () => {
         </div>
       </div>
 
-      {/* Summary Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-indigo-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-indigo-500/80 text-xs font-bold uppercase tracking-wider">Serviços a Fazer</p>
-              <p className="text-2xl font-bold text-indigo-700">{summary.servicosPendentes}</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary Bar — same statuses as the OS, click to filter */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <button type="button" onClick={() => setStatusFilter("todos")} className="text-left">
+          <Card className={cn(
+            "shadow-sm border-slate-200/60 overflow-hidden transition-all hover:shadow-md",
+            statusFilter === "todos" ? "ring-2 ring-primary border-primary/40" : "hover:border-primary/30"
+          )}>
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-slate-100 text-slate-600">
+                <Factory className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total</p>
+                <p className="text-2xl font-bold">{summary.total}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
 
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-primary/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-slate-100 text-slate-600 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-              <Factory className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Abertas</p>
-              <p className="text-2xl font-bold">{summary.total}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-blue-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-50 text-blue-600">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-blue-500/80 text-xs font-bold uppercase tracking-wider">Em Produção Hoje</p>
-              <p className="text-2xl font-bold text-blue-700">{summary.emProducao}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-slate-200/60 border-l-4 border-l-red-500 overflow-hidden group hover:border-red-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-red-50 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-red-500/80 text-xs font-bold uppercase tracking-wider">Atrasadas</p>
-              <p className="text-2xl font-bold text-red-700">{summary.atrasadas}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-slate-200/60 overflow-hidden group hover:border-green-500/30 transition-colors">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-green-50 text-green-600">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-green-500/80 text-xs font-bold uppercase tracking-wider">Concluídas Mês</p>
-              <p className="text-2xl font-bold text-green-700">{summary.concluidasMês}</p>
-            </div>
-          </CardContent>
-        </Card>
+        {columns.map(col => {
+          const Icon = col.icon;
+          const active = statusFilter === col.key;
+          return (
+            <button key={col.key} type="button" onClick={() => setStatusFilter(col.key)} className="text-left">
+              <Card className={cn(
+                "shadow-sm border-slate-200/60 overflow-hidden transition-all hover:shadow-md",
+                active ? "ring-2 ring-primary border-primary/40" : "hover:border-primary/30"
+              )}>
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className={cn("p-3 rounded-xl", col.color)}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{col.label}</p>
+                    <p className="text-2xl font-bold">{summary.counts[col.key] || 0}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </button>
+          );
+        })}
       </div>
+
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-slate-200/60">
