@@ -130,7 +130,19 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
         { body: { imageUrls } }
       );
 
-      if (fnError) throw new Error(fnError.message || "Erro ao processar");
+      if (fnError) {
+        // The default invoke error message is generic ("non-2xx status code").
+        // Try to read the real message from the function's response body.
+        let detail = fnError.message || "Erro ao processar";
+        const ctx = (fnError as any)?.context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.json();
+            if (body?.error) detail = body.error;
+          } catch { /* keep default message */ }
+        }
+        throw new Error(detail);
+      }
       if (!result?.success) throw new Error(result?.error || "Falha na extração");
 
       const data = result.data;
