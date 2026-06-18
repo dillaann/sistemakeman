@@ -90,18 +90,26 @@ const PhotoPurchaseDialog = ({ open, onOpenChange, suppliers, purchaseRequests, 
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const uploadPhotos = async (): Promise<string[]> => {
+    // Send images as base64 data URIs so the AI gateway can read them directly
+    // (private storage signed URLs are not always fetchable by the model).
     const urls: string[] = [];
     for (const photo of photos) {
+      // Keep a copy in storage for record-keeping (best effort, non-blocking).
       const ext = photo.file.name.split(".").pop() || "jpg";
       const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("purchase-photos").upload(path, photo.file);
-      if (error) throw error;
-      const { data: signed, error: signErr } = await supabase.storage
-        .from("purchase-photos")
-        .createSignedUrl(path, 60 * 60);
-      if (signErr || !signed) throw signErr ?? new Error("Falha ao gerar URL");
-      urls.push(signed.signedUrl);
+      supabase.storage.from("purchase-photos").upload(path, photo.file).catch(() => {});
+
+      const dataUri = await fileToBase64(photo.file);
+      urls.push(dataUri);
     }
     return urls;
   };
