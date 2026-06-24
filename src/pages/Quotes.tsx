@@ -126,7 +126,7 @@ const Quotes = () => {
   const { data: sellers = [] } = useQuery({
     queryKey: ["sellers-list"],
     queryFn: async () => {
-      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "vendedor");
+      const { data: roles } = await supabase.from("user_roles").select("user_id").in("role", ["vendedor", "admin"]);
       if (!roles?.length) return [];
       const sellerIds = roles.map(r => r.user_id);
       const { data: profiles } = await supabase.rpc("get_team_display_names");
