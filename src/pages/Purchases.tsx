@@ -65,6 +65,7 @@ const Purchases = () => {
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
   const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [editOrderTarget, setEditOrderTarget] = useState<any | null>(null);
   const [orderDetailsId, setOrderDetailsId] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
@@ -363,6 +364,78 @@ const Purchases = () => {
       items: any[];
     }) => {
       const { order, items: orderItems } = payload;
+
+      // EDIT MODE: update existing order in place
+      if (order.id) {
+        const supplierNameEdit = suppliers.find(s => s.id === order.supplier_id)?.name ?? "Fornecedor";
+        const { data: existingOrder } = await supabase
+          .from("purchase_orders" as any)
+          .select("order_number")
+          .eq("id", order.id)
+          .single();
+        const editOrderNumber = (existingOrder as any)?.order_number ?? "";
+
+        // Update header
+        const { error: updErr } = await supabase
+          .from("purchase_orders" as any)
+          .update({
+            supplier_id: order.supplier_id,
+            client_id: order.client_id,
+            work_order_id: order.work_order_id,
+            purchase_date: order.purchase_date,
+            payment_method: order.payment_method,
+            payment_status: order.payment_status,
+            due_date: order.due_date,
+            invoice_number: order.invoice_number,
+            notes: order.notes,
+            total: order.total,
+            original_total: order.original_total || order.total,
+            discount_amount: order.discount_amount || 0,
+          } as any)
+          .eq("id", order.id);
+        if (updErr) throw updErr;
+
+        // Replace items
+        await supabase.from("purchases").delete().eq("order_id", order.id);
+        const editItemsToInsert = orderItems.map((it: any) => ({
+          order_id: order.id,
+          material: it.material,
+          quantity: it.quantity,
+          unit: it.unit,
+          unit_price: it.unit_price,
+          total: it.total,
+          supplier_id: order.supplier_id,
+          client_id: it.client_id,
+          work_order_id: it.work_order_id,
+          purchase_date: order.purchase_date,
+          payment_method: order.payment_method,
+          payment_status: order.payment_status,
+          due_date: order.due_date,
+          invoice_number: order.invoice_number,
+          original_price: it.original_price || null,
+          discount_amount: it.discount_amount || 0,
+          discount_percentage: it.discount_percentage || 0,
+        }));
+        const { error: editItemsErr } = await supabase.from("purchases").insert(editItemsToInsert as any);
+        if (editItemsErr) throw editItemsErr;
+
+        // Update linked financial transaction
+        await supabase.from("financial_transactions")
+          .update({
+            description: `Compra — ${supplierNameEdit} — Pedido ${editOrderNumber}`,
+            amount: order.total,
+            due_date: order.due_date || order.purchase_date,
+            paid_date: order.payment_status === "pago" ? order.purchase_date : null,
+            status: (order.payment_status === "pago" ? "pago" : "pendente") as any,
+            payment_method: order.payment_method,
+            client_id: order.client_id,
+            work_order_id: order.work_order_id,
+          } as any)
+          .eq("purchase_order_id", order.id);
+
+        return;
+      }
+
       // 1) Generate order number
       const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, {
         _date: order.purchase_date,
@@ -452,8 +525,10 @@ const Purchases = () => {
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       qc.invalidateQueries({ queryKey: ["production-orders"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      const wasEditing = !!editOrderTarget;
       setNewOrderOpen(false);
-      toast({ title: "Pedido registrado!" });
+      setEditOrderTarget(null);
+      toast({ title: wasEditing ? "Pedido atualizado!" : "Pedido registrado!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -932,7 +1007,7 @@ const Purchases = () => {
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
-              <Button onClick={() => setNewOrderOpen(true)}>
+              <Button onClick={() => { setEditOrderTarget(null); setNewOrderOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />Novo Pedido
               </Button>
             </div>
@@ -1017,6 +1092,9 @@ const Purchases = () => {
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => setOrderDetailsId(o.id)}>Ver</Button>
+                            <Button size="sm" variant="outline" onClick={() => { setEditOrderTarget(o); setNewOrderOpen(true); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
                             {o.payment_status !== "pago" && (
                               <Button size="sm" variant="outline" onClick={() => markOrderPaid.mutate(o.id)}>Pagar</Button>
                             )}
@@ -1333,11 +1411,13 @@ const Purchases = () => {
 
       <NewOrderDialog
         open={newOrderOpen}
-        onOpenChange={setNewOrderOpen}
+        onOpenChange={(v) => { setNewOrderOpen(v); if (!v) setEditOrderTarget(null); }}
         suppliers={suppliers}
         clients={clients}
         workOrders={allWorkOrders}
         isPending={saveOrder.isPending}
+        editOrder={editOrderTarget}
+        editItems={editOrderTarget ? (itemsByOrder[editOrderTarget.id] ?? []) : []}
         onSave={async (payload) => { await saveOrder.mutateAsync(payload); }}
       />
 

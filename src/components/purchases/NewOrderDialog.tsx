@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ interface Props {
   workOrders: any[];
   onSave: (payload: {
     order: {
+      id?: string;
       supplier_id: string | null;
       client_id: string | null;
       work_order_id: string | null;
@@ -64,9 +65,11 @@ interface Props {
     }>;
   }) => Promise<void> | void;
   isPending?: boolean;
+  editOrder?: any | null;
+  editItems?: any[];
 }
 
-export default function NewOrderDialog({ open, onOpenChange, suppliers, clients, workOrders, onSave, isPending }: Props) {
+export default function NewOrderDialog({ open, onOpenChange, suppliers, clients, workOrders, onSave, isPending, editOrder, editItems }: Props) {
   const [orderForm, setOrderForm] = useState({
     supplier_id: "",
     client_id: "",
@@ -81,6 +84,40 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
   const [items, setItems] = useState<ItemRow[]>([emptyItem()]);
   const [originalTotalOverride, setOriginalTotalOverride] = useState<string>("");
   const [finalTotalOverride, setFinalTotalOverride] = useState<string>("");
+
+  const isEditing = !!editOrder;
+
+  useEffect(() => {
+    if (open && editOrder) {
+      setOrderForm({
+        supplier_id: editOrder.supplier_id || "",
+        client_id: editOrder.client_id || "",
+        work_order_id: editOrder.work_order_id || "",
+        purchase_date: editOrder.purchase_date || localDateString(),
+        payment_method: editOrder.payment_method || "pix",
+        payment_status: editOrder.payment_status || "pendente",
+        due_date: editOrder.due_date || "",
+        invoice_number: editOrder.invoice_number || "",
+        notes: editOrder.notes || "",
+      });
+      setItems(
+        editItems && editItems.length > 0
+          ? editItems.map((it: any) => ({
+              material: it.material || "",
+              quantity: String(it.quantity ?? "1"),
+              unit: it.unit || "un",
+              original_unit_price: String(it.original_price ?? it.unit_price ?? "0"),
+              final_unit_price: String(it.unit_price ?? "0"),
+              client_id: it.client_id || undefined,
+              work_order_id: it.work_order_id || undefined,
+            }))
+          : [emptyItem()]
+      );
+      setOriginalTotalOverride(editOrder.original_total != null ? String(editOrder.original_total) : "");
+      setFinalTotalOverride(editOrder.total != null ? String(editOrder.total) : "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editOrder]);
 
   const reset = () => {
     setOrderForm({
@@ -171,6 +208,7 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
 
     await onSave({
       order: {
+        id: editOrder?.id,
         supplier_id: orderForm.supplier_id || null,
         client_id: orderForm.client_id || null,
         work_order_id: orderForm.work_order_id || null,
@@ -192,7 +230,7 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Novo Pedido de Compra</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEditing ? "Editar Pedido de Compra" : "Novo Pedido de Compra"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Order header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -384,7 +422,7 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
           </div>
 
           <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? "Salvando..." : "Registrar Pedido"}
+            {isPending ? "Salvando..." : isEditing ? "Salvar Alterações" : "Registrar Pedido"}
           </Button>
         </form>
       </DialogContent>
