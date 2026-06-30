@@ -1007,7 +1007,7 @@ const Purchases = () => {
               <Button variant="outline" onClick={() => setPhotoDialogOpen(true)}>
                 <Camera className="h-4 w-4 mr-2" />Registrar por Foto
               </Button>
-              <Button onClick={() => setNewOrderOpen(true)}>
+              <Button onClick={() => { setEditOrderTarget(null); setNewOrderOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />Novo Pedido
               </Button>
             </div>
