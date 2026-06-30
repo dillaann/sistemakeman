@@ -511,7 +511,7 @@ const Purchases = () => {
         type: "a_pagar" as any,
         description: `Compra — ${supplierName} — Pedido ${orderNumber}`,
         amount: order.total,
-        due_date: order.due_date || order.purchase_date,
+        due_date: order.payment_status === "pago" ? order.purchase_date : (order.due_date || order.purchase_date),
         paid_date: order.payment_status === "pago" ? order.purchase_date : null,
         category: "Compra",
         status: (order.payment_status === "pago" ? "pago" : "pendente") as any,
