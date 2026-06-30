@@ -1411,11 +1411,13 @@ const Purchases = () => {
 
       <NewOrderDialog
         open={newOrderOpen}
-        onOpenChange={setNewOrderOpen}
+        onOpenChange={(v) => { setNewOrderOpen(v); if (!v) setEditOrderTarget(null); }}
         suppliers={suppliers}
         clients={clients}
         workOrders={allWorkOrders}
         isPending={saveOrder.isPending}
+        editOrder={editOrderTarget}
+        editItems={editOrderTarget ? (itemsByOrder[editOrderTarget.id] ?? []) : []}
         onSave={async (payload) => { await saveOrder.mutateAsync(payload); }}
       />
 
