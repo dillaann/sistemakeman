@@ -419,22 +419,38 @@ const Purchases = () => {
         const { error: editItemsErr } = await supabase.from("purchases").insert(editItemsToInsert as any);
         if (editItemsErr) throw editItemsErr;
 
-        // Update linked financial transaction
-        await supabase.from("financial_transactions")
-          .update({
-            description: `Compra — ${supplierNameEdit} — Pedido ${editOrderNumber}`,
-            amount: order.total,
-            due_date: order.due_date || order.purchase_date,
-            paid_date: order.payment_status === "pago" ? order.purchase_date : null,
-            status: (order.payment_status === "pago" ? "pago" : "pendente") as any,
-            payment_method: order.payment_method,
-            client_id: order.client_id,
-            work_order_id: order.work_order_id,
-          } as any)
-          .eq("purchase_order_id", order.id);
+        // Update linked financial transaction (keep entire system in sync)
+        const ftPayload = {
+          description: `Compra — ${supplierNameEdit} — Pedido ${editOrderNumber}`,
+          amount: order.total,
+          category: "Compra",
+          due_date: order.due_date || order.purchase_date,
+          paid_date: order.payment_status === "pago" ? order.purchase_date : null,
+          status: (order.payment_status === "pago" ? "pago" : "pendente") as any,
+          payment_method: order.payment_method,
+          client_id: order.client_id,
+          work_order_id: order.work_order_id,
+        };
+        const { data: updatedFt, error: ftErr } = await supabase
+          .from("financial_transactions")
+          .update(ftPayload as any)
+          .eq("purchase_order_id", order.id)
+          .select("id");
+        if (ftErr) throw ftErr;
+
+        // Fallback: if no transaction was linked, create one so it shows in Saídas
+        if (!updatedFt || updatedFt.length === 0) {
+          await supabase.from("financial_transactions").insert({
+            type: "a_pagar" as any,
+            ...ftPayload,
+            purchase_order_id: order.id,
+            sync_origin: "purchase_order",
+          } as any);
+        }
 
         return;
       }
+
 
       // 1) Generate order number
       const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, {
