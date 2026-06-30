@@ -1092,6 +1092,9 @@ const Purchases = () => {
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => setOrderDetailsId(o.id)}>Ver</Button>
+                            <Button size="sm" variant="outline" onClick={() => { setEditOrderTarget(o); setNewOrderOpen(true); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
                             {o.payment_status !== "pago" && (
                               <Button size="sm" variant="outline" onClick={() => markOrderPaid.mutate(o.id)}>Pagar</Button>
                             )}
