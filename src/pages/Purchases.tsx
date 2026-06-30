@@ -65,6 +65,7 @@ const Purchases = () => {
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
   const [editPurchaseId, setEditPurchaseId] = useState<string | null>(null);
   const [newOrderOpen, setNewOrderOpen] = useState(false);
+  const [editOrderTarget, setEditOrderTarget] = useState<any | null>(null);
   const [orderDetailsId, setOrderDetailsId] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
