@@ -422,7 +422,7 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
           </div>
 
           <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? "Salvando..." : "Registrar Pedido"}
+            {isPending ? "Salvando..." : isEditing ? "Salvar Alterações" : "Registrar Pedido"}
           </Button>
         </form>
       </DialogContent>
