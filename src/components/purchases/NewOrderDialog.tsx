@@ -230,7 +230,7 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Novo Pedido de Compra</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isEditing ? "Editar Pedido de Compra" : "Novo Pedido de Compra"}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Order header */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
