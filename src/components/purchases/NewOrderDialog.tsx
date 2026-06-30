@@ -38,6 +38,7 @@ interface Props {
   workOrders: any[];
   onSave: (payload: {
     order: {
+      id?: string;
       supplier_id: string | null;
       client_id: string | null;
       work_order_id: string | null;
