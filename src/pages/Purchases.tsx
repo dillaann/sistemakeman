@@ -324,7 +324,7 @@ const Purchases = () => {
           type: "a_pagar" as any,
           description: descParts.join(" "),
           amount: total,
-          due_date: pForm.due_date || pForm.purchase_date,
+          due_date: pForm.payment_status === "pago" ? pForm.purchase_date : (pForm.due_date || pForm.purchase_date),
           paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
           category: "Compra",
           status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
