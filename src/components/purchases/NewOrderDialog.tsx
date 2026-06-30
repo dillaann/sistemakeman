@@ -208,6 +208,7 @@ export default function NewOrderDialog({ open, onOpenChange, suppliers, clients,
 
     await onSave({
       order: {
+        id: editOrder?.id,
         supplier_id: orderForm.supplier_id || null,
         client_id: orderForm.client_id || null,
         work_order_id: orderForm.work_order_id || null,
