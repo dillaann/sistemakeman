@@ -363,6 +363,78 @@ const Purchases = () => {
       items: any[];
     }) => {
       const { order, items: orderItems } = payload;
+
+      // EDIT MODE: update existing order in place
+      if (order.id) {
+        const supplierNameEdit = suppliers.find(s => s.id === order.supplier_id)?.name ?? "Fornecedor";
+        const { data: existingOrder } = await supabase
+          .from("purchase_orders" as any)
+          .select("order_number")
+          .eq("id", order.id)
+          .single();
+        const editOrderNumber = (existingOrder as any)?.order_number ?? "";
+
+        // Update header
+        const { error: updErr } = await supabase
+          .from("purchase_orders" as any)
+          .update({
+            supplier_id: order.supplier_id,
+            client_id: order.client_id,
+            work_order_id: order.work_order_id,
+            purchase_date: order.purchase_date,
+            payment_method: order.payment_method,
+            payment_status: order.payment_status,
+            due_date: order.due_date,
+            invoice_number: order.invoice_number,
+            notes: order.notes,
+            total: order.total,
+            original_total: order.original_total || order.total,
+            discount_amount: order.discount_amount || 0,
+          } as any)
+          .eq("id", order.id);
+        if (updErr) throw updErr;
+
+        // Replace items
+        await supabase.from("purchases").delete().eq("order_id", order.id);
+        const editItemsToInsert = orderItems.map((it: any) => ({
+          order_id: order.id,
+          material: it.material,
+          quantity: it.quantity,
+          unit: it.unit,
+          unit_price: it.unit_price,
+          total: it.total,
+          supplier_id: order.supplier_id,
+          client_id: it.client_id,
+          work_order_id: it.work_order_id,
+          purchase_date: order.purchase_date,
+          payment_method: order.payment_method,
+          payment_status: order.payment_status,
+          due_date: order.due_date,
+          invoice_number: order.invoice_number,
+          original_price: it.original_price || null,
+          discount_amount: it.discount_amount || 0,
+          discount_percentage: it.discount_percentage || 0,
+        }));
+        const { error: editItemsErr } = await supabase.from("purchases").insert(editItemsToInsert as any);
+        if (editItemsErr) throw editItemsErr;
+
+        // Update linked financial transaction
+        await supabase.from("financial_transactions")
+          .update({
+            description: `Compra — ${supplierNameEdit} — Pedido ${editOrderNumber}`,
+            amount: order.total,
+            due_date: order.due_date || order.purchase_date,
+            paid_date: order.payment_status === "pago" ? order.purchase_date : null,
+            status: (order.payment_status === "pago" ? "pago" : "pendente") as any,
+            payment_method: order.payment_method,
+            client_id: order.client_id,
+            work_order_id: order.work_order_id,
+          } as any)
+          .eq("purchase_order_id", order.id);
+
+        return;
+      }
+
       // 1) Generate order number
       const { data: numData, error: numErr } = await supabase.rpc("next_purchase_order_number" as any, {
         _date: order.purchase_date,
