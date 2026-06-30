@@ -525,8 +525,10 @@ const Purchases = () => {
       qc.invalidateQueries({ queryKey: ["work-orders"] });
       qc.invalidateQueries({ queryKey: ["production-orders"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      const wasEditing = !!editOrderTarget;
       setNewOrderOpen(false);
-      toast({ title: "Pedido registrado!" });
+      setEditOrderTarget(null);
+      toast({ title: wasEditing ? "Pedido atualizado!" : "Pedido registrado!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
