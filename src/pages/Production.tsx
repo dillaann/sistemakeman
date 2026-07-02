@@ -285,7 +285,7 @@ const Production = () => {
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               <h2 className="text-lg font-bold">Histórico de Orçamentos Aprovados</h2>
             </div>
-            <p className="text-sm text-muted-foreground">Registro de quando cada orçamento foi aprovado e por quem.</p>
+            <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
           </CardHeader>
           <CardContent>
             {approvalLog.length === 0 ? (
