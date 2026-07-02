@@ -196,8 +196,8 @@ const Production = () => {
 
   // Print the approved-quotes history
   const handlePrintApprovalLog = useCallback(() => {
-    const rows = filteredApprovalLog
-      .map((q: any) => {
+    const blocks = filteredApprovalLog
+      .map((q: any, i: number) => {
         const date = q.approved_at
           ? new Date(q.approved_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
           : "—";
@@ -205,7 +205,17 @@ const Production = () => {
         const approver = sellerId ? (profilesMap[sellerId] || "Não identificado") : "Não identificado";
         const client = q.clients?.name || "Cliente não informado";
         const total = Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        return `<tr><td>${date}</td><td>${approver}</td><td>${client}</td><td style="text-align:right">${total}</td></tr>`;
+        return `<div class="quote">
+          <div class="quote-title">${i + 1}. ${client}</div>
+          <table>
+            <tbody>
+              <tr><th>Cliente</th><td>${client}</td></tr>
+              <tr><th>Aprovado por</th><td>${approver}</td></tr>
+              <tr><th>Data da Aprovação</th><td>${date}</td></tr>
+              <tr><th>Valor</th><td class="value">${total}</td></tr>
+            </tbody>
+          </table>
+        </div>`;
       })
       .join("");
     const totalSum = filteredApprovalLog
@@ -218,18 +228,18 @@ const Production = () => {
         body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#0f172a}
         h1{font-size:18px;margin:0 0 4px}
         p{color:#64748b;font-size:12px;margin:0 0 16px}
+        .quote{border:1px solid #cbd5e1;border-radius:8px;padding:12px 16px;margin-bottom:16px;page-break-inside:avoid}
+        .quote-title{font-size:14px;font-weight:bold;margin-bottom:8px;color:#0f172a}
         table{width:100%;border-collapse:collapse;font-size:12px}
-        th,td{padding:8px;border-bottom:1px solid #e2e8f0;text-align:left}
-        th{text-transform:uppercase;font-size:10px;letter-spacing:.05em;color:#64748b}
-        tfoot td{font-weight:bold;border-top:2px solid #cbd5e1}
+        th,td{padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}
+        th{width:150px;text-transform:uppercase;font-size:10px;letter-spacing:.05em;color:#64748b}
+        td.value{font-weight:bold}
+        .grand-total{margin-top:8px;padding:10px 16px;border-top:2px solid #cbd5e1;font-size:13px;font-weight:bold;display:flex;justify-content:space-between}
       </style></head><body>
       <h1>Histórico de Orçamentos Aprovados</h1>
       <p>Gerado em ${new Date().toLocaleString("pt-BR")} — ${filteredApprovalLog.length} registro(s)</p>
-      <table>
-        <thead><tr><th>Data da Aprovação</th><th>Aprovado por</th><th>Cliente</th><th style="text-align:right">Valor</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="3">Total</td><td style="text-align:right">${totalSum}</td></tr></tfoot>
-      </table>
+      ${blocks}
+      <div class="grand-total"><span>Total Geral</span><span>${totalSum}</span></div>
       </body></html>`);
     win.document.close();
     win.focus();
