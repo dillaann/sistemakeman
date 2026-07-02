@@ -1,0 +1,1 @@
+ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS approved_by uuid REFERENCES public.profiles(id);
