@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, Search, Info, Package, History, FileText, Factory, Clock, CheckCircle2, AlertCircle, LayoutGrid, List as ListIcon, User, Calendar, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { AlertTriangle, ArrowRight, MessageSquare, ChevronDown, ChevronUp, Eye, EyeOff, Search, Info, Package, History, FileText, Factory, Clock, CheckCircle2, AlertCircle, LayoutGrid, List as ListIcon, User, Calendar, ChevronRight, FileSpreadsheet, Printer } from "lucide-react";
 import WorkOrderMaterials from "@/components/WorkOrderMaterials";
 import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -180,6 +180,10 @@ const Production = () => {
     );
   }, [approvalLog, dateRange]);
 
+
+
+
+
   const { data: profilesMap = {} } = useQuery({
     queryKey: ["profiles-map-production"],
     queryFn: async () => {
@@ -189,6 +193,49 @@ const Production = () => {
       return map;
     },
   });
+
+  // Print the approved-quotes history
+  const handlePrintApprovalLog = useCallback(() => {
+    const rows = filteredApprovalLog
+      .map((q: any) => {
+        const date = q.approved_at
+          ? new Date(q.approved_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+          : "—";
+        const approver = q.approved_by ? (profilesMap[q.approved_by] || "Não identificado") : "Não identificado";
+        const client = q.clients?.name || "Cliente não informado";
+        const total = Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        return `<tr><td>${date}</td><td>${approver}</td><td>${client}</td><td style="text-align:right">${total}</td></tr>`;
+      })
+      .join("");
+    const totalSum = filteredApprovalLog
+      .reduce((s: number, q: any) => s + Number(q.total || 0), 0)
+      .toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Histórico de Orçamentos Aprovados</title>
+      <style>
+        body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#0f172a}
+        h1{font-size:18px;margin:0 0 4px}
+        p{color:#64748b;font-size:12px;margin:0 0 16px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{padding:8px;border-bottom:1px solid #e2e8f0;text-align:left}
+        th{text-transform:uppercase;font-size:10px;letter-spacing:.05em;color:#64748b}
+        tfoot td{font-weight:bold;border-top:2px solid #cbd5e1}
+      </style></head><body>
+      <h1>Histórico de Orçamentos Aprovados</h1>
+      <p>Gerado em ${new Date().toLocaleString("pt-BR")} — ${filteredApprovalLog.length} registro(s)</p>
+      <table>
+        <thead><tr><th>Data da Aprovação</th><th>Aprovado por</th><th>Cliente</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="3">Total</td><td style="text-align:right">${totalSum}</td></tr></tfoot>
+      </table>
+      </body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+  }, [filteredApprovalLog, profilesMap]);
+
+
 
   const filteredItems = useMemo(() => {
     return productionItems.filter((item: any) => {
@@ -315,7 +362,12 @@ const Production = () => {
                 </div>
                 <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
               </div>
-              <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+              <div className="flex items-center gap-2">
+                <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+                <Button variant="outline" size="sm" onClick={handlePrintApprovalLog} disabled={filteredApprovalLog.length === 0}>
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
