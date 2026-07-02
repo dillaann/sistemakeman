@@ -597,6 +597,10 @@ const Production = () => {
           })}
         </div>
       )}
+      </>
+      )}
+
+
 
       {/* OS Detail Drawer/Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
