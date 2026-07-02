@@ -218,13 +218,14 @@ const Production = () => {
         body{font-family:Arial,Helvetica,sans-serif;padding:28px;color:#0f172a}
         h1{font-size:22px;margin:0 0 4px}
         p{color:#64748b;font-size:13px;margin:0 0 18px}
-        table{width:100%;border-collapse:collapse;font-size:14px}
-        th,td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:left}
-        th{text-transform:uppercase;font-size:11px;letter-spacing:.05em;color:#64748b;background:#f1f5f9}
-        td.num{color:#64748b;width:36px}
+        table{width:100%;border-collapse:collapse;font-size:14px;border:2px solid #000}
+        th,td{padding:10px 12px;border:1px solid #000;text-align:left}
+        th{text-transform:uppercase;font-size:11px;letter-spacing:.05em;color:#000;background:#e2e8f0}
+        td.num{color:#000;width:36px}
         td.value{text-align:right;font-weight:bold;white-space:nowrap}
         tr{page-break-inside:avoid}
-        tfoot td{font-weight:bold;font-size:15px;border-top:2px solid #cbd5e1;padding-top:12px}
+        tbody tr:nth-child(even){background:#f1f5f9}
+        tfoot td{font-weight:bold;font-size:15px;border:2px solid #000;padding-top:12px}
 
       </style></head><body>
       <h1>Histórico de Orçamentos Aprovados</h1>
