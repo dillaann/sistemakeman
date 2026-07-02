@@ -141,11 +141,16 @@ const Production = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, quote_number, total, approved_at, approved_by, created_at, clients(name)")
+        .select("id, quote_number, total, approved_at, approved_by, created_at, clients(name), work_orders(status)")
         .eq("status", "aprovado")
         .order("approved_at", { ascending: false, nullsFirst: false });
       if (error) throw error;
-      return data || [];
+      // Only quotes whose work order is NOT completed (delivered) in the OS
+      return (data || []).filter((q: any) => {
+        const wos = q.work_orders || [];
+        if (!wos.length) return true;
+        return !wos.every((wo: any) => wo.status === "entregue");
+      });
     },
   });
 
@@ -280,7 +285,7 @@ const Production = () => {
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               <h2 className="text-lg font-bold">Histórico de Orçamentos Aprovados</h2>
             </div>
-            <p className="text-sm text-muted-foreground">Registro de quando cada orçamento foi aprovado e por quem.</p>
+            <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
           </CardHeader>
           <CardContent>
             {approvalLog.length === 0 ? (
