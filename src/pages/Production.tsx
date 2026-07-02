@@ -22,10 +22,10 @@ const PRODUCTION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1_IKiOkNRyy
 
 
 const columns = [
-  { key: "aguardando", label: "Aguardando", color: "bg-amber-50/50 border-amber-200/60 text-amber-700", icon: Clock },
-  { key: "em_producao", label: "Em Produção", color: "bg-blue-50/50 border-blue-200/60 text-blue-700", icon: Factory },
-  { key: "aguardando_instalacao", label: "Aguardando Instalação", color: "bg-cyan-50/50 border-cyan-200/60 text-cyan-700", icon: AlertCircle },
-  { key: "entregue", label: "Entregue", color: "bg-emerald-50/50 border-emerald-200/60 text-emerald-700", icon: CheckCircle2 },
+  { key: "aguardando", label: "Aguardando", color: "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400", icon: Clock },
+  { key: "em_producao", label: "Em Produção", color: "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400", icon: Factory },
+  { key: "aguardando_instalacao", label: "Aguardando Instalação", color: "bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400", icon: AlertCircle },
+  { key: "entregue", label: "Entregue", color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400", icon: CheckCircle2 },
 ];
 
 
@@ -311,7 +311,7 @@ const Production = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-slate-50/30 min-h-screen">
+    <div className="p-4 md:p-6 space-y-6 bg-background min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Módulo de Produção</h1>
@@ -327,7 +327,7 @@ const Production = () => {
           <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
           <Button
             variant="outline"
-            className="h-9 gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            className="h-9 gap-2 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
             onClick={async () => {
               window.open(PRODUCTION_SHEET_URL, "_blank");
               try {
@@ -352,12 +352,12 @@ const Production = () => {
       </Tabs>
 
       {mainTab === "aprovacoes" ? (
-        <Card className="shadow-sm border-slate-200/60">
+        <Card className="shadow-sm border-border/60">
           <CardHeader className="pb-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   <h2 className="text-lg font-bold">Histórico de Orçamentos Aprovados</h2>
                 </div>
                 <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
@@ -377,7 +377,7 @@ const Production = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wider text-slate-500">
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="py-3 pr-4 font-bold">Data da Aprovação</th>
                       <th className="py-3 pr-4 font-bold">Aprovado por</th>
                       <th className="py-3 pr-4 font-bold">Cliente</th>
@@ -387,10 +387,10 @@ const Production = () => {
                   </thead>
                   <tbody>
                     {filteredApprovalLog.map((q: any) => (
-                      <tr key={q.id} className="border-b border-slate-100 hover:bg-slate-50/60">
+                      <tr key={q.id} className="border-b border-border/50 hover:bg-muted/40">
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-slate-400" />
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">
                               {q.approved_at ? new Date(q.approved_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
                             </span>
@@ -407,14 +407,14 @@ const Production = () => {
                           </div>
                         </td>
                         <td className="py-3 pr-4 font-medium">{q.clients?.name || "Cliente não informado"}</td>
-                        <td className="py-3 pr-4 text-right font-bold text-emerald-700">
+                        <td className="py-3 pr-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
                           {Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </td>
                         <td className="py-3 pr-4 text-center">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            className="h-8 w-8 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
                             title="Marcar como organizado e remover da lista"
                             disabled={clearApprovalMutation.isPending}
                             onClick={() => clearApprovalMutation.mutate(q.id)}
@@ -436,15 +436,15 @@ const Production = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <button type="button" onClick={() => setStatusFilter("todos")} className="text-left">
           <Card className={cn(
-            "shadow-sm border-slate-200/60 overflow-hidden transition-all hover:shadow-md",
+            "shadow-sm border-border/60 overflow-hidden transition-all hover:shadow-md",
             statusFilter === "todos" ? "ring-2 ring-primary border-primary/40" : "hover:border-primary/30"
           )}>
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-slate-100 text-slate-600">
+              <div className="p-3 rounded-xl bg-muted text-foreground">
                 <Factory className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Total</p>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Total</p>
                 <p className="text-2xl font-bold">{summary.total}</p>
               </div>
             </CardContent>
@@ -457,7 +457,7 @@ const Production = () => {
           return (
             <button key={col.key} type="button" onClick={() => setStatusFilter(col.key)} className="text-left">
               <Card className={cn(
-                "shadow-sm border-slate-200/60 overflow-hidden transition-all hover:shadow-md",
+                "shadow-sm border-border/60 overflow-hidden transition-all hover:shadow-md",
                 active ? "ring-2 ring-primary border-primary/40" : "hover:border-primary/30"
               )}>
                 <CardContent className="p-5 flex items-center gap-4">
@@ -465,7 +465,7 @@ const Production = () => {
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{col.label}</p>
+                    <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider">{col.label}</p>
                     <p className="text-2xl font-bold">{summary.counts[col.key] || 0}</p>
                   </div>
                 </CardContent>
@@ -477,19 +477,19 @@ const Production = () => {
 
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-slate-200/60">
+      <div className="flex flex-wrap gap-3 items-center bg-card/80 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-border/60">
         <div className="relative flex-1 min-w-[280px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Pesquisar por OS, cliente, serviço ou responsável..." 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
-            className="pl-9 bg-white border-slate-200 focus-visible:ring-primary/20" 
+            className="pl-9 bg-card border-border focus-visible:ring-primary/20" 
           />
         </div>
         <div className="flex items-center gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] bg-white border-slate-200">
+            <SelectTrigger className="w-[180px] bg-card border-border">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -498,7 +498,7 @@ const Production = () => {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-[140px] bg-white border-slate-200">
+            <SelectTrigger className="w-[140px] bg-card border-border">
               <SelectValue placeholder="Prioridade" />
             </SelectTrigger>
             <SelectContent>
@@ -508,7 +508,7 @@ const Production = () => {
               <SelectItem value="urgente">Urgente</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="ghost" className="text-slate-500 hover:text-slate-900 px-3" onClick={() => { setSearch(""); setStatusFilter("todos"); setPriorityFilter("todos"); }}>
+          <Button variant="ghost" className="text-muted-foreground hover:text-foreground px-3" onClick={() => { setSearch(""); setStatusFilter("todos"); setPriorityFilter("todos"); }}>
             Limpar
           </Button>
         </div>
@@ -517,24 +517,24 @@ const Production = () => {
       {/* View Content */}
       {isLoading ? (
         <div className="space-y-4">
-          {[1, 2, 3].map(i => <div key={i} className="h-32 bg-slate-200/50 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-32 bg-muted rounded-xl animate-pulse" />)}
         </div>
       ) : viewMode === "kanban" ? (
-        <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-muted">
           {columns.map(col => {
             const colItems = filteredItems.filter((item: any) => item.status === col.key);
             const Icon = col.icon;
             
             return (
-              <div key={col.key} className="flex-shrink-0 w-80 bg-slate-100/50 rounded-2xl p-4 flex flex-col gap-4 border border-slate-200/40">
+              <div key={col.key} className="flex-shrink-0 w-80 bg-muted/40 rounded-2xl p-4 flex flex-col gap-4 border border-border/40">
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-2">
                     <div className={cn("p-1.5 rounded-lg", col.color.split(' ')[0])}>
                       <Icon className="h-4 w-4" />
                     </div>
-                    <h3 className="font-bold text-sm text-slate-700">{col.label}</h3>
+                    <h3 className="font-bold text-sm text-foreground">{col.label}</h3>
                   </div>
-                  <Badge variant="secondary" className="bg-white text-slate-500 border-slate-200">
+                  <Badge variant="secondary" className="bg-card text-muted-foreground border-border">
                     {colItems.length}
                   </Badge>
                 </div>
@@ -548,8 +548,8 @@ const Production = () => {
                       <Card 
                         key={item.id} 
                         className={cn(
-                          "cursor-pointer group hover:ring-2 hover:ring-primary/20 transition-all border-slate-200/60 shadow-sm",
-                          isLate && "border-red-200 bg-red-50/30"
+                          "cursor-pointer group hover:ring-2 hover:ring-primary/20 transition-all border-border/60 shadow-sm",
+                          isLate && "border-red-500/30 bg-red-500/5"
                         )}
                         onClick={() => {
                           setSelectedItem(item);
@@ -558,7 +558,7 @@ const Production = () => {
                       >
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
-                            <span className="font-mono text-xs font-bold text-slate-400 group-hover:text-primary transition-colors">
+                            <span className="font-mono text-xs font-bold text-muted-foreground group-hover:text-primary transition-colors">
                               OS-{item.os_id.slice(0, 8)}
                             </span>
                             {item.priority === "urgente" && (
@@ -568,7 +568,7 @@ const Production = () => {
                           
                           <div>
                             <p className="font-bold text-sm line-clamp-1">{wo.clients?.name || "Cliente"}</p>
-                            <p className="text-xs text-slate-500 line-clamp-2 mt-1">{wo.description || "Sem descrição"}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{wo.description || "Sem descrição"}</p>
                             {item.items?.length > 0 && (
                               <Badge variant="secondary" className="mt-2 h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
                                 <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
@@ -577,15 +577,15 @@ const Production = () => {
                           </div>
 
 
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
                             <div className="flex -space-x-2">
                               <Avatar className="h-6 w-6 border-2 border-white">
-                                <AvatarFallback className="text-[10px] bg-slate-100 text-slate-500">
+                                <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
                                   {wo.employees?.name?.slice(0, 2).toUpperCase() || "?"}
                                 </AvatarFallback>
                               </Avatar>
                             </div>
-                            <div className={cn("text-[10px] font-medium flex items-center gap-1", isLate ? "text-red-600" : "text-slate-400")}>
+                            <div className={cn("text-[10px] font-medium flex items-center gap-1", isLate ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
                               <Calendar className="h-3 w-3" />
                               {wo.delivery_deadline ? formatDateBR(wo.delivery_deadline) : "Sem prazo"}
                             </div>
@@ -595,8 +595,8 @@ const Production = () => {
                     );
                   })}
                   {colItems.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Vazio</p>
+                    <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-border rounded-xl bg-muted/30">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Vazio</p>
                     </div>
                   )}
                 </div>
@@ -607,12 +607,12 @@ const Production = () => {
       ) : (
         <div className="space-y-3">
           {filteredItems.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-              <div className="p-4 rounded-full bg-slate-50 mb-4">
-                <Search className="h-8 w-8 text-slate-300" />
+            <div className="flex flex-col items-center justify-center py-20 bg-card rounded-2xl border-2 border-dashed border-border">
+              <div className="p-4 rounded-full bg-muted/50 mb-4">
+                <Search className="h-8 w-8 text-muted-foreground/60" />
               </div>
-              <h3 className="font-bold text-slate-600">Nenhuma OS encontrada</h3>
-              <p className="text-sm text-slate-400">Tente ajustar seus filtros de busca.</p>
+              <h3 className="font-bold text-foreground">Nenhuma OS encontrada</h3>
+              <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca.</p>
             </div>
           )}
           {filteredItems.map((item: any) => {
@@ -623,8 +623,8 @@ const Production = () => {
               <Card 
                 key={item.id} 
                 className={cn(
-                  "hover:shadow-md hover:border-primary/20 transition-all cursor-pointer border-slate-200/60 group",
-                  isLate && "bg-red-50/30 border-red-100"
+                  "hover:shadow-md hover:border-primary/20 transition-all cursor-pointer border-border/60 group",
+                  isLate && "bg-red-500/5 border-red-500/20"
                 )}
                 onClick={() => {
                   setSelectedItem(item);
@@ -634,32 +634,32 @@ const Production = () => {
                 <div className="flex flex-col md:flex-row md:items-center p-4 gap-4">
                   <div className="flex items-center gap-4 flex-1">
                     <div className="flex flex-col gap-1 min-w-[120px]">
-                      <span className="font-bold text-lg font-mono text-slate-400 group-hover:text-primary transition-colors">
+                      <span className="font-bold text-lg font-mono text-muted-foreground group-hover:text-primary transition-colors">
                         {item.source === 'quote' ? `ORC-${item.os_id.slice(0, 8)}` : `OS-${item.os_id.slice(0, 8)}`}
                       </span>
                       <Badge variant="outline" className={cn("w-fit text-[10px] font-bold py-0 h-5", columns.find(c => c.key === item.status)?.color)}>
                         {columns.find(c => c.key === item.status)?.label || item.status}
                       </Badge>
                     </div>
-                    <div className="h-10 w-[1px] bg-slate-100 hidden md:block" />
+                    <div className="h-10 w-[1px] bg-muted hidden md:block" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-bold text-lg text-slate-800">{wo.clients?.name || "Cliente não informado"}</p>
+                        <p className="font-bold text-lg text-foreground">{wo.clients?.name || "Cliente não informado"}</p>
                         {item.priority === "urgente" && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">URGENTE</Badge>}
                       </div>
-                      <p className="text-sm text-slate-500 line-clamp-1">{wo.description || "Sem descrição disponível para este serviço."}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-1">{wo.description || "Sem descrição disponível para este serviço."}</p>
                       {item.items?.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5 mt-2">
                           <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
                             <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
                           </Badge>
                           {item.items.slice(0, 3).map((it: any, idx: number) => (
-                            <Badge key={idx} variant="outline" className="h-5 px-1.5 text-[10px] font-normal text-slate-600 border-slate-200 max-w-[180px] truncate">
+                            <Badge key={idx} variant="outline" className="h-5 px-1.5 text-[10px] font-normal text-foreground border-border max-w-[180px] truncate">
                               {it.quantity ? `${it.quantity}x ` : ""}{it.description}
                             </Badge>
                           ))}
                           {item.items.length > 3 && (
-                            <span className="text-[10px] text-slate-400 font-medium">+{item.items.length - 3}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">+{item.items.length - 3}</span>
                           )}
                         </div>
                       )}
@@ -669,9 +669,9 @@ const Production = () => {
 
                   <div className="flex items-center gap-6 justify-between md:justify-end">
                     <div className="flex flex-col items-end">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Responsável</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Responsável</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm font-medium text-slate-700">{wo.employees?.name || "Pendente"}</span>
+                        <span className="text-sm font-medium text-foreground">{wo.employees?.name || "Pendente"}</span>
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                             {wo.employees?.name?.slice(0, 2).toUpperCase() || "?"}
@@ -681,14 +681,14 @@ const Production = () => {
                     </div>
 
                     <div className="flex flex-col items-end min-w-[100px]">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Prazo Final</p>
-                      <div className={cn("flex items-center gap-1.5 mt-1 font-bold", isLate ? "text-red-500" : "text-slate-700")}>
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Prazo Final</p>
+                      <div className={cn("flex items-center gap-1.5 mt-1 font-bold", isLate ? "text-red-600 dark:text-red-400" : "text-foreground")}>
                         <Clock className="h-3.5 w-3.5" />
                         {wo.delivery_deadline ? formatDateBR(wo.delivery_deadline) : "—"}
                       </div>
                     </div>
                     
-                    <Button variant="ghost" size="icon" className="text-slate-300 group-hover:text-primary transition-colors">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground/60 group-hover:text-primary transition-colors">
                       <ChevronRight className="h-5 w-5" />
                     </Button>
                   </div>
@@ -765,12 +765,12 @@ const Production = () => {
                     {selectedItem.items?.length > 0 ? (
                       <div className="space-y-2">
                         {selectedItem.items.map((it: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+                          <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-muted/30">
                             <div className="flex items-center gap-3 min-w-0">
                               <Badge variant="secondary" className="h-6 px-2 text-xs font-bold bg-indigo-100 text-indigo-700 shrink-0">
                                 {it.quantity || 1}x
                               </Badge>
-                              <p className="text-sm font-medium text-slate-700 truncate">{it.description}</p>
+                              <p className="text-sm font-medium text-foreground truncate">{it.description}</p>
                             </div>
                           </div>
                         ))}
@@ -794,12 +794,12 @@ const Production = () => {
                     {selectedItem.production_occurrences?.length > 0 ? (
                       <div className="space-y-3">
                         {selectedItem.production_occurrences.map((occ: any) => (
-                          <div key={occ.id} className="p-4 rounded border border-slate-200 bg-white shadow-sm">
+                          <div key={occ.id} className="p-4 rounded border border-border bg-card shadow-sm">
                             <div className="flex items-center justify-between space-x-2 mb-1">
-                              <div className="font-bold text-slate-900">{occ.author_name || "Sistema"}</div>
+                              <div className="font-bold text-foreground">{occ.author_name || "Sistema"}</div>
                               <time className="text-xs text-muted-foreground">{formatDateBR(occ.created_at)}</time>
                             </div>
-                            <div className="text-slate-500 text-sm">{occ.description}</div>
+                            <div className="text-muted-foreground text-sm">{occ.description}</div>
                           </div>
                         ))}
                       </div>
