@@ -1480,6 +1480,7 @@ export type Database = {
           payment_method: string | null
           payment_status: string | null
           payment_type: string | null
+          production_cleared_at: string | null
           remaining_amount: number | null
           seller_id: string | null
           status: Database["public"]["Enums"]["quote_status"]
@@ -1504,6 +1505,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           payment_type?: string | null
+          production_cleared_at?: string | null
           remaining_amount?: number | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
@@ -1528,6 +1530,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           payment_type?: string | null
+          production_cleared_at?: string | null
           remaining_amount?: number | null
           seller_id?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
