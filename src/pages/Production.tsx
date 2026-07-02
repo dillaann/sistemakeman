@@ -134,6 +134,30 @@ const Production = () => {
     },
   });
 
+  // Log of approved quotes: date approved, who approved, client name
+  const { data: approvalLog = [] } = useQuery({
+    queryKey: ["production-approval-log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("id, quote_number, total, approved_at, approved_by, created_at, clients(name)")
+        .eq("status", "aprovado")
+        .order("approved_at", { ascending: false, nullsFirst: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: profilesMap = {} } = useQuery({
+    queryKey: ["profiles-map-production"],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("get_team_display_names");
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: any) => { map[p.id] = p.full_name; });
+      return map;
+    },
+  });
+
   const filteredItems = useMemo(() => {
     return productionItems.filter((item: any) => {
       const wo = item.work_orders || {};
