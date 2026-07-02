@@ -1,0 +1,1 @@
+ALTER TABLE public.quotes ADD COLUMN IF NOT EXISTS production_cleared_at TIMESTAMP WITH TIME ZONE;
