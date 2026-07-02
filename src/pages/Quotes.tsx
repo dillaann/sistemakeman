@@ -575,6 +575,7 @@ const Quotes = () => {
       await supabase.from("quotes").update({
         status: "aprovado" as any,
         approved_at: now,
+        approved_by: user?.id ?? null,
         payment_type: paymentType,
         down_payment: effectivePaidAmount,
         down_payment_date: paymentType === "entrada_restante" && dpAmount > 0 ? downPaymentDate : null,

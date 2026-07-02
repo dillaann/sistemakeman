@@ -1465,6 +1465,7 @@ export type Database = {
       quotes: {
         Row: {
           approved_at: string | null
+          approved_by: string | null
           client_id: string
           collection_date: string | null
           created_at: string
@@ -1488,6 +1489,7 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
+          approved_by?: string | null
           client_id: string
           collection_date?: string | null
           created_at?: string
@@ -1511,6 +1513,7 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
+          approved_by?: string | null
           client_id?: string
           collection_date?: string | null
           created_at?: string
@@ -1533,6 +1536,13 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "quotes_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotes_client_id_fkey"
             columns: ["client_id"]
