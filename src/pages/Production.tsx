@@ -401,10 +401,10 @@ const Production = () => {
                           <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
                               <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                {(q.approved_by ? (profilesMap[q.approved_by] || "?") : "?").slice(0, 2).toUpperCase()}
+                                {(() => { const sid = q.seller_id || q.approved_by || q.created_by; return (sid ? (profilesMap[sid] || "?") : "?").slice(0, 2).toUpperCase(); })()}
                               </AvatarFallback>
                             </Avatar>
-                            <span>{q.approved_by ? (profilesMap[q.approved_by] || "Não identificado") : "Não identificado"}</span>
+                            <span>{(() => { const sid = q.seller_id || q.approved_by || q.created_by; return sid ? (profilesMap[sid] || "Não identificado") : "Não identificado"; })()}</span>
                           </div>
                         </td>
                         <td className="py-3 pr-4 font-medium">{q.clients?.name || "Cliente não informado"}</td>
