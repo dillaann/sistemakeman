@@ -327,7 +327,7 @@ const Production = () => {
           <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
           <Button
             variant="outline"
-            className="h-9 gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            className="h-9 gap-2 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
             onClick={async () => {
               window.open(PRODUCTION_SHEET_URL, "_blank");
               try {
@@ -357,7 +357,7 @@ const Production = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   <h2 className="text-lg font-bold">Histórico de Orçamentos Aprovados</h2>
                 </div>
                 <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
@@ -407,14 +407,14 @@ const Production = () => {
                           </div>
                         </td>
                         <td className="py-3 pr-4 font-medium">{q.clients?.name || "Cliente não informado"}</td>
-                        <td className="py-3 pr-4 text-right font-bold text-emerald-700">
+                        <td className="py-3 pr-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
                           {Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </td>
                         <td className="py-3 pr-4 text-center">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            className="h-8 w-8 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
                             title="Marcar como organizado e remover da lista"
                             disabled={clearApprovalMutation.isPending}
                             onClick={() => clearApprovalMutation.mutate(q.id)}
@@ -549,7 +549,7 @@ const Production = () => {
                         key={item.id} 
                         className={cn(
                           "cursor-pointer group hover:ring-2 hover:ring-primary/20 transition-all border-border/60 shadow-sm",
-                          isLate && "border-red-200 bg-red-50/30"
+                          isLate && "border-red-500/30 bg-red-500/5"
                         )}
                         onClick={() => {
                           setSelectedItem(item);
@@ -585,7 +585,7 @@ const Production = () => {
                                 </AvatarFallback>
                               </Avatar>
                             </div>
-                            <div className={cn("text-[10px] font-medium flex items-center gap-1", isLate ? "text-red-600" : "text-muted-foreground")}>
+                            <div className={cn("text-[10px] font-medium flex items-center gap-1", isLate ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
                               <Calendar className="h-3 w-3" />
                               {wo.delivery_deadline ? formatDateBR(wo.delivery_deadline) : "Sem prazo"}
                             </div>
@@ -624,7 +624,7 @@ const Production = () => {
                 key={item.id} 
                 className={cn(
                   "hover:shadow-md hover:border-primary/20 transition-all cursor-pointer border-border/60 group",
-                  isLate && "bg-red-50/30 border-red-100"
+                  isLate && "bg-red-500/5 border-red-500/20"
                 )}
                 onClick={() => {
                   setSelectedItem(item);
@@ -682,7 +682,7 @@ const Production = () => {
 
                     <div className="flex flex-col items-end min-w-[100px]">
                       <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Prazo Final</p>
-                      <div className={cn("flex items-center gap-1.5 mt-1 font-bold", isLate ? "text-red-500" : "text-foreground")}>
+                      <div className={cn("flex items-center gap-1.5 mt-1 font-bold", isLate ? "text-red-600 dark:text-red-400" : "text-foreground")}>
                         <Clock className="h-3.5 w-3.5" />
                         {wo.delivery_deadline ? formatDateBR(wo.delivery_deadline) : "—"}
                       </div>
