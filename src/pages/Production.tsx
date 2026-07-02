@@ -265,6 +265,72 @@ const Production = () => {
         </div>
       </div>
 
+      {/* Main tabs: Production workflow vs Approved-quotes log */}
+      <Tabs value={mainTab} onValueChange={(v: any) => setMainTab(v)}>
+        <TabsList className="h-10">
+          <TabsTrigger value="producao"><Factory className="h-4 w-4 mr-2" /> Produção</TabsTrigger>
+          <TabsTrigger value="aprovacoes"><CheckCircle2 className="h-4 w-4 mr-2" /> Orçamentos Aprovados</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {mainTab === "aprovacoes" ? (
+        <Card className="shadow-sm border-slate-200/60">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <h2 className="text-lg font-bold">Histórico de Orçamentos Aprovados</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">Registro de quando cada orçamento foi aprovado e por quem.</p>
+          </CardHeader>
+          <CardContent>
+            {approvalLog.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10">Nenhum orçamento aprovado ainda.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wider text-slate-500">
+                      <th className="py-3 pr-4 font-bold">Data da Aprovação</th>
+                      <th className="py-3 pr-4 font-bold">Aprovado por</th>
+                      <th className="py-3 pr-4 font-bold">Cliente</th>
+                      <th className="py-3 pr-4 font-bold text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {approvalLog.map((q: any) => (
+                      <tr key={q.id} className="border-b border-slate-100 hover:bg-slate-50/60">
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-slate-400" />
+                            <span className="font-medium">
+                              {q.approved_at ? new Date(q.approved_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                {(q.approved_by ? (profilesMap[q.approved_by] || "?") : "?").slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{q.approved_by ? (profilesMap[q.approved_by] || "Não identificado") : "Não identificado"}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4 font-medium">{q.clients?.name || "Cliente não informado"}</td>
+                        <td className="py-3 pr-4 text-right font-bold text-emerald-700">
+                          {Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+      <>
       {/* Summary Bar — same statuses as the OS, click to filter */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <button type="button" onClick={() => setStatusFilter("todos")} className="text-left">
