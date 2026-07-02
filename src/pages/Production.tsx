@@ -141,11 +141,16 @@ const Production = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, quote_number, total, approved_at, approved_by, created_at, clients(name)")
+        .select("id, quote_number, total, approved_at, approved_by, created_at, clients(name), work_orders(status)")
         .eq("status", "aprovado")
         .order("approved_at", { ascending: false, nullsFirst: false });
       if (error) throw error;
-      return data || [];
+      // Only quotes whose work order is NOT completed (delivered) in the OS
+      return (data || []).filter((q: any) => {
+        const wos = q.work_orders || [];
+        if (!wos.length) return true;
+        return !wos.every((wo: any) => wo.status === "entregue");
+      });
     },
   });
 
