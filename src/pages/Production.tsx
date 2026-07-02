@@ -215,16 +215,17 @@ const Production = () => {
     if (!win) return;
     win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Histórico de Orçamentos Aprovados</title>
       <style>
-        body{font-family:Arial,Helvetica,sans-serif;padding:16px;color:#0f172a}
-        h1{font-size:15px;margin:0 0 2px}
-        p{color:#64748b;font-size:11px;margin:0 0 10px}
-        table{width:100%;border-collapse:collapse;font-size:11px}
-        th,td{padding:4px 8px;border-bottom:1px solid #e2e8f0;text-align:left}
-        th{text-transform:uppercase;font-size:9px;letter-spacing:.05em;color:#64748b;background:#f1f5f9}
-        td.num{color:#64748b;width:28px}
+        body{font-family:Arial,Helvetica,sans-serif;padding:28px;color:#0f172a}
+        h1{font-size:22px;margin:0 0 4px}
+        p{color:#64748b;font-size:13px;margin:0 0 18px}
+        table{width:100%;border-collapse:collapse;font-size:14px}
+        th,td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:left}
+        th{text-transform:uppercase;font-size:11px;letter-spacing:.05em;color:#64748b;background:#f1f5f9}
+        td.num{color:#64748b;width:36px}
         td.value{text-align:right;font-weight:bold;white-space:nowrap}
         tr{page-break-inside:avoid}
-        tfoot td{font-weight:bold;border-top:2px solid #cbd5e1}
+        tfoot td{font-weight:bold;font-size:15px;border-top:2px solid #cbd5e1;padding-top:12px}
+
       </style></head><body>
       <h1>Histórico de Orçamentos Aprovados</h1>
       <p>Gerado em ${new Date().toLocaleString("pt-BR")} — ${filteredApprovalLog.length} registro(s)</p>
