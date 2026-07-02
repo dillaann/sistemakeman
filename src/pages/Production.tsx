@@ -201,7 +201,8 @@ const Production = () => {
         const date = q.approved_at
           ? new Date(q.approved_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
           : "—";
-        const approver = q.approved_by ? (profilesMap[q.approved_by] || "Não identificado") : "Não identificado";
+        const sellerId = q.seller_id || q.approved_by || q.created_by;
+        const approver = sellerId ? (profilesMap[sellerId] || "Não identificado") : "Não identificado";
         const client = q.clients?.name || "Cliente não informado";
         const total = Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         return `<tr><td>${date}</td><td>${approver}</td><td>${client}</td><td style="text-align:right">${total}</td></tr>`;
