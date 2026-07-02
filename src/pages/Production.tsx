@@ -196,26 +196,16 @@ const Production = () => {
 
   // Print the approved-quotes history
   const handlePrintApprovalLog = useCallback(() => {
-    const blocks = filteredApprovalLog
+    const rows = filteredApprovalLog
       .map((q: any, i: number) => {
         const date = q.approved_at
-          ? new Date(q.approved_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+          ? new Date(q.approved_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
           : "—";
         const sellerId = q.seller_id || q.approved_by || q.created_by;
         const approver = sellerId ? (profilesMap[sellerId] || "Não identificado") : "Não identificado";
         const client = q.clients?.name || "Cliente não informado";
         const total = Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        return `<div class="quote">
-          <div class="quote-title">${i + 1}. ${client}</div>
-          <table>
-            <tbody>
-              <tr><th>Cliente</th><td>${client}</td></tr>
-              <tr><th>Aprovado por</th><td>${approver}</td></tr>
-              <tr><th>Data da Aprovação</th><td>${date}</td></tr>
-              <tr><th>Valor</th><td class="value">${total}</td></tr>
-            </tbody>
-          </table>
-        </div>`;
+        return `<tr><td class="num">${i + 1}</td><td>${client}</td><td>${approver}</td><td>${date}</td><td class="value">${total}</td></tr>`;
       })
       .join("");
     const totalSum = filteredApprovalLog
@@ -225,21 +215,24 @@ const Production = () => {
     if (!win) return;
     win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Histórico de Orçamentos Aprovados</title>
       <style>
-        body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#0f172a}
-        h1{font-size:18px;margin:0 0 4px}
-        p{color:#64748b;font-size:12px;margin:0 0 16px}
-        .quote{border:1px solid #cbd5e1;border-radius:8px;padding:12px 16px;margin-bottom:16px;page-break-inside:avoid}
-        .quote-title{font-size:14px;font-weight:bold;margin-bottom:8px;color:#0f172a}
-        table{width:100%;border-collapse:collapse;font-size:12px}
-        th,td{padding:6px 8px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}
-        th{width:150px;text-transform:uppercase;font-size:10px;letter-spacing:.05em;color:#64748b}
-        td.value{font-weight:bold}
-        .grand-total{margin-top:8px;padding:10px 16px;border-top:2px solid #cbd5e1;font-size:13px;font-weight:bold;display:flex;justify-content:space-between}
+        body{font-family:Arial,Helvetica,sans-serif;padding:16px;color:#0f172a}
+        h1{font-size:15px;margin:0 0 2px}
+        p{color:#64748b;font-size:11px;margin:0 0 10px}
+        table{width:100%;border-collapse:collapse;font-size:11px}
+        th,td{padding:4px 8px;border-bottom:1px solid #e2e8f0;text-align:left}
+        th{text-transform:uppercase;font-size:9px;letter-spacing:.05em;color:#64748b;background:#f1f5f9}
+        td.num{color:#64748b;width:28px}
+        td.value{text-align:right;font-weight:bold;white-space:nowrap}
+        tr{page-break-inside:avoid}
+        tfoot td{font-weight:bold;border-top:2px solid #cbd5e1}
       </style></head><body>
       <h1>Histórico de Orçamentos Aprovados</h1>
       <p>Gerado em ${new Date().toLocaleString("pt-BR")} — ${filteredApprovalLog.length} registro(s)</p>
-      ${blocks}
-      <div class="grand-total"><span>Total Geral</span><span>${totalSum}</span></div>
+      <table>
+        <thead><tr><th>#</th><th>Cliente</th><th>Aprovado por</th><th>Data</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="4">Total Geral</td><td class="value">${totalSum}</td></tr></tfoot>
+      </table>
       </body></html>`);
     win.document.close();
     win.focus();
