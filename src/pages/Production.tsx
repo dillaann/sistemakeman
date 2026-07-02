@@ -362,7 +362,12 @@ const Production = () => {
                 </div>
                 <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
               </div>
-              <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+              <div className="flex items-center gap-2">
+                <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+                <Button variant="outline" size="sm" onClick={handlePrintApprovalLog} disabled={filteredApprovalLog.length === 0}>
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
