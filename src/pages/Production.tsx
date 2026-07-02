@@ -141,7 +141,7 @@ const Production = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, total, approved_at, approved_by, created_at, production_cleared_at, clients(name), work_orders(status)")
+        .select("id, total, approved_at, approved_by, seller_id, created_by, created_at, production_cleared_at, clients(name), work_orders(status)")
         .eq("status", "aprovado")
         .is("production_cleared_at", null)
         .order("approved_at", { ascending: false, nullsFirst: false });
