@@ -141,7 +141,7 @@ const Production = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, quote_number, total, approved_at, approved_by, created_at, clients(name), work_orders(status)")
+        .select("id, total, approved_at, approved_by, created_at, clients(name), work_orders(status)")
         .eq("status", "aprovado")
         .order("approved_at", { ascending: false, nullsFirst: false });
       if (error) throw error;
