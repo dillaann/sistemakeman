@@ -141,8 +141,9 @@ const Production = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("id, total, approved_at, approved_by, created_at, clients(name), work_orders(status)")
+        .select("id, total, approved_at, approved_by, created_at, production_cleared_at, clients(name), work_orders(status)")
         .eq("status", "aprovado")
+        .is("production_cleared_at", null)
         .order("approved_at", { ascending: false, nullsFirst: false });
       if (error) throw error;
       // Only quotes whose work order is NOT completed (delivered) in the OS
@@ -153,6 +154,31 @@ const Production = () => {
       });
     },
   });
+
+  // Clear (archive) an approved quote from the production approval list
+  const clearApprovalMutation = useMutation({
+    mutationFn: async (quoteId: string) => {
+      const { error } = await supabase
+        .from("quotes")
+        .update({ production_cleared_at: new Date().toISOString() })
+        .eq("id", quoteId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production-approval-log"] });
+      toast({ title: "Orçamento organizado", description: "Removido da lista de orçamentos aprovados." });
+    },
+    onError: (e: any) => {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Apply the month/period filter to the approval log (by approval date)
+  const filteredApprovalLog = useMemo(() => {
+    return approvalLog.filter((q: any) =>
+      isInRange(q.approved_at || q.created_at, dateRange)
+    );
+  }, [approvalLog, dateRange]);
 
   const { data: profilesMap = {} } = useQuery({
     queryKey: ["profiles-map-production"],
