@@ -307,15 +307,20 @@ const Production = () => {
       {mainTab === "aprovacoes" ? (
         <Card className="shadow-sm border-slate-200/60">
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <h2 className="text-lg font-bold">Histórico de Orçamentos Aprovados</h2>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <h2 className="text-lg font-bold">Histórico de Orçamentos Aprovados</h2>
+                </div>
+                <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
+              </div>
+              <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
             </div>
-            <p className="text-sm text-muted-foreground">Orçamentos aprovados que ainda não foram concluídos (entregues) na ordem de serviço.</p>
           </CardHeader>
           <CardContent>
-            {approvalLog.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10">Nenhum orçamento aprovado ainda.</p>
+            {filteredApprovalLog.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10">Nenhum orçamento aprovado neste período.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -325,10 +330,11 @@ const Production = () => {
                       <th className="py-3 pr-4 font-bold">Aprovado por</th>
                       <th className="py-3 pr-4 font-bold">Cliente</th>
                       <th className="py-3 pr-4 font-bold text-right">Valor</th>
+                      <th className="py-3 pr-4 font-bold text-center">Concluir</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {approvalLog.map((q: any) => (
+                    {filteredApprovalLog.map((q: any) => (
                       <tr key={q.id} className="border-b border-slate-100 hover:bg-slate-50/60">
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-2">
@@ -351,6 +357,18 @@ const Production = () => {
                         <td className="py-3 pr-4 font-medium">{q.clients?.name || "Cliente não informado"}</td>
                         <td className="py-3 pr-4 text-right font-bold text-emerald-700">
                           {Number(q.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </td>
+                        <td className="py-3 pr-4 text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            title="Marcar como organizado e remover da lista"
+                            disabled={clearApprovalMutation.isPending}
+                            onClick={() => clearApprovalMutation.mutate(q.id)}
+                          >
+                            <CheckCircle2 className="h-5 w-5" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
