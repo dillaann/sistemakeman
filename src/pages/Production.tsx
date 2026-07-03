@@ -58,13 +58,14 @@ const Production = () => {
           .from("work_orders")
           .select(`
             id, description, priority, internal_notes, material_status, total, client_id, assigned_to, status, created_at, status_producao, quote_id,
-            clients(name)
+            clients(name),
+            quotes(seller_id, approved_by, created_by)
           `)
           .order("created_at", { ascending: false }),
         supabase
           .from("quotes")
           .select(`
-            id, status, payment_method, collection_date, created_at,
+            id, status, payment_method, collection_date, created_at, seller_id, approved_by, created_by,
             clients(name)
           `)
           .eq("status", "aprovado")
@@ -99,6 +100,7 @@ const Production = () => {
         status: wo.status || 'aguardando',
         created_at: wo.created_at,
         priority: wo.priority,
+        seller_id: (wo as any).quotes?.seller_id || (wo as any).quotes?.approved_by || (wo as any).quotes?.created_by || null,
         work_orders: wo,
         items: itemsMap.get(wo.id) || [],
         production_occurrences: [],
@@ -117,6 +119,7 @@ const Production = () => {
         status: 'aguardando', // Default status for approved quotes without WO
         created_at: quote.created_at,
         priority: 'normal',
+        seller_id: (quote as any).seller_id || (quote as any).approved_by || (quote as any).created_by || null,
         work_orders: {
           id: quote.id,
           description: "Orçamento Aprovado (Aguardando OS)",
@@ -575,6 +578,7 @@ const Production = () => {
                           <div>
                             <p className="font-bold text-sm line-clamp-1">{wo.clients?.name || "Cliente"}</p>
                             <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{wo.description || "Sem descrição"}</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">Vendedor: <span className="font-medium text-foreground">{item.seller_id ? (profilesMap[item.seller_id] || "Não identificado") : "Não identificado"}</span></p>
                             {item.items?.length > 0 && (
                               <Badge variant="secondary" className="mt-2 h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
                                 <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
@@ -654,6 +658,7 @@ const Production = () => {
                         {item.priority === "urgente" && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">URGENTE</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-1">{wo.description || "Sem descrição disponível para este serviço."}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Vendedor: <span className="font-medium text-foreground">{item.seller_id ? (profilesMap[item.seller_id] || "Não identificado") : "Não identificado"}</span></p>
                       {item.items?.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5 mt-2">
                           <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
@@ -743,6 +748,10 @@ const Production = () => {
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Cliente</p>
                       <p className="font-semibold text-lg">{selectedItem.work_orders?.clients?.name || "Não informado"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Vendedor</p>
+                      <p className="font-semibold">{selectedItem.seller_id ? (profilesMap[selectedItem.seller_id] || "Não identificado") : "Não identificado"}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Responsável</p>
