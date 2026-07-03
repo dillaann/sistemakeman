@@ -119,6 +119,7 @@ const Production = () => {
         status: 'aguardando', // Default status for approved quotes without WO
         created_at: quote.created_at,
         priority: 'normal',
+        seller_id: (quote as any).seller_id || (quote as any).approved_by || (quote as any).created_by || null,
         work_orders: {
           id: quote.id,
           description: "Orçamento Aprovado (Aguardando OS)",
