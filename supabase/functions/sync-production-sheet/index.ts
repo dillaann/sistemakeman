@@ -78,7 +78,6 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone)
       `)
-      .gte("created_at", CUTOFF_TIMESTAMP)
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
