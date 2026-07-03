@@ -106,32 +106,78 @@ Deno.serve(async (req) => {
         const services = (itemsMap.get(wo.id) || [])
           .map((item: any) => `${Number(item.quantity || 1)}x ${item.description || "Serviço"}`)
           .join("; ");
-        
+
         return {
+          id: wo.id,
           name: client?.name?.trim() || "—",
           phone: client?.phone?.trim() || "",
           status: STATUS_LABELS[wo.status] || wo.status || "Aguardando",
           description: services || wo.description || "—",
           created_at: createdAt,
           completed_at: formatDateBR(wo.delivered_at || wo.completed_at),
-          total: wo.total || 0
+          total: wo.total || 0,
         };
       });
 
     console.log(`Syncing ${rows.length} rows to Google Sheets`);
-
-    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total"];
-    const values = [
-      [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
-      header,
-      ...rows.map((r) => [r.created_at, r.name, r.phone, r.status, r.description, r.completed_at, r.total]),
-    ];
 
     const ghHeaders = {
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "X-Connection-Api-Key": GOOGLE_SHEETS_API_KEY,
       "Content-Type": "application/json",
     };
+
+    // Ordem das colunas (o bot lê estes cabeçalhos):
+    // A: Data/Hora Pedido | B: Nome | C: Telefone | D: Status | E: Serviços
+    // F: Conclusão/Entrega | G: Valor Total | H: Cobrado? | I: ID (referência oculta)
+    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total", "Cobrado?", "ID"];
+
+    // Preserva a coluna "Cobrado?" já marcada pelo bot: lê a planilha atual e
+    // monta um mapa ID -> valor de "Cobrado?" antes de reescrever tudo.
+    const cobradoMap = new Map<string, string>();
+    try {
+      const readRes = await fetch(
+        `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000`,
+        { method: "GET", headers: ghHeaders },
+      );
+      if (readRes.ok) {
+        const existing = await readRes.json();
+        const existingValues: any[][] = existing.values || [];
+        // Encontra a linha de cabeçalho (a que contém "ID")
+        const headerRowIdx = existingValues.findIndex((r) => Array.isArray(r) && r.includes("ID"));
+        if (headerRowIdx >= 0) {
+          const hRow = existingValues[headerRowIdx];
+          const idCol = hRow.indexOf("ID");
+          const cobradoCol = hRow.indexOf("Cobrado?");
+          if (idCol >= 0 && cobradoCol >= 0) {
+            for (let i = headerRowIdx + 1; i < existingValues.length; i++) {
+              const dataRow = existingValues[i];
+              const rowId = (dataRow[idCol] || "").toString().trim();
+              const cobrado = (dataRow[cobradoCol] || "").toString().trim();
+              if (rowId && cobrado) cobradoMap.set(rowId, cobrado);
+            }
+          }
+        }
+      }
+    } catch (readErr) {
+      console.error("Aviso: não foi possível ler marcações existentes de 'Cobrado?':", readErr);
+    }
+
+    const values = [
+      [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
+      header,
+      ...rows.map((r) => [
+        r.created_at,
+        r.name,
+        r.phone,
+        r.status,
+        r.description,
+        r.completed_at,
+        r.total,
+        cobradoMap.get(r.id) || "Não",
+        r.id,
+      ]),
+    ];
 
     // Clear existing content - use single quotes for sheet names with spaces
     const clearRes = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000:clear`, {
@@ -150,6 +196,7 @@ Deno.serve(async (req) => {
     if (!writeRes.ok) {
       throw new Error(`Erro ao escrever planilha (${writeRes.status}): ${await writeRes.text()}`);
     }
+
 
     return new Response(
       JSON.stringify({ success: true, count: rows.length, url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit` }),
