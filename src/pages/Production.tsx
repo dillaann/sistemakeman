@@ -658,6 +658,7 @@ const Production = () => {
                         {item.priority === "urgente" && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">URGENTE</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-1">{wo.description || "Sem descrição disponível para este serviço."}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Vendedor: <span className="font-medium text-foreground">{item.seller_id ? (profilesMap[item.seller_id] || "Não identificado") : "Não identificado"}</span></p>
                       {item.items?.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5 mt-2">
                           <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
