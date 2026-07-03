@@ -578,6 +578,7 @@ const Production = () => {
                           <div>
                             <p className="font-bold text-sm line-clamp-1">{wo.clients?.name || "Cliente"}</p>
                             <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{wo.description || "Sem descrição"}</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">Vendedor: <span className="font-medium text-foreground">{item.seller_id ? (profilesMap[item.seller_id] || "Não identificado") : "Não identificado"}</span></p>
                             {item.items?.length > 0 && (
                               <Badge variant="secondary" className="mt-2 h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
                                 <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
