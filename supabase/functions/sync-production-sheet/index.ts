@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
         quote_id,
         clients(name, phone)
       `)
+      .neq("status", "entregue")
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
