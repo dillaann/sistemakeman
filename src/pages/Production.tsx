@@ -750,6 +750,10 @@ const Production = () => {
                       <p className="font-semibold text-lg">{selectedItem.work_orders?.clients?.name || "Não informado"}</p>
                     </div>
                     <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Vendedor</p>
+                      <p className="font-semibold">{selectedItem.seller_id ? (profilesMap[selectedItem.seller_id] || "Não identificado") : "Não identificado"}</p>
+                    </div>
+                    <div className="space-y-1">
                       <p className="text-sm text-muted-foreground uppercase font-bold text-[10px]">Responsável</p>
                       <p className="font-semibold">{selectedItem.work_orders?.employees?.name || "Não atribuído"}</p>
                     </div>
