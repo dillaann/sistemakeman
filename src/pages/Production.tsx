@@ -100,6 +100,7 @@ const Production = () => {
         status: wo.status || 'aguardando',
         created_at: wo.created_at,
         priority: wo.priority,
+        seller_id: (wo as any).quotes?.seller_id || (wo as any).quotes?.approved_by || (wo as any).quotes?.created_by || null,
         work_orders: wo,
         items: itemsMap.get(wo.id) || [],
         production_occurrences: [],
