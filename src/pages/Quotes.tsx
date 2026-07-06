@@ -1324,7 +1324,7 @@ const Quotes = () => {
               <p className="text-sm text-amber-600 font-medium mt-1">⚠️ Este orçamento já está aprovado. Alterações serão refletidas na OS, Faturamento e Financeiro.</p>
             )}
           </DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4">
+          <form onSubmit={e => { e.preventDefault(); if (editMutation.isPending || editSubmittingRef.current) return; editMutation.mutate(); }} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><Label>Cliente *</Label>
                 <Select 
