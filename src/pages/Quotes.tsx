@@ -1,5 +1,5 @@
 import { addDaysToLocalDateString, localDateString, formatDateBR } from "@/lib/utils";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -331,8 +331,11 @@ const Quotes = () => {
     setEditOpen(true);
   };
 
+  const editSubmittingRef = useRef(false);
   const editMutation = useMutation({
     mutationFn: async () => {
+      if (editSubmittingRef.current) throw new Error("Salvamento já em andamento");
+      editSubmittingRef.current = true;
       if (!editQuote) throw new Error("Nenhum orçamento selecionado");
       const validItems = editItems.filter(it => it.description.trim());
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
@@ -522,6 +525,7 @@ const Quotes = () => {
       supabase.functions.invoke("sync-production-sheet");
     },
     onError: (e: any) => toast({ title: "Erro ao editar", description: e.message, variant: "destructive" }),
+    onSettled: () => { editSubmittingRef.current = false; },
   });
 
   const handleApprove = (quote: any) => {
@@ -1320,7 +1324,7 @@ const Quotes = () => {
               <p className="text-sm text-amber-600 font-medium mt-1">⚠️ Este orçamento já está aprovado. Alterações serão refletidas na OS, Faturamento e Financeiro.</p>
             )}
           </DialogHeader>
-          <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-4">
+          <form onSubmit={e => { e.preventDefault(); if (editMutation.isPending || editSubmittingRef.current) return; editMutation.mutate(); }} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><Label>Cliente *</Label>
                 <Select 
