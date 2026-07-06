@@ -331,8 +331,11 @@ const Quotes = () => {
     setEditOpen(true);
   };
 
+  const editSubmittingRef = useRef(false);
   const editMutation = useMutation({
     mutationFn: async () => {
+      if (editSubmittingRef.current) throw new Error("Salvamento já em andamento");
+      editSubmittingRef.current = true;
       if (!editQuote) throw new Error("Nenhum orçamento selecionado");
       const validItems = editItems.filter(it => it.description.trim());
       if (!validItems.length) throw new Error("Adicione pelo menos um item");
