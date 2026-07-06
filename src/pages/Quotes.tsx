@@ -525,6 +525,7 @@ const Quotes = () => {
       supabase.functions.invoke("sync-production-sheet");
     },
     onError: (e: any) => toast({ title: "Erro ao editar", description: e.message, variant: "destructive" }),
+    onSettled: () => { editSubmittingRef.current = false; },
   });
 
   const handleApprove = (quote: any) => {
