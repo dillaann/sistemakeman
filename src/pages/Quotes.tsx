@@ -427,40 +427,69 @@ const Quotes = () => {
           } as any).eq("id", wo.id);
           syncMessages.push("OS atualizada");
 
-          // Update financial transactions linked to the work order
-          if (oldTotal !== newTotal) {
+          // Reconcile financial transactions linked to the work order.
+          // Runs on total changes AND when an entrada (down payment) is registered
+          // via the edit dialog, so the received amount shows up in Financeiro.
+          {
             const { data: txns } = await supabase.from("financial_transactions")
               .select("id, status, amount")
               .eq("work_order_id", wo.id)
               .eq("type", "a_receber");
 
-            // Update pending transactions with new remaining amount
-            const paidAmount = (txns ?? []).filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
+            const clientName = clients.find(c => c.id === editForm.client_id)?.name ?? "";
+            let paidAmount = (txns ?? []).filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
             const pendingTxns = (txns ?? []).filter(t => t.status === "pendente");
+
+            // If the user registered an entrada larger than what's already booked as
+            // received, create a matching PAID transaction for the difference so it
+            // appears as "Recebido" in Financeiro.
+            if (editPayment.payment_type === "entrada_restante" && !isFuturePayment) {
+              const newlyReceived = Math.max(effectivePaidAmount - paidAmount, 0);
+              if (newlyReceived > 0.009) {
+                await supabase.from("financial_transactions").insert({
+                  type: "a_receber" as any,
+                  description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+                  amount: newlyReceived,
+                  due_date: dpDate || localDateString(),
+                  paid_date: dpDate || localDateString(),
+                  status: "pago" as any,
+                  category: `Faturamento - ${editPayment.payment_method}`,
+                  payment_method: editPayment.payment_method || null,
+                  work_order_id: wo.id,
+                  client_id: editForm.client_id,
+                });
+                paidAmount += newlyReceived;
+              }
+            }
+
             const newRemaining = Math.max(newTotal - paidAmount, 0);
 
-            if (pendingTxns.length > 0) {
-              // Update the first pending transaction with new remaining
-              await supabase.from("financial_transactions").update({
-                amount: newRemaining,
-              }).eq("id", pendingTxns[0].id);
-              // Delete extra pending transactions if any
-              for (let i = 1; i < pendingTxns.length; i++) {
-                await supabase.from("financial_transactions").delete().eq("id", pendingTxns[i].id);
+            if (newRemaining > 0.009) {
+              if (pendingTxns.length > 0) {
+                await supabase.from("financial_transactions").update({
+                  amount: newRemaining,
+                  description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+                }).eq("id", pendingTxns[0].id);
+                for (let i = 1; i < pendingTxns.length; i++) {
+                  await supabase.from("financial_transactions").delete().eq("id", pendingTxns[i].id);
+                }
+              } else {
+                await supabase.from("financial_transactions").insert({
+                  type: "a_receber" as any,
+                  description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+                  amount: newRemaining,
+                  due_date: localDateString(),
+                  status: "pendente" as any,
+                  category: "Faturamento",
+                  work_order_id: wo.id,
+                  client_id: editForm.client_id,
+                });
               }
-            } else if (newRemaining > 0) {
-              // Create new pending transaction for remaining
-              const clientName = clients.find(c => c.id === editForm.client_id)?.name ?? "";
-              await supabase.from("financial_transactions").insert({
-                type: "a_receber" as any,
-                description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
-                amount: newRemaining,
-                due_date: localDateString(),
-                status: "pendente" as any,
-                category: "Faturamento",
-                work_order_id: wo.id,
-                client_id: editForm.client_id,
-              });
+            } else {
+              // Fully paid — remove leftover pending placeholders
+              for (const t of pendingTxns) {
+                await supabase.from("financial_transactions").delete().eq("id", t.id);
+              }
             }
 
             // Update quote payment info
