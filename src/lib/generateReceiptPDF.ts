@@ -243,11 +243,6 @@ export async function generateReceiptPDF(data: ReceiptPDFData) {
   doc.line(sigCenter - 45, y, sigCenter + 45, y);
   y += 5;
   doc.text("Serralheria Keman", sigCenter, y, { align: "center" });
-  if (data.createdByName) {
-    y += 5;
-    doc.setFontSize(8);
-    doc.text(data.createdByName, sigCenter, y, { align: "center" });
-  }
 
   const fileName = `recibo_${data.client.name.replace(/\s+/g, "_")}_${data.date.replace(/\//g, "-")}.pdf`;
   doc.save(fileName);
