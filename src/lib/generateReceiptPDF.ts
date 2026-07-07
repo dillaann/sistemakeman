@@ -240,8 +240,17 @@ export async function generateReceiptPDF(data: ReceiptPDFData) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   const sigCenter = pw / 2;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(16);
+  doc.text("Felipe Pereira da Costa", sigCenter, y, { align: "center" });
+  y += 3;
   doc.line(sigCenter - 45, y, sigCenter + 45, y);
   y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text("Felipe Pereira da Costa", sigCenter, y, { align: "center" });
+  y += 4;
+  doc.setFontSize(8);
   doc.text("Serralheria Keman", sigCenter, y, { align: "center" });
 
   const fileName = `recibo_${data.client.name.replace(/\s+/g, "_")}_${data.date.replace(/\//g, "-")}.pdf`;
