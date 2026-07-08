@@ -42,8 +42,9 @@ const DRE = () => {
   const { data: transactions = [] } = useQuery({
     queryKey: ["dre-transactions"],
     queryFn: async () => {
-      const { data } = await supabase.from("financial_transactions").select("*");
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase.from("financial_transactions").select("*")
+      );
     },
   });
 

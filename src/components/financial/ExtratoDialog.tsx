@@ -45,13 +45,14 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
   const { data: movements = [] } = useQuery({
     queryKey: ["account-extrato", accountId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("account_movements")
-        .select("*")
-        .eq("account_id", accountId)
-        .order("date", { ascending: true })
-        .order("created_at", { ascending: true });
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from("account_movements")
+          .select("*")
+          .eq("account_id", accountId)
+          .order("date", { ascending: true })
+          .order("created_at", { ascending: true })
+      );
     },
     enabled: !!accountId,
   });

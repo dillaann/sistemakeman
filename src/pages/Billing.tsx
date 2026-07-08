@@ -48,11 +48,12 @@ const Billing = () => {
   const { data: transactions = [] } = useQuery({
     queryKey: ["billing-transactions"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("financial_transactions")
-        .select("*")
-        .eq("type", "a_receber");
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("*")
+          .eq("type", "a_receber")
+      );
     },
   });
 

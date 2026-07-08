@@ -91,12 +91,13 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-contas-receber"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("financial_transactions")
-        .select("*")
-        .eq("type", "a_receber")
-        .order("due_date", { ascending: true });
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("*")
+          .eq("type", "a_receber")
+          .order("due_date", { ascending: true })
+      );
     },
   });
 

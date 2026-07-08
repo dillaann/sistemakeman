@@ -88,12 +88,13 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-contas-pagar"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("financial_transactions")
-        .select("*")
-        .eq("type", "a_pagar")
-        .order("due_date", { ascending: true });
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("*")
+          .eq("type", "a_pagar")
+          .order("due_date", { ascending: true })
+      );
     },
   });
 

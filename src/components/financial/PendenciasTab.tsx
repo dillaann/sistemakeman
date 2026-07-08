@@ -47,12 +47,13 @@ export default function PendenciasTab({ dateRange }: PendenciasTabProps) {
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-pendencias"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("financial_transactions")
-        .select("*")
-        .in("status", ["pendente", "atrasado"])
-        .order("due_date", { ascending: true });
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("*")
+          .in("status", ["pendente", "atrasado"])
+          .order("due_date", { ascending: true })
+      );
     },
   });
 

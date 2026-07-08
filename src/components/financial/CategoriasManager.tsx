@@ -32,10 +32,12 @@ export default function CategoriasManager() {
   const { data: usedCategories = [] } = useQuery({
     queryKey: ["used-categories"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("financial_transactions")
-        .select("category");
-      const unique = new Set((data ?? []).map(d => d.category).filter(Boolean));
+      const data = await fetchAllRows<{ category: string | null }>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("category")
+      );
+      const unique = new Set(data.map(d => d.category).filter(Boolean));
       return [...unique] as string[];
     },
   });

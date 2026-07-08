@@ -79,8 +79,9 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
   const { data: movements = [] } = useQuery({
     queryKey: ["account-movements-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("account_movements").select("*").order("date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase.from("account_movements").select("*").order("date", { ascending: false }).order("created_at", { ascending: false })
+      );
     },
   });
 
