@@ -89,20 +89,45 @@ const Purchases = () => {
   const { data: purchases = [] } = useQuery({
     queryKey: ["purchases"],
     queryFn: async () => {
-      const { data } = await supabase.from("purchases").select("*, suppliers(name)").order("purchase_date", { ascending: false }).range(0, 100000);
-      return data ?? [];
+      // O backend limita cada resposta a 1000 linhas; paginamos para trazer TODOS os registros.
+      const pageSize = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("purchases")
+          .select("*, suppliers(name)")
+          .order("purchase_date", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
     },
   });
 
   const { data: purchaseOrders = [] } = useQuery({
     queryKey: ["purchase-orders"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("purchase_orders" as any)
-        .select("*, suppliers(name)")
-        .order("purchase_date", { ascending: false })
-        .range(0, 100000);
-      return (data as any[]) ?? [];
+      const pageSize = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("purchase_orders" as any)
+          .select("*, suppliers(name)")
+          .order("purchase_date", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = (data as any[]) ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
     },
   });
 
