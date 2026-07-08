@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,8 +48,9 @@ export default function ContasTab() {
   const { data: movements = [] } = useQuery({
     queryKey: ["account-movements-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("account_movements").select("account_id, type, amount");
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase.from("account_movements").select("account_id, type, amount")
+      );
     },
   });
 

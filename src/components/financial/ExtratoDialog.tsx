@@ -2,6 +2,7 @@ import { formatDateBR } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -44,13 +45,14 @@ export default function ExtratoDialog({ accountId, accountName, initialBalance, 
   const { data: movements = [] } = useQuery({
     queryKey: ["account-extrato", accountId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("account_movements")
-        .select("*")
-        .eq("account_id", accountId)
-        .order("date", { ascending: true })
-        .order("created_at", { ascending: true });
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from("account_movements")
+          .select("*")
+          .eq("account_id", accountId)
+          .order("date", { ascending: true })
+          .order("created_at", { ascending: true })
+      );
     },
     enabled: !!accountId,
   });

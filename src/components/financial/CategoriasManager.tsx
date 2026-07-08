@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useFinancialCategories, type FinancialCategory } from "@/hooks/useFinancialCategories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,10 +32,12 @@ export default function CategoriasManager() {
   const { data: usedCategories = [] } = useQuery({
     queryKey: ["used-categories"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("financial_transactions")
-        .select("category");
-      const unique = new Set((data ?? []).map(d => d.category).filter(Boolean));
+      const data = await fetchAllRows<{ category: string | null }>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("category")
+      );
+      const unique = new Set(data.map(d => d.category).filter(Boolean));
       return [...unique] as string[];
     },
   });

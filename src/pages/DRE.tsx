@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -41,8 +42,9 @@ const DRE = () => {
   const { data: transactions = [] } = useQuery({
     queryKey: ["dre-transactions"],
     queryFn: async () => {
-      const { data } = await supabase.from("financial_transactions").select("*");
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase.from("financial_transactions").select("*")
+      );
     },
   });
 

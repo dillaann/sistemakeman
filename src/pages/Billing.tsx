@@ -2,6 +2,7 @@ import { localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,11 +48,12 @@ const Billing = () => {
   const { data: transactions = [] } = useQuery({
     queryKey: ["billing-transactions"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("financial_transactions")
-        .select("*")
-        .eq("type", "a_receber");
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("*")
+          .eq("type", "a_receber")
+      );
     },
   });
 

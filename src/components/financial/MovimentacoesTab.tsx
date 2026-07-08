@@ -2,6 +2,7 @@ import { localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,8 +79,9 @@ export default function MovimentacoesTab({ dateRange }: MovimentacoesTabProps) {
   const { data: movements = [] } = useQuery({
     queryKey: ["account-movements-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("account_movements").select("*").order("date", { ascending: false }).order("created_at", { ascending: false }).limit(500);
-      return data ?? [];
+      return await fetchAllRows<any>(() =>
+        supabase.from("account_movements").select("*").order("date", { ascending: false }).order("created_at", { ascending: false })
+      );
     },
   });
 

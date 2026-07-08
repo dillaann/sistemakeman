@@ -2,6 +2,7 @@ import { compareDateStrings, formatDateBR, localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,13 +87,16 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-entradas", rangeStart, rangeEnd],
     queryFn: async () => {
-      let q = supabase.from("financial_transactions").select("*").eq("type", "a_receber");
-      // Filter by date on the SERVER to avoid the 1000-row response cap (cash basis: paid_date, fallback due_date)
-      if (rangeStart && rangeEnd) {
-        q = q.or(`and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd}),and(paid_date.is.null,due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`);
-      }
-      const { data } = await q.order("due_date", { ascending: false }).range(0, 10000);
-      return data ?? [];
+      const rangeFilter = rangeStart && rangeEnd
+        ? `and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd}),and(paid_date.is.null,due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`
+        : null;
+      // Paginate past the 1000-row response cap so totals reflect ALL records.
+      const data = await fetchAllRows<any>(() => {
+        let q = supabase.from("financial_transactions").select("*").eq("type", "a_receber");
+        if (rangeFilter) q = q.or(rangeFilter);
+        return q.order("due_date", { ascending: false });
+      });
+      return data;
     },
   });
 
