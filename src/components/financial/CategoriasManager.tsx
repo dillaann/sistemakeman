@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useFinancialCategories, type FinancialCategory } from "@/hooks/useFinancialCategories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
