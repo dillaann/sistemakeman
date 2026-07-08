@@ -89,7 +89,7 @@ const Purchases = () => {
   const { data: purchases = [] } = useQuery({
     queryKey: ["purchases"],
     queryFn: async () => {
-      const { data } = await supabase.from("purchases").select("*, suppliers(name)").order("purchase_date", { ascending: false });
+      const { data } = await supabase.from("purchases").select("*, suppliers(name)").order("purchase_date", { ascending: false }).range(0, 100000);
       return data ?? [];
     },
   });
@@ -100,7 +100,8 @@ const Purchases = () => {
       const { data } = await supabase
         .from("purchase_orders" as any)
         .select("*, suppliers(name)")
-        .order("purchase_date", { ascending: false });
+        .order("purchase_date", { ascending: false })
+        .range(0, 100000);
       return (data as any[]) ?? [];
     },
   });
