@@ -209,6 +209,9 @@ const Dashboard = () => {
   const totalEntradas = useMemo(() => transactions
     .filter(t => {
       if (t.type !== "a_receber" || t.status !== "pago") return false;
+      // "Faturamento" genérico = orçamento aprovado (regime de competência), não é dinheiro na conta.
+      // Só entram no caixa recebimentos reais (Faturamento - pix/cheque/etc., Serviço, Vendas...).
+      if (t.category === "Faturamento") return false;
       const ref = t.paid_date ?? t.due_date;
       if (ref > today) return false;
       return isInRange(ref, dateRange);
