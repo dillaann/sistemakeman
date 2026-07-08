@@ -156,10 +156,15 @@ Deno.serve(async (req) => {
             }
           }
         }
+      } else {
+        console.error(`Falha ao ler planilha existente (${readRes.status}): ${await readRes.text()}`);
       }
+      console.log(`Marcações 'Cobrado?' preservadas: ${cobradoMap.size}`);
     } catch (readErr) {
       console.error("Aviso: não foi possível ler marcações existentes de 'Cobrado?':", readErr);
     }
+
+
 
     const values = [
       [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
