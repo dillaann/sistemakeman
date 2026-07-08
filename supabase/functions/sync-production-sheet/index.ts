@@ -138,18 +138,15 @@ Deno.serve(async (req) => {
         `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000`,
         { method: "GET", headers: ghHeaders },
       );
-      console.log(`Read existing sheet: status=${readRes.status} ok=${readRes.ok}`);
       if (readRes.ok) {
         const existing = await readRes.json();
         const existingValues: any[][] = existing.values || [];
-        console.log(`Existing rows read: ${existingValues.length}`);
         // Encontra a linha de cabeçalho (a que contém "ID")
         const headerRowIdx = existingValues.findIndex((r) => Array.isArray(r) && r.includes("ID"));
         if (headerRowIdx >= 0) {
           const hRow = existingValues[headerRowIdx];
           const idCol = hRow.indexOf("ID");
           const cobradoCol = hRow.indexOf("Cobrado?");
-          console.log(`headerRowIdx=${headerRowIdx} idCol=${idCol} cobradoCol=${cobradoCol}`);
           if (idCol >= 0 && cobradoCol >= 0) {
             for (let i = headerRowIdx + 1; i < existingValues.length; i++) {
               const dataRow = existingValues[i];
@@ -158,8 +155,6 @@ Deno.serve(async (req) => {
               if (rowId && cobrado) cobradoMap.set(rowId, cobrado);
             }
           }
-        } else {
-          console.log("Nenhuma linha de cabeçalho com 'ID' encontrada na planilha existente.");
         }
       } else {
         console.error(`Falha ao ler planilha existente (${readRes.status}): ${await readRes.text()}`);
@@ -168,6 +163,7 @@ Deno.serve(async (req) => {
     } catch (readErr) {
       console.error("Aviso: não foi possível ler marcações existentes de 'Cobrado?':", readErr);
     }
+
 
 
     const values = [
