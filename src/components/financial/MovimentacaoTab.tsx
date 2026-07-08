@@ -47,13 +47,14 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
     queryFn: async () => {
       // Visão Geral uses paid_date for paid transactions (cash basis).
       // Filter by date on the SERVER to avoid the 1000-row response cap.
-      const { data } = await supabase.from("financial_transactions").select("*")
-        .neq("status", "cancelado")
-        .or(`and(paid_date.gte.${dateFrom},paid_date.lte.${dateTo}),and(paid_date.is.null,due_date.gte.${dateFrom},due_date.lte.${dateTo})`)
-        .order("due_date", { ascending: true })
-        .range(0, 10000);
+      const data = await fetchAllRows<any>(() =>
+        supabase.from("financial_transactions").select("*")
+          .neq("status", "cancelado")
+          .or(`and(paid_date.gte.${dateFrom},paid_date.lte.${dateTo}),and(paid_date.is.null,due_date.gte.${dateFrom},due_date.lte.${dateTo})`)
+          .order("due_date", { ascending: true })
+      );
       // Re-confirm cash-basis window client-side
-      return (data ?? []).filter(t => {
+      return data.filter(t => {
         const refDate = t.status === "pago" ? (t.paid_date || t.due_date) : t.due_date;
         return refDate >= dateFrom && refDate <= dateTo;
       });

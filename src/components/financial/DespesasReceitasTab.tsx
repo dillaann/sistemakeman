@@ -35,11 +35,12 @@ export default function DespesasReceitasTab() {
   const { data: transactions = [] } = useQuery({
     queryKey: ["desp-rec", dateFrom, dateTo],
     queryFn: async () => {
-      const { data } = await supabase.from("financial_transactions").select("*")
-        .eq("status", "pago")
-        .or(`and(paid_date.gte.${dateFrom},paid_date.lte.${dateTo}),and(paid_date.is.null,due_date.gte.${dateFrom},due_date.lte.${dateTo})`)
-        .range(0, 10000);
-      return (data ?? []).filter(t => {
+      const data = await fetchAllRows<any>(() =>
+        supabase.from("financial_transactions").select("*")
+          .eq("status", "pago")
+          .or(`and(paid_date.gte.${dateFrom},paid_date.lte.${dateTo}),and(paid_date.is.null,due_date.gte.${dateFrom},due_date.lte.${dateTo})`)
+      );
+      return data.filter(t => {
         const ref = t.paid_date || t.due_date;
         return ref >= dateFrom && ref <= dateTo;
       });
