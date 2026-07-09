@@ -46,6 +46,11 @@ const paymentMethodLabel = (v: string | null) => paymentMethods.find(p => p.valu
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Competência anterior a esta data foi lançada manualmente (ex.: março fechado à mão).
+// Recebimentos de saldos com vencimento antes daqui NÃO são recontados no caixa,
+// pois já estão no fechamento manual do mês de origem.
+const LEGACY_COMPETENCE_CUTOFF = "2026-04-01";
+
 export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { toast } = useToast();
   const { userRole } = useAuth();
