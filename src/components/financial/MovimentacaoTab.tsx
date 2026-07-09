@@ -61,38 +61,51 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
     },
   });
 
-  const totalEntradas = useMemo(() => transactions.filter(t => t.type === "a_receber").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
-  const totalSaidas = useMemo(() => transactions.filter(t => t.type === "a_pagar").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
+  // Sincronizado com Entradas/Saídas (regime de caixa):
+  // - Conta APENAS transações pagas (status "pago")
+  // - Entradas excluem a categoria genérica "Faturamento" (competência, não é dinheiro na conta)
+  const paidTx = useMemo(
+    () =>
+      transactions.filter(t => {
+        if (t.status !== "pago") return false;
+        if (t.type === "a_receber" && t.category === "Faturamento") return false;
+        return true;
+      }),
+    [transactions],
+  );
+
+  const totalEntradas = useMemo(() => paidTx.filter(t => t.type === "a_receber").reduce((s, t) => s + Number(t.amount), 0), [paidTx]);
+  const totalSaidas = useMemo(() => paidTx.filter(t => t.type === "a_pagar").reduce((s, t) => s + Number(t.amount), 0), [paidTx]);
   const saldo = totalEntradas - totalSaidas;
 
   const chartData = useMemo(() => {
     const map: Record<string, { month: string; entradas: number; saidas: number }> = {};
-    transactions.forEach(t => {
-      const refDate = t.status === "pago" ? (t.paid_date || t.due_date) : t.due_date;
+    paidTx.forEach(t => {
+      const refDate = t.paid_date || t.due_date;
       const m = refDate.substring(0, 7);
       if (!map[m]) {
-        const parsedDate = parseLocalDate(t.due_date);
+        const parsedDate = parseLocalDate(refDate);
         map[m] = { month: parsedDate ? format(parsedDate, "MMM/yy", { locale: ptBR }) : m, entradas: 0, saidas: 0 };
       }
       if (t.type === "a_receber") map[m].entradas += Number(t.amount);
       else map[m].saidas += Number(t.amount);
     });
     return Object.values(map);
-  }, [transactions]);
+  }, [paidTx]);
 
   const tableRows = useMemo(() => {
     let acc = 0;
-    return transactions.map(t => {
+    return paidTx.map(t => {
       const isEntrada = t.type === "a_receber";
       const val = Number(t.amount);
       acc += isEntrada ? val : -val;
       return { ...t, entrada: isEntrada ? val : 0, saida: isEntrada ? 0 : val, acumulado: acc };
     });
-  }, [transactions]);
+  }, [paidTx]);
 
   const exportCSV = () => {
     const header = "Data,Descrição,Entrada,Saída,Saldo Acumulado\n";
-    const rows = tableRows.map(r => `${r.due_date},"${r.description}",${r.entrada || ""},${r.saida || ""},${r.acumulado.toFixed(2)}`).join("\n");
+    const rows = tableRows.map(r => `${r.paid_date || r.due_date},"${r.description}",${r.entrada || ""},${r.saida || ""},${r.acumulado.toFixed(2)}`).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `movimentacao_${dateFrom}_${dateTo}.csv`; a.click();
@@ -151,8 +164,8 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
         <div className="flex gap-2">
           <FinancialReportDialog
             type="visao_geral"
-            transactions={transactions.map(t => ({ date: t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status, origin: t.type === "a_receber" ? "Entrada" : "Saída" }))}
-            categories={[...new Set(transactions.map(t => t.category).filter(Boolean) as string[])]}
+            transactions={paidTx.map(t => ({ date: t.paid_date || t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status, origin: t.type === "a_receber" ? "Entrada" : "Saída" }))}
+            categories={[...new Set(paidTx.map(t => t.category).filter(Boolean) as string[])]}
             periodLabel={`${formatDateBR(dateFrom)} a ${formatDateBR(dateTo)}`}
           />
           <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
@@ -173,7 +186,7 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
           <TableBody>
             {tableRows.map(r => (
               <TableRow key={r.id}>
-                <TableCell>{formatDateBR(r.due_date)}</TableCell>
+                <TableCell>{formatDateBR(r.paid_date || r.due_date)}</TableCell>
                 <TableCell className="max-w-[300px] truncate">{r.description}</TableCell>
                 <TableCell className="text-right font-medium text-green-700">{r.entrada ? fmt(r.entrada) : ""}</TableCell>
                 <TableCell className="text-right font-medium text-red-700">{r.saida ? fmt(r.saida) : ""}</TableCell>
