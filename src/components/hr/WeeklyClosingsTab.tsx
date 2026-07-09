@@ -27,6 +27,12 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
       const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
       const payDate = wc.payment_date || wc.end_date || new Date().toISOString().slice(0, 10);
 
+      const { error: deleteExistingError } = await supabase.from("financial_transactions")
+        .delete()
+        .eq("description", desc)
+        .eq("sync_origin", "payroll");
+      if (deleteExistingError) throw deleteExistingError;
+
       const { error: ftErr } = await supabase.from("financial_transactions").insert({
         type: "a_pagar" as any,
         description: desc,

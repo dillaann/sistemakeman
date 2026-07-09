@@ -115,35 +115,6 @@ const HR = () => {
       const inst = payInstContext;
       if (!inst) throw new Error("Quinzena não encontrada");
       const amount = parseFloat(payInstForm.amount);
-      const emp = hrData.employees.find(e => e.id === inst.employee_id);
-      const empName = emp?.name ?? "Funcionário";
-      const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
-
-      let ftId = inst.payable_transaction_id;
-      if (ftId) {
-        await supabase.from("financial_transactions").update({ 
-          status: "pago" as any, 
-          amount, 
-          paid_date: payInstForm.payment_date, 
-          payment_method: payInstForm.payment_method, 
-          account_id: payInstForm.account_id || null, 
-          description: desc 
-        }).eq("id", ftId);
-      } else {
-        const { data: ft } = await supabase.from("financial_transactions").insert({ 
-          type: "a_pagar" as any, 
-          description: desc, 
-          amount, 
-          due_date: payInstForm.payment_date, 
-          paid_date: payInstForm.payment_date, 
-          status: "pago" as any, 
-          category: "Folha de Pagamento", 
-          payment_method: payInstForm.payment_method, 
-          account_id: payInstForm.account_id || null, 
-          sync_origin: "payroll" 
-        }).select("id").single();
-        ftId = ft?.id;
-      }
 
       const { error } = await supabase.from("salary_installments" as any).update({ 
         status: "pago", 
@@ -152,8 +123,8 @@ const HR = () => {
         payment_method: payInstForm.payment_method, 
         account_id: payInstForm.account_id || null, 
         notes: payInstForm.notes || null, 
-        financial_transaction_id: ftId, 
-        payable_transaction_id: ftId 
+        financial_transaction_id: null, 
+        payable_transaction_id: null 
       }).eq("id", inst.id);
       if (error) throw error;
     },
@@ -169,18 +140,7 @@ const HR = () => {
   const payBulkMutation = useMutation({
     mutationFn: async () => {
       for (const inst of bulkPayInsts) {
-        const emp = hrData.employees.find(e => e.id === inst.employee_id);
-        const empName = emp?.name ?? "Funcionário";
-        const desc = `Salário ${empName} — Referência ${monthLabel(inst.month_ref)} — ${inst.installment_number}ª Quinzena`;
-        const amount = Number(inst.amount) || 0;
-        let ftId = inst.payable_transaction_id;
-        if (ftId) {
-          await supabase.from("financial_transactions").update({ status: "pago" as any, paid_date: bulkPayForm.payment_date, payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, description: desc }).eq("id", ftId);
-        } else {
-          const { data: ft } = await supabase.from("financial_transactions").insert({ type: "a_pagar" as any, description: desc, amount, due_date: bulkPayForm.payment_date, paid_date: bulkPayForm.payment_date, status: "pago" as any, category: "Folha de Pagamento", payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, sync_origin: "payroll" }).select("id").single();
-          ftId = ft?.id;
-        }
-        await supabase.from("salary_installments" as any).update({ status: "pago", payment_date: bulkPayForm.payment_date, payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, notes: bulkPayForm.notes || null, financial_transaction_id: ftId, payable_transaction_id: ftId }).eq("id", inst.id);
+        await supabase.from("salary_installments" as any).update({ status: "pago", payment_date: bulkPayForm.payment_date, payment_method: bulkPayForm.payment_method, account_id: bulkPayForm.account_id || null, notes: bulkPayForm.notes || null, financial_transaction_id: null, payable_transaction_id: null }).eq("id", inst.id);
       }
     },
     onSuccess: () => {

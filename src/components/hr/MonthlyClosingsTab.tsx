@@ -27,6 +27,15 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
       const summary = employeeSummary.find(e => e.id === employeeId);
       if (!summary) throw new Error("Resumo não encontrado");
 
+      const netPay = Number(summary.netPay) || 0;
+      const monthStart = `${selectedMonth}-01`;
+      const [yy, mm] = selectedMonth.split("-").map(Number);
+      const monthEnd = `${new Date(yy, mm, 1).toISOString().slice(0, 8)}01`; // 1º dia do mês seguinte
+      const lastDay = new Date(yy, mm, 0).getDate();
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let payDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
+      if (payDate > todayStr) payDate = todayStr;
+
       const { error } = await supabase.from("monthly_closings").upsert({ 
         employee_id: employeeId, 
         month_ref: selectedMonth, 
@@ -37,7 +46,9 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
         total_saturdays: summary.empSaturdays, 
         total_holidays: summary.empHolidays, 
         total_absences: summary.empAbsences, 
-        net_pay: summary.netPay 
+        net_pay: netPay,
+        paid: true,
+        paid_date: payDate,
       } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
 
@@ -46,14 +57,6 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
       // Removemos lançamentos antigos de folha (quinzenas/mensal) desse funcionário
       // no mês para não duplicar. Pagamentos semanais NÃO são tocados.
       const empName = summary.name;
-      const netPay = Number(summary.netPay) || 0;
-      const monthStart = `${selectedMonth}-01`;
-      const [yy, mm] = selectedMonth.split("-").map(Number);
-      const monthEnd = `${new Date(yy, mm, 1).toISOString().slice(0, 8)}01`; // 1º dia do mês seguinte
-      const lastDay = new Date(yy, mm, 0).getDate();
-      const todayStr = new Date().toISOString().slice(0, 10);
-      let payDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
-      if (payDate > todayStr) payDate = todayStr;
       const desc = `Salário Mensal — ${empName} — Referência ${monthLabel(selectedMonth)}`;
 
       // Lançamentos de folha existentes desse funcionário no mês (exceto semanais)
