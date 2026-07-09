@@ -74,7 +74,7 @@ export const useHRCalculations = (
       const netPay = isWeekly ? weeklyTotal : (baseSalary + empOvertime + empSaturdays + empHolidays - empAdvances - empAbsences);
       const totalPaid = isWeekly 
         ? weeklyClosings.filter((wc: any) => wc.employee_id === emp.id && wc.status === "pago").reduce((s: number, wc: any) => s + (Number(wc.net_pay) || 0), 0)
-        : installments.filter((i: any) => i.employee_id === emp.id && i.status === "pago").reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+        : closing?.paid ? Number(closing.net_pay) || netPay : 0;
       const remaining = netPay - totalPaid;
       return { ...emp, baseSalary, empAdvances, empExpenses, empOvertime, empSaturdays, empHolidays, empAbsences, netPay, closing, totalPaid, remaining, isWeekly };
     });
