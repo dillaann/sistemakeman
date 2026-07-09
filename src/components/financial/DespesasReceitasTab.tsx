@@ -49,7 +49,7 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
   });
 
   const totalReceitas = useMemo(() => transactions.filter(t => t.type === "a_receber").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
-  const totalDespesas = useMemo(() => transactions.filter(t => t.type === "a_pagar").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
+  const totalDespesas = useMemo(() => transactions.filter(t => t.type === "a_pagar" && !t.exclude_from_totals).reduce((s, t) => s + Number(t.amount), 0), [transactions]);
   const saldo = totalReceitas - totalDespesas;
 
   // Por mês
