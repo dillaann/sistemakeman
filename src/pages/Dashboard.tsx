@@ -303,7 +303,7 @@ const Dashboard = () => {
   // ─── DRE simplificado
   const dreResult = useMemo(() => {
     const expenses = transactions
-      .filter(t => t.type === "a_pagar" && isInRange(t.due_date, dateRange))
+      .filter(t => t.type === "a_pagar" && !t.exclude_from_totals && isInRange(t.due_date, dateRange))
       .reduce((s, t) => s + Number(t.amount), 0);
     return totalBilled - expenses;
   }, [totalBilled, transactions, dateRange]);
