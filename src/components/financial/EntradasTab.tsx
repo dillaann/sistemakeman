@@ -140,8 +140,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
-  // "Faturamento" genérico = orçamento aprovado (competência), não é dinheiro na conta; fora do total de caixa.
-  const total = filtered.filter(t => t.status !== "cancelado" && t.category !== "Faturamento").reduce((s, t) => s + Number(t.amount), 0);
+  // Regime de caixa: soma todos os recebimentos pagos do período (inclui saldos
+  // "Faturamento" efetivamente recebidos). Pendentes de competência já saem pelo filtro de status.
+  const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
   const isFutureDate = (dateStr: string) => {
     if (!dateStr) return false;
