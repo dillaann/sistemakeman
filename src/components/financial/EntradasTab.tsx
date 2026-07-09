@@ -116,6 +116,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
       if (t.status !== "pago") return false;
+      // Saldos "Faturamento" (competência) não entram no caixa — ocultar da
+      // tabela para que a soma exibida bata com o Total Recebido.
+      if (t.category === "Faturamento") return false;
       // prioritize paid_date if available, otherwise fallback to due_date
       const refDate = t.paid_date || t.due_date;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
