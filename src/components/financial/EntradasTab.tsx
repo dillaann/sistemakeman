@@ -87,15 +87,15 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-entradas", rangeStart, rangeEnd],
     queryFn: async () => {
-      // Regime de competência: filtra pelo mês faturado (due_date), não pela data de pagamento.
+      // Regime de caixa: a entrada conta no mês em que o dinheiro entrou (paid_date).
       const rangeFilter = rangeStart && rangeEnd
-        ? `and(due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`
+        ? `and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd})`
         : null;
       // Paginate past the 1000-row response cap so totals reflect ALL records.
       const data = await fetchAllRows<any>(() => {
         let q = supabase.from("financial_transactions").select("*").eq("type", "a_receber");
         if (rangeFilter) q = q.or(rangeFilter);
-        return q.order("due_date", { ascending: false });
+        return q.order("paid_date", { ascending: false });
       });
       return data;
     },
@@ -117,11 +117,10 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
       if (t.status !== "pago") return false;
-      // Faturado E recebido no mês: exige que o vencimento (competência) e o
-      // recebimento (paid_date) estejam ambos dentro do período selecionado.
-      const refDate = t.due_date;
+      // Regime de caixa: a entrada pertence ao mês em que o pagamento foi recebido (paid_date).
+      const refDate = t.paid_date;
+      if (!refDate) return false;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
-      if (dateRange && (!t.paid_date || !isInRange(t.paid_date, dateRange))) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
@@ -135,13 +134,13 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         const amountDiff = Number(a.amount) - Number(b.amount);
         return sortAsc ? amountDiff : -amountDiff;
       }
-      const dateDiff = compareDateStrings(a.due_date, b.due_date);
+      const dateDiff = compareDateStrings(a.paid_date ?? a.due_date, b.paid_date ?? b.due_date);
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
-  // Regime de competência: soma os recebimentos pagos faturados no período.
+  // Regime de caixa: soma os recebimentos que entraram no período.
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
   const isFutureDate = (dateStr: string) => {
@@ -230,7 +229,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         <div className="flex gap-2">
           <FinancialReportDialog
             type="entradas"
-            transactions={filtered.map(t => ({ date: t.due_date, description: enrichDescription(t.description, t.client_id), category: t.category ?? "", amount: Number(t.amount), status: t.status === "pago" ? "recebido" : t.status }))}
+            transactions={filtered.map(t => ({ date: t.paid_date ?? t.due_date, description: enrichDescription(t.description, t.client_id), category: t.category ?? "", amount: Number(t.amount), status: t.status === "pago" ? "recebido" : t.status }))}
             categories={categorias}
             periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
           />
@@ -324,7 +323,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
           <TableBody>
             {filtered.map(t => (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
-                <TableCell>{formatDateBR(t.due_date)}</TableCell>
+                <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
