@@ -186,7 +186,7 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
           <TableBody>
             {tableRows.map(r => (
               <TableRow key={r.id}>
-                <TableCell>{formatDateBR(r.due_date)}</TableCell>
+                <TableCell>{formatDateBR(r.paid_date || r.due_date)}</TableCell>
                 <TableCell className="max-w-[300px] truncate">{r.description}</TableCell>
                 <TableCell className="text-right font-medium text-green-700">{r.entrada ? fmt(r.entrada) : ""}</TableCell>
                 <TableCell className="text-right font-medium text-red-700">{r.saida ? fmt(r.saida) : ""}</TableCell>
