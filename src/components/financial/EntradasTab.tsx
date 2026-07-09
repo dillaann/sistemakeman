@@ -229,7 +229,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         <div className="flex gap-2">
           <FinancialReportDialog
             type="entradas"
-            transactions={filtered.map(t => ({ date: t.due_date, description: enrichDescription(t.description, t.client_id), category: t.category ?? "", amount: Number(t.amount), status: t.status === "pago" ? "recebido" : t.status }))}
+            transactions={filtered.map(t => ({ date: t.paid_date ?? t.due_date, description: enrichDescription(t.description, t.client_id), category: t.category ?? "", amount: Number(t.amount), status: t.status === "pago" ? "recebido" : t.status }))}
             categories={categorias}
             periodLabel={dateRange ? `${dateRange.start.toLocaleDateString("pt-BR")} a ${dateRange.end.toLocaleDateString("pt-BR")}` : "Todos"}
           />
