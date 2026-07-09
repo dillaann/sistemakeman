@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Trash2, Pencil, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, ArrowUpDown, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { isInRange } from "@/components/MonthFilter";
@@ -92,9 +92,6 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
-      // Saídas = regime de caixa: só entram saídas REALMENTE pagas.
-      // Pendentes/atrasadas ficam na aba "A Pagar" até serem quitadas.
-      if (t.status !== "pago") return false;
       // prioritize paid_date if available, otherwise fallback to due_date
       const refDate = t.paid_date || t.due_date;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
@@ -160,6 +157,18 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         variant: "destructive" 
       });
     },
+  });
+
+  const baixaMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("financial_transactions")
+        .update({ status: "pago" as any, paid_date: localDateString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial-saidas"] }); qc.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Saída paga!", description: "Transação baixada com sucesso." }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -293,7 +302,12 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                 <TableCell>{paymentMethodLabel((t as any).payment_method)}</TableCell>
                 <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 items-center">
+                    {t.status !== "pago" && t.status !== "cancelado" && (userRole === "admin" || userRole === "financeiro") && (
+                      <Button variant="outline" size="sm" onClick={() => baixaMutation.mutate(t.id)} disabled={baixaMutation.isPending}>
+                        <CheckCircle className="h-4 w-4 mr-1" /> Dar Baixa
+                      </Button>
+                    )}
                     {(userRole === "admin" || userRole === "financeiro") && <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>}
                     {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
