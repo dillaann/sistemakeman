@@ -69,9 +69,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
-  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
+  const [form, setForm] = useState({ description: "", amount: "", due_date: "", paid_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
 
-  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
+  const resetForm = () => setForm({ description: "", amount: "", due_date: "", paid_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-lookup"],
@@ -150,20 +150,15 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   // Regime de caixa: soma os recebimentos que entraram no período.
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
-  const isFutureDate = (dateStr: string) => {
-    if (!dateStr) return false;
-    return dateStr > localDateString();
-  };
+
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       let finalStatus = form.status === "recebido" ? "pago" : form.status;
-      let paidDate = form.status === "recebido" ? form.due_date : null;
+      // Regime de caixa: paid_date = data real em que o dinheiro entrou na conta.
+      // Se não informada, usa a data de vencimento como fallback.
+      let paidDate = form.status === "recebido" ? (form.paid_date || form.due_date) : null;
 
-      if (isFutureDate(form.due_date) && finalStatus === "pago") {
-        // Permitir recebimento futuro em 2026 sem forçar pendência
-        paidDate = form.due_date;
-      }
 
 
       const payload = {
@@ -217,7 +212,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "", payment_method: t.payment_method ?? "pix", account_id: t.account_id ?? "" });
+    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, paid_date: t.paid_date ?? t.due_date ?? "", category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "", payment_method: t.payment_method ?? "pix", account_id: t.account_id ?? "" });
     setOpen(true);
   };
 
@@ -248,8 +243,11 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
               <div><Label>Descrição *</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required maxLength={255} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
-                <div><Label>Data *</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} required /></div>
+                <div><Label>Data (Vencimento/Faturamento) *</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} required /></div>
               </div>
+              {form.status === "recebido" && (
+                <div><Label>Data de Recebimento (entrou na conta) *</Label><Input type="date" value={form.paid_date} onChange={e => setForm({ ...form, paid_date: e.target.value })} /></div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Categoria *</Label>
                   <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
