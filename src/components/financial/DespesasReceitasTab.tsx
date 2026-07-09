@@ -63,7 +63,7 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
         map[m] = { key: m, month: parsed ? format(parsed, "MMM/yy", { locale: ptBR }) : m, receitas: 0, despesas: 0 };
       }
       if (t.type === "a_receber") map[m].receitas += Number(t.amount);
-      else map[m].despesas += Number(t.amount);
+      else if (!t.exclude_from_totals) map[m].despesas += Number(t.amount);
     });
     return Object.values(map).sort((a, b) => a.key.localeCompare(b.key));
   }, [transactions]);
