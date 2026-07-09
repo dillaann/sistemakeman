@@ -69,9 +69,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
-  const [form, setForm] = useState({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
+  const [form, setForm] = useState({ description: "", amount: "", due_date: "", paid_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
 
-  const resetForm = () => setForm({ description: "", amount: "", due_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
+  const resetForm = () => setForm({ description: "", amount: "", due_date: "", paid_date: "", category: "Serviço", status: "pendente", notes: "", payment_method: "pix", account_id: "" });
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-lookup"],
