@@ -246,8 +246,11 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
               <div><Label>Descrição *</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required maxLength={255} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required /></div>
-                <div><Label>Data *</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} required /></div>
+                <div><Label>Data (Vencimento/Faturamento) *</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} required /></div>
               </div>
+              {form.status === "recebido" && (
+                <div><Label>Data de Recebimento (entrou na conta) *</Label><Input type="date" value={form.paid_date} onChange={e => setForm({ ...form, paid_date: e.target.value })} /></div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Categoria *</Label>
                   <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
