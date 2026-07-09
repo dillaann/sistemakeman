@@ -58,12 +58,11 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
 
   // Sincronizado com Entradas/Saídas (regime de caixa):
   // - Conta APENAS transações pagas (status "pago")
-  // - Entradas excluem a categoria genérica "Faturamento" (competência, não é dinheiro na conta)
+  // - Inclui saldos "Faturamento" efetivamente recebidos; pendentes (competência) já saem pelo status
   const paidTx = useMemo(
     () =>
       transactions.filter(t => {
         if (t.status !== "pago") return false;
-        if (t.type === "a_receber" && t.category === "Faturamento") return false;
         return true;
       }),
     [transactions],
