@@ -164,8 +164,8 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
         <div className="flex gap-2">
           <FinancialReportDialog
             type="visao_geral"
-            transactions={transactions.map(t => ({ date: t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status, origin: t.type === "a_receber" ? "Entrada" : "Saída" }))}
-            categories={[...new Set(transactions.map(t => t.category).filter(Boolean) as string[])]}
+            transactions={paidTx.map(t => ({ date: t.paid_date || t.due_date, description: t.description, category: t.category ?? "", amount: Number(t.amount), status: t.status, origin: t.type === "a_receber" ? "Entrada" : "Saída" }))}
+            categories={[...new Set(paidTx.map(t => t.category).filter(Boolean) as string[])]}
             periodLabel={`${formatDateBR(dateFrom)} a ${formatDateBR(dateTo)}`}
           />
           <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Exportar CSV</Button>
