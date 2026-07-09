@@ -42,6 +42,9 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
       if (error) throw error;
 
       // ── Lançar a saída no Financeiro (fonte única = fechamento do mês) ──
+      // Regra: cada mensalista fechado gera UMA única saída paga = líquido do mês.
+      // Removemos lançamentos antigos de folha (quinzenas/mensal) desse funcionário
+      // no mês para não duplicar. Pagamentos semanais NÃO são tocados.
       const empName = summary.name;
       const netPay = Number(summary.netPay) || 0;
       const monthStart = `${selectedMonth}-01`;
@@ -53,26 +56,25 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
       if (payDate > todayStr) payDate = todayStr;
       const desc = `Salário Mensal — ${empName} — Referência ${monthLabel(selectedMonth)}`;
 
-      // Quinzenas legadas (Março) já geram saída — não duplicar
-      const { data: legacy } = await supabase.from("financial_transactions")
-        .select("id")
+      // Lançamentos de folha existentes desse funcionário no mês (exceto semanais)
+      const { data: existing } = await supabase.from("financial_transactions")
+        .select("id, description, account_id")
         .eq("sync_origin", "payroll")
         .eq("category", "Folha de Pagamento")
         .gte("due_date", monthStart).lt("due_date", monthEnd)
-        .ilike("description", `%${empName}%Quinzena%`);
+        .ilike("description", `%${empName}%`);
 
-      if (netPay > 0 && !(legacy && legacy.length > 0)) {
-        const { data: existing } = await supabase.from("financial_transactions")
-          .select("id")
-          .eq("sync_origin", "payroll")
-          .gte("due_date", monthStart).lt("due_date", monthEnd)
-          .ilike("description", `Salário Mensal — ${empName} — %`);
+      const monthly = (existing || []).filter(
+        (t: any) => !/semanal/i.test(t.description || "")
+      );
 
-        if (existing && existing.length > 0) {
+      if (netPay > 0) {
+        if (monthly.length > 0) {
+          // Reaproveita o primeiro registro como a saída oficial e remove os demais
           await supabase.from("financial_transactions").update({
             amount: netPay, description: desc, due_date: payDate, paid_date: payDate, status: "pago" as any,
-          }).eq("id", existing[0].id);
-          for (const dup of existing.slice(1)) {
+          }).eq("id", monthly[0].id);
+          for (const dup of monthly.slice(1)) {
             await supabase.from("financial_transactions").delete().eq("id", dup.id);
           }
         } else {
