@@ -158,12 +158,10 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       let finalStatus = form.status === "recebido" ? "pago" : form.status;
-      let paidDate = form.status === "recebido" ? form.due_date : null;
+      // Regime de caixa: paid_date = data real em que o dinheiro entrou na conta.
+      // Se não informada, usa a data de vencimento como fallback.
+      let paidDate = form.status === "recebido" ? (form.paid_date || form.due_date) : null;
 
-      if (isFutureDate(form.due_date) && finalStatus === "pago") {
-        // Permitir recebimento futuro em 2026 sem forçar pendência
-        paidDate = form.due_date;
-      }
 
 
       const payload = {
