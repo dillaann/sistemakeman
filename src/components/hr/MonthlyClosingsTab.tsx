@@ -26,7 +26,7 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
     mutationFn: async (employeeId: string) => {
       const summary = employeeSummary.find(e => e.id === employeeId);
       if (!summary) throw new Error("Resumo não encontrado");
-      
+
       const { error } = await supabase.from("monthly_closings").upsert({ 
         employee_id: employeeId, 
         month_ref: selectedMonth, 
@@ -40,11 +40,57 @@ const MonthlyClosingsTab = ({ closings, employees, employeeSummary, selectedMont
         net_pay: summary.netPay 
       } as any, { onConflict: "employee_id,month_ref" });
       if (error) throw error;
+
+      // ── Lançar a saída no Financeiro (fonte única = fechamento do mês) ──
+      // Regra: cada mensalista fechado gera UMA única saída paga = líquido do mês.
+      // Removemos lançamentos antigos de folha (quinzenas/mensal) desse funcionário
+      // no mês para não duplicar. Pagamentos semanais NÃO são tocados.
+      const empName = summary.name;
+      const netPay = Number(summary.netPay) || 0;
+      const monthStart = `${selectedMonth}-01`;
+      const [yy, mm] = selectedMonth.split("-").map(Number);
+      const monthEnd = `${new Date(yy, mm, 1).toISOString().slice(0, 8)}01`; // 1º dia do mês seguinte
+      const lastDay = new Date(yy, mm, 0).getDate();
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let payDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
+      if (payDate > todayStr) payDate = todayStr;
+      const desc = `Salário Mensal — ${empName} — Referência ${monthLabel(selectedMonth)}`;
+
+      // Lançamentos de folha existentes desse funcionário no mês (exceto semanais)
+      const { data: existing } = await supabase.from("financial_transactions")
+        .select("id, description, account_id")
+        .eq("sync_origin", "payroll")
+        .eq("category", "Folha de Pagamento")
+        .gte("due_date", monthStart).lt("due_date", monthEnd)
+        .ilike("description", `%${empName}%`);
+
+      const monthly = (existing || []).filter(
+        (t: any) => !/semanal/i.test(t.description || "")
+      );
+
+      if (netPay > 0) {
+        if (monthly.length > 0) {
+          // Reaproveita o primeiro registro como a saída oficial e remove os demais
+          await supabase.from("financial_transactions").update({
+            amount: netPay, description: desc, due_date: payDate, paid_date: payDate, status: "pago" as any,
+          }).eq("id", monthly[0].id);
+          for (const dup of monthly.slice(1)) {
+            await supabase.from("financial_transactions").delete().eq("id", dup.id);
+          }
+        } else {
+          await supabase.from("financial_transactions").insert({
+            type: "a_pagar" as any, description: desc, amount: netPay,
+            due_date: payDate, paid_date: payDate, status: "pago" as any,
+            category: "Folha de Pagamento", sync_origin: "payroll", payment_method: "pix",
+          });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["monthly-closings"] });
       queryClient.invalidateQueries({ queryKey: ["salary-installments"] });
-      toast({ title: "Fechamento atualizado!" });
+      queryClient.invalidateQueries({ queryKey: ["financial"] });
+      toast({ title: "Fechamento atualizado e lançado no Financeiro!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
