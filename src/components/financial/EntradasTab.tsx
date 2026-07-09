@@ -87,8 +87,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-entradas", rangeStart, rangeEnd],
     queryFn: async () => {
+      // Regime de competência: filtra pelo mês faturado (due_date), não pela data de pagamento.
       const rangeFilter = rangeStart && rangeEnd
-        ? `and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd}),and(paid_date.is.null,due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`
+        ? `and(due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`
         : null;
       // Paginate past the 1000-row response cap so totals reflect ALL records.
       const data = await fetchAllRows<any>(() => {
