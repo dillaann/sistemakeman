@@ -140,9 +140,9 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
-  // Regime de caixa: soma todos os recebimentos pagos do período (inclui saldos
-  // "Faturamento" efetivamente recebidos). Pendentes de competência já saem pelo filtro de status.
-  const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
+  // Regime de caixa: soma os recebimentos pagos do período, EXCETO saldos "Faturamento"
+  // (competência) — estes não entram no total entrado do caixa.
+  const total = filtered.filter(t => t.status !== "cancelado" && t.category !== "Faturamento").reduce((s, t) => s + Number(t.amount), 0);
 
   const isFutureDate = (dateStr: string) => {
     if (!dateStr) return false;
