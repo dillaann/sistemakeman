@@ -42,6 +42,9 @@ export default function DespesasReceitasTab() {
       );
       return data.filter(t => {
         const ref = t.paid_date || t.due_date;
+        // Sincronizado com a Visão Geral (regime de caixa): a categoria genérica
+        // "Faturamento" é competência (não é dinheiro na conta) e fica de fora das receitas.
+        if (t.type === "a_receber" && t.category === "Faturamento") return false;
         return ref >= dateFrom && ref <= dateTo;
       });
     },
