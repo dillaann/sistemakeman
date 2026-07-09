@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Banknote, Pencil, Trash2, Plus, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fmt, localDateString, formatDateBR, monthLabel, parseLocalDate } from "@/lib/utils";
+import { fmt, localDateString, formatDateBR, parseLocalDate } from "@/lib/utils";
 
 interface InstallmentsTabProps {
   installments: any[];
