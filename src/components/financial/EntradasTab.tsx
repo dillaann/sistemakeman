@@ -217,7 +217,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "", payment_method: t.payment_method ?? "pix", account_id: t.account_id ?? "" });
+    setForm({ description: t.description, amount: String(t.amount), due_date: t.due_date, paid_date: t.paid_date ?? t.due_date ?? "", category: t.category ?? "Outros", status: t.status === "pago" ? "recebido" : t.status, notes: "", payment_method: t.payment_method ?? "pix", account_id: t.account_id ?? "" });
     setOpen(true);
   };
 
