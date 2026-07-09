@@ -49,7 +49,7 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
   });
 
   const totalReceitas = useMemo(() => transactions.filter(t => t.type === "a_receber").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
-  const totalDespesas = useMemo(() => transactions.filter(t => t.type === "a_pagar").reduce((s, t) => s + Number(t.amount), 0), [transactions]);
+  const totalDespesas = useMemo(() => transactions.filter(t => t.type === "a_pagar" && !t.exclude_from_totals).reduce((s, t) => s + Number(t.amount), 0), [transactions]);
   const saldo = totalReceitas - totalDespesas;
 
   // Por mês
@@ -63,7 +63,7 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
         map[m] = { key: m, month: parsed ? format(parsed, "MMM/yy", { locale: ptBR }) : m, receitas: 0, despesas: 0 };
       }
       if (t.type === "a_receber") map[m].receitas += Number(t.amount);
-      else map[m].despesas += Number(t.amount);
+      else if (!t.exclude_from_totals) map[m].despesas += Number(t.amount);
     });
     return Object.values(map).sort((a, b) => a.key.localeCompare(b.key));
   }, [transactions]);
@@ -75,7 +75,7 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
       const cat = t.category || "Sem categoria";
       if (!map[cat]) map[cat] = { category: cat, receitas: 0, despesas: 0 };
       if (t.type === "a_receber") map[cat].receitas += Number(t.amount);
-      else map[cat].despesas += Number(t.amount);
+      else if (!t.exclude_from_totals) map[cat].despesas += Number(t.amount);
     });
     return Object.values(map).sort((a, b) => (b.receitas + b.despesas) - (a.receitas + a.despesas));
   }, [transactions]);

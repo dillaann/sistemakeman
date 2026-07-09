@@ -116,7 +116,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
-  const total = filtered.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
+  const total = filtered.filter(t => t.status === "pago" && !t.exclude_from_totals).reduce((s, t) => s + Number(t.amount), 0);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -296,7 +296,12 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             {filtered.map(t => (
               <TableRow key={t.id} className={`${statusColors[t.status] || ""} ${t.status === "cancelado" ? "opacity-50" : ""}`}>
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
-                <TableCell className="font-medium max-w-[250px] truncate">{t.description}</TableCell>
+                <TableCell className="font-medium max-w-[250px] truncate">
+                  {t.description}
+                  {t.exclude_from_totals && (
+                    <span className="ml-2 text-[10px] font-normal text-muted-foreground whitespace-nowrap">(não somado)</span>
+                  )}
+                </TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
                 <TableCell>{paymentMethodLabel((t as any).payment_method)}</TableCell>

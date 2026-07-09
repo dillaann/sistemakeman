@@ -686,6 +686,7 @@ export type Database = {
           created_at: string
           description: string
           due_date: string
+          exclude_from_totals: boolean
           id: string
           paid_date: string | null
           payment_method: string | null
@@ -705,6 +706,7 @@ export type Database = {
           created_at?: string
           description: string
           due_date: string
+          exclude_from_totals?: boolean
           id?: string
           paid_date?: string | null
           payment_method?: string | null
@@ -724,6 +726,7 @@ export type Database = {
           created_at?: string
           description?: string
           due_date?: string
+          exclude_from_totals?: boolean
           id?: string
           paid_date?: string | null
           payment_method?: string | null

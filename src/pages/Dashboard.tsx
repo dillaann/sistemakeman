@@ -80,7 +80,7 @@ const Dashboard = () => {
     queryKey: ["dashboard", "financial-transactions"],
     queryFn: async () => {
       const { data } = await supabase.from("financial_transactions")
-        .select("id, type, status, amount, due_date, paid_date, category, work_order_id");
+        .select("id, type, status, amount, due_date, paid_date, category, work_order_id, exclude_from_totals");
       return data ?? [];
     },
   });
@@ -221,6 +221,7 @@ const Dashboard = () => {
   const totalSaidas = useMemo(() => transactions
     .filter(t => {
       if (t.type !== "a_pagar" || t.status !== "pago") return false;
+      if (t.exclude_from_totals) return false;
       const ref = t.paid_date ?? t.due_date;
       if (ref > today) return false;
       return isInRange(ref, dateRange);
@@ -302,7 +303,7 @@ const Dashboard = () => {
   // ─── DRE simplificado
   const dreResult = useMemo(() => {
     const expenses = transactions
-      .filter(t => t.type === "a_pagar" && isInRange(t.due_date, dateRange))
+      .filter(t => t.type === "a_pagar" && !t.exclude_from_totals && isInRange(t.due_date, dateRange))
       .reduce((s, t) => s + Number(t.amount), 0);
     return totalBilled - expenses;
   }, [totalBilled, transactions, dateRange]);
