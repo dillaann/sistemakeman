@@ -221,6 +221,7 @@ const Dashboard = () => {
   const totalSaidas = useMemo(() => transactions
     .filter(t => {
       if (t.type !== "a_pagar" || t.status !== "pago") return false;
+      if (t.exclude_from_totals) return false;
       const ref = t.paid_date ?? t.due_date;
       if (ref > today) return false;
       return isInRange(ref, dateRange);
