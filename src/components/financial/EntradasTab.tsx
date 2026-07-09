@@ -126,6 +126,8 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       const refDate = t.paid_date;
       if (!refDate) return false;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
+      // Não recontar saldos de competência anterior (já fechados manualmente).
+      if (t.due_date && t.due_date < LEGACY_COMPETENCE_CUTOFF) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
