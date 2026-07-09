@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Trash2, Pencil, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { fmt, monthLabel, formatDateBR } from "@/lib/utils";
+import { fmt, formatDateBR } from "@/lib/utils";
 
 interface WeeklyClosingsTabProps {
   weeklyClosings: any[];
