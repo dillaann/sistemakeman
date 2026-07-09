@@ -302,7 +302,12 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                 <TableCell>{paymentMethodLabel((t as any).payment_method)}</TableCell>
                 <TableCell>{t.work_order_id ? `OS vinculada` : "—"}</TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 items-center">
+                    {t.status !== "pago" && t.status !== "cancelado" && (userRole === "admin" || userRole === "financeiro") && (
+                      <Button variant="outline" size="sm" onClick={() => baixaMutation.mutate(t.id)} disabled={baixaMutation.isPending}>
+                        <CheckCircle className="h-4 w-4 mr-1" /> Dar Baixa
+                      </Button>
+                    )}
                     {(userRole === "admin" || userRole === "financeiro") && <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>}
                     {userRole === "admin" && <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(t.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                   </div>
