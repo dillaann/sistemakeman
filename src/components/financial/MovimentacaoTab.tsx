@@ -26,16 +26,11 @@ interface MovimentacaoTabProps {
 export default function MovimentacaoTab({ dateRange: parentDateRange }: MovimentacaoTabProps) {
   const { userRole } = useAuth();
   const now = new Date();
-  const [preset, setPreset] = useState<PeriodPreset>("month");
-  const [dateFrom, setDateFrom] = useState(localDateString(startOfMonth(now)));
-  const [dateTo, setDateTo] = useState(localDateString(endOfMonth(now)));
-
-  const applyPreset = (p: PeriodPreset) => {
-    setPreset(p);
-    if (p === "month") { setDateFrom(localDateString(startOfMonth(now))); setDateTo(localDateString(endOfMonth(now))); }
-    if (p === "3months") { setDateFrom(localDateString(startOfMonth(subMonths(now, 2)))); setDateTo(localDateString(endOfMonth(now))); }
-    if (p === "year") { setDateFrom(localDateString(startOfYear(now))); setDateTo(localDateString(endOfYear(now))); }
-  };
+  // Período ÚNICO controlado pelo filtro do topo da página (MonthFilter).
+  // Garante que Visão Geral e Despesas x Receitas usem exatamente o mesmo intervalo,
+  // eliminando divergências de total entre as abas.
+  const dateFrom = localDateString(parentDateRange?.start ?? startOfMonth(now));
+  const dateTo = localDateString(parentDateRange?.end ?? endOfMonth(now));
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-lookup"],
