@@ -323,7 +323,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
           <TableBody>
             {filtered.map(t => (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
-                <TableCell>{formatDateBR(t.due_date)}</TableCell>
+                <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
