@@ -159,6 +159,18 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     },
   });
 
+  const baixaMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("financial_transactions")
+        .update({ status: "pago" as any, paid_date: localDateString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["financial-saidas"] }); qc.invalidateQueries({ queryKey: ["financial"] }); toast({ title: "Saída paga!", description: "Transação baixada com sucesso." }); },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("financial_transactions").delete().eq("id", id);
