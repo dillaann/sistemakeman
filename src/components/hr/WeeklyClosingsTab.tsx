@@ -22,31 +22,11 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
   const queryClient = useQueryClient();
 
   const payWeeklyClosingMutation = useMutation({
-    mutationFn: async ({ wc, accountId }: { wc: any; accountId: string }) => {
-      const emp = employees.find(e => e.id === wc.employee_id);
-      const desc = `Salário Semanal — ${emp?.name} — Semana ${wc.week_number} — Referência ${monthLabel(wc.month_ref)}`;
+    mutationFn: async ({ wc }: { wc: any; accountId?: string }) => {
+      // Fechamento é INDEPENDENTE do Financeiro: marcar como pago apenas atualiza
+      // o registro do fechamento. A saída da folha é lançada manualmente no
+      // Financeiro (uma única saída com o total da folha).
       const payDate = wc.payment_date || wc.end_date || new Date().toISOString().slice(0, 10);
-
-      const { error: deleteExistingError } = await supabase.from("financial_transactions")
-        .delete()
-        .eq("description", desc)
-        .eq("sync_origin", "payroll");
-      if (deleteExistingError) throw deleteExistingError;
-
-      const { error: ftErr } = await supabase.from("financial_transactions").insert({
-        type: "a_pagar" as any,
-        description: desc,
-        amount: Number(wc.net_pay),
-        due_date: payDate,
-        paid_date: payDate,
-        status: "pago" as any,
-        category: "Folha de Pagamento",
-        sync_origin: "payroll",
-        account_id: accountId || null,
-        payment_method: "pix",
-      });
-      if (ftErr) throw ftErr;
-
       const { error } = await supabase.from("weekly_closings").update({
         status: "pago",
         payment_date: payDate,
@@ -55,11 +35,11 @@ const WeeklyClosingsTab = ({ weeklyClosings, employees, selectedMonth, canEdit, 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["weekly-closings"] });
-      queryClient.invalidateQueries({ queryKey: ["financial"] });
-      toast({ title: "Semana paga e lançada no financeiro!" });
+      toast({ title: "Semana marcada como paga!" });
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
+
 
   const isWeeklyForMonth = (emp: any) => {
     if (!emp.payment_type_change_date) return emp.payment_type === "semanal";
