@@ -26,16 +26,11 @@ interface MovimentacaoTabProps {
 export default function MovimentacaoTab({ dateRange: parentDateRange }: MovimentacaoTabProps) {
   const { userRole } = useAuth();
   const now = new Date();
-  const [preset, setPreset] = useState<PeriodPreset>("month");
-  const [dateFrom, setDateFrom] = useState(localDateString(startOfMonth(now)));
-  const [dateTo, setDateTo] = useState(localDateString(endOfMonth(now)));
-
-  const applyPreset = (p: PeriodPreset) => {
-    setPreset(p);
-    if (p === "month") { setDateFrom(localDateString(startOfMonth(now))); setDateTo(localDateString(endOfMonth(now))); }
-    if (p === "3months") { setDateFrom(localDateString(startOfMonth(subMonths(now, 2)))); setDateTo(localDateString(endOfMonth(now))); }
-    if (p === "year") { setDateFrom(localDateString(startOfYear(now))); setDateTo(localDateString(endOfYear(now))); }
-  };
+  // Período ÚNICO controlado pelo filtro do topo da página (MonthFilter).
+  // Garante que Visão Geral e Despesas x Receitas usem exatamente o mesmo intervalo,
+  // eliminando divergências de total entre as abas.
+  const dateFrom = localDateString(parentDateRange?.start ?? startOfMonth(now));
+  const dateTo = localDateString(parentDateRange?.end ?? endOfMonth(now));
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-lookup"],
@@ -114,16 +109,9 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 items-center">
-        <Button variant={preset === "month" ? "default" : "outline"} size="sm" onClick={() => applyPreset("month")}>Mês Atual</Button>
-        <Button variant={preset === "3months" ? "default" : "outline"} size="sm" onClick={() => applyPreset("3months")}>Últimos 3 Meses</Button>
-        <Button variant={preset === "year" ? "default" : "outline"} size="sm" onClick={() => applyPreset("year")}>Ano Atual</Button>
-        <div className="flex items-center gap-1 ml-auto">
-          <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPreset("custom"); }} className="w-[150px]" />
-          <span className="text-muted-foreground">a</span>
-          <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPreset("custom"); }} className="w-[150px]" />
-        </div>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Período: <span className="font-medium text-foreground">{formatDateBR(dateFrom)} a {formatDateBR(dateTo)}</span> — use o filtro no topo da página para alterar.
+      </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
