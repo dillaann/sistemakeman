@@ -209,9 +209,8 @@ const Dashboard = () => {
   const totalEntradas = useMemo(() => transactions
     .filter(t => {
       if (t.type !== "a_receber" || t.status !== "pago") return false;
-      // Regime de caixa: conta TODO recebimento com status "pago", incluindo saldos
-      // na categoria "Faturamento" que foram efetivamente recebidos. Os "Faturamento"
-      // ainda pendentes (competência) já ficam de fora pelo filtro de status acima.
+      // Regime de caixa: exclui saldos na categoria "Faturamento" (competência).
+      if (t.category === "Faturamento") return false;
       const ref = t.paid_date ?? t.due_date;
       if (ref > today) return false;
       return isInRange(ref, dateRange);
