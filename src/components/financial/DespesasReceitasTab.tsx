@@ -150,16 +150,9 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 items-center">
-        <Button variant={preset === "month" ? "default" : "outline"} size="sm" onClick={() => applyPreset("month")}>Mês Atual</Button>
-        <Button variant={preset === "3months" ? "default" : "outline"} size="sm" onClick={() => applyPreset("3months")}>Últimos 3 Meses</Button>
-        <Button variant={preset === "year" ? "default" : "outline"} size="sm" onClick={() => applyPreset("year")}>Ano Atual</Button>
-        <div className="flex items-center gap-1 ml-auto">
-          <Input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPreset("custom"); }} className="w-[150px]" />
-          <span className="text-muted-foreground">a</span>
-          <Input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPreset("custom"); }} className="w-[150px]" />
-        </div>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Período: <span className="font-medium text-foreground">{formatDateBR(dateFrom)} a {formatDateBR(dateTo)}</span> — use o filtro no topo da página para alterar.
+      </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
