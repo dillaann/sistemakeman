@@ -117,10 +117,11 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
       if (t.status !== "pago") return false;
-      // Regime de competência: considera o mês faturado (due_date), incluindo
-      // os saldos de orçamento (categoria "Faturamento").
+      // Faturado E recebido no mês: exige que o vencimento (competência) e o
+      // recebimento (paid_date) estejam ambos dentro do período selecionado.
       const refDate = t.due_date;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
+      if (dateRange && (!t.paid_date || !isInRange(t.paid_date, dateRange))) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
