@@ -92,9 +92,6 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
 
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
-      // Saídas = regime de caixa: só entram saídas REALMENTE pagas.
-      // Pendentes/atrasadas ficam na aba "A Pagar" até serem quitadas.
-      if (t.status !== "pago") return false;
       // prioritize paid_date if available, otherwise fallback to due_date
       const refDate = t.paid_date || t.due_date;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
