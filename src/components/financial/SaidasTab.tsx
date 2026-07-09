@@ -116,7 +116,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     return list;
   }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
 
-  const total = filtered.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
+  const total = filtered.filter(t => t.status === "pago" && !t.exclude_from_totals).reduce((s, t) => s + Number(t.amount), 0);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
