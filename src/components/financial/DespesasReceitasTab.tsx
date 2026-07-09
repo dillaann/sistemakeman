@@ -75,7 +75,7 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
       const cat = t.category || "Sem categoria";
       if (!map[cat]) map[cat] = { category: cat, receitas: 0, despesas: 0 };
       if (t.type === "a_receber") map[cat].receitas += Number(t.amount);
-      else map[cat].despesas += Number(t.amount);
+      else if (!t.exclude_from_totals) map[cat].despesas += Number(t.amount);
     });
     return Object.values(map).sort((a, b) => (b.receitas + b.despesas) - (a.receitas + a.despesas));
   }, [transactions]);
