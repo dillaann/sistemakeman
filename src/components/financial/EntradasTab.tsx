@@ -150,10 +150,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   // Regime de caixa: soma os recebimentos que entraram no período.
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
 
-  const isFutureDate = (dateStr: string) => {
-    if (!dateStr) return false;
-    return dateStr > localDateString();
-  };
+
 
   const saveMutation = useMutation({
     mutationFn: async () => {
