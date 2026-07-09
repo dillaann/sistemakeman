@@ -105,7 +105,7 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
 
   const exportCSV = () => {
     const header = "Data,Descrição,Entrada,Saída,Saldo Acumulado\n";
-    const rows = tableRows.map(r => `${r.due_date},"${r.description}",${r.entrada || ""},${r.saida || ""},${r.acumulado.toFixed(2)}`).join("\n");
+    const rows = tableRows.map(r => `${r.paid_date || r.due_date},"${r.description}",${r.entrada || ""},${r.saida || ""},${r.acumulado.toFixed(2)}`).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `movimentacao_${dateFrom}_${dateTo}.csv`; a.click();
