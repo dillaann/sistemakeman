@@ -87,15 +87,15 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-entradas", rangeStart, rangeEnd],
     queryFn: async () => {
-      // Regime de competência: filtra pelo mês faturado (due_date), não pela data de pagamento.
+      // Regime de caixa: a entrada conta no mês em que o dinheiro entrou (paid_date).
       const rangeFilter = rangeStart && rangeEnd
-        ? `and(due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`
+        ? `and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd})`
         : null;
       // Paginate past the 1000-row response cap so totals reflect ALL records.
       const data = await fetchAllRows<any>(() => {
         let q = supabase.from("financial_transactions").select("*").eq("type", "a_receber");
         if (rangeFilter) q = q.or(rangeFilter);
-        return q.order("due_date", { ascending: false });
+        return q.order("paid_date", { ascending: false });
       });
       return data;
     },
