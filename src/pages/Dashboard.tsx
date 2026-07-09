@@ -80,7 +80,7 @@ const Dashboard = () => {
     queryKey: ["dashboard", "financial-transactions"],
     queryFn: async () => {
       const { data } = await supabase.from("financial_transactions")
-        .select("id, type, status, amount, due_date, paid_date, category, work_order_id");
+        .select("id, type, status, amount, due_date, paid_date, category, work_order_id, exclude_from_totals");
       return data ?? [];
     },
   });
