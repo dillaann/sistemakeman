@@ -40,8 +40,8 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
       );
       return data.filter(t => {
         const ref = t.paid_date || t.due_date;
-        // Regime de caixa: inclui saldos "Faturamento" efetivamente recebidos (status "pago").
-        // Os "Faturamento" pendentes (competência) já ficam de fora pelo filtro de status na query.
+        // Regime de caixa: exclui saldos "Faturamento" (competência) das receitas.
+        if (t.type === "a_receber" && t.category === "Faturamento") return false;
         return ref >= dateFrom && ref <= dateTo;
       });
     },
