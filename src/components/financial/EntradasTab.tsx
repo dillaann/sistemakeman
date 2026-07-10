@@ -51,12 +51,13 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 // pois já estão no fechamento manual do mês de origem.
 const LEGACY_COMPETENCE_CUTOFF = "2026-04-01";
 
-const isLegacyCompetenceCarriedForward = (transaction: { due_date: string | null; paid_date: string | null }) => {
+const isLegacyCompetenceCarriedToApril = (transaction: { due_date: string | null; paid_date: string | null }) => {
   return Boolean(
     transaction.due_date &&
     transaction.paid_date &&
     transaction.due_date < LEGACY_COMPETENCE_CUTOFF &&
-    transaction.paid_date >= LEGACY_COMPETENCE_CUTOFF,
+    transaction.paid_date >= LEGACY_COMPETENCE_CUTOFF &&
+    transaction.paid_date < "2026-05-01",
   );
 };
 
@@ -135,7 +136,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       const refDate = t.paid_date;
       if (!refDate) return false;
       if (dateRange && !isInRange(refDate, dateRange)) return false;
-      if (isLegacyCompetenceCarriedForward(t)) return false;
+      if (isLegacyCompetenceCarriedToApril(t)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
