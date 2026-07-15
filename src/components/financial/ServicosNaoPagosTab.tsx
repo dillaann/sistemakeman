@@ -87,7 +87,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      if (dateRange && !isInRange(r.delivered_at, dateRange)) return false;
+      if (dateRange && !isInRange(r.reference_date, dateRange)) return false;
       if (search) {
         const t = search.toLowerCase();
         if (!r.clientName.toLowerCase().includes(t) && !r.description.toLowerCase().includes(t)) return false;
@@ -127,7 +127,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
       startY: (doc as any).lastAutoTable.finalY + 6,
       head: [["Entrega", "Cliente", "Serviço", "Total", "Pago", "Em aberto", "Status"]],
       body: filtered.map(r => [
-        r.delivered_at ? formatDateBR(r.delivered_at) : "—",
+        r.reference_date ? formatDateBR(r.reference_date) : "—",
         r.clientName,
         r.description.length > 40 ? r.description.slice(0, 37) + "..." : r.description,
         fmt(r.total),
@@ -152,7 +152,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
     const body = filtered
       .map(r =>
         [
-          r.delivered_at ? formatDateBR(r.delivered_at) : "",
+          r.reference_date ? formatDateBR(r.reference_date) : "",
           `"${r.clientName.replace(/"/g, '""')}"`,
           `"${r.description.replace(/"/g, '""')}"`,
           r.total.toFixed(2),
@@ -226,7 +226,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
               const s = statusLabel[r.payment_status] ?? { label: r.payment_status, color: "" };
               return (
                 <TableRow key={r.id}>
-                  <TableCell>{r.delivered_at ? formatDateBR(r.delivered_at) : "—"}</TableCell>
+                  <TableCell>{r.reference_date ? formatDateBR(r.reference_date) : "—"}</TableCell>
                   <TableCell className="font-medium">{r.clientName}</TableCell>
                   <TableCell className="max-w-[280px] truncate">{r.description}</TableCell>
                   <TableCell className="text-right">{fmt(r.total)}</TableCell>
