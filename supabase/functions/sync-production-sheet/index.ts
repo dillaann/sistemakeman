@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
       header,
       ...rows.map((r) => {
         const existing = cobradoMap.get(r.id);
-        const cobrado = existing || (r.status === "Entregue" ? "Sim" : "Não");
+        const cobrado = r.status === "Entregue" ? "Sim" : existing || "Não";
         return [
           r.created_at,
           r.name,
