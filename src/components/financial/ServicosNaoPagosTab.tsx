@@ -45,6 +45,7 @@ const woStatusLabel: Record<string, string> = {
 
 export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
   const [search, setSearch] = useState("");
+  const [payFilter, setPayFilter] = useState<string>("todos");
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["servicos-todos-pagamentos"],
