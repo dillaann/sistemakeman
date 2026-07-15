@@ -20,7 +20,8 @@ interface Row {
   quote_id: string | null;
   clientName: string;
   description: string;
-  delivered_at: string | null;
+  reference_date: string | null;
+  wo_status: string;
   total: number;
   paid: number;
   remaining: number;
@@ -31,61 +32,73 @@ const statusLabel: Record<string, { label: string; color: string }> = {
   aguardando: { label: "Sem pagamento", color: "bg-red-500/10 text-red-700 border-red-500/20" },
   entrada_pendente: { label: "Entrada pendente", color: "bg-orange-500/10 text-orange-700 border-orange-500/20" },
   pagamento_parcial: { label: "Parcial", color: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
+  pago_total: { label: "Pago", color: "bg-green-500/10 text-green-700 border-green-500/20" },
+  concluido_pago: { label: "Concluído e pago", color: "bg-green-500/10 text-green-700 border-green-500/20" },
+};
+
+const woStatusLabel: Record<string, string> = {
+  aguardando: "Aguardando",
+  em_producao: "Em produção",
+  aguardando_instalacao: "Aguardando instalação",
+  entregue: "Entregue",
 };
 
 export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
   const [search, setSearch] = useState("");
+  const [payFilter, setPayFilter] = useState<string>("todos");
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["servicos-nao-pagos"],
+    queryKey: ["servicos-todos-pagamentos"],
     queryFn: async (): Promise<Row[]> => {
       const wos = await fetchAllRows<any>(() =>
         supabase
           .from("work_orders")
-          .select("id, quote_id, description, delivered_at, total, client_id, status, clients(name)")
-          .eq("status", "entregue")
+          .select("id, quote_id, description, delivered_at, completed_at, created_at, total, client_id, status, clients(name)")
       );
       const quoteIds = wos.map(w => w.quote_id).filter(Boolean);
-      if (quoteIds.length === 0) return [];
-      const { data: quotes = [] } = await supabase
-        .from("quotes")
-        .select("id, payment_status, down_payment, remaining_amount, total")
-        .in("id", quoteIds);
+      const { data: quotes = [] } = quoteIds.length
+        ? await supabase
+            .from("quotes")
+            .select("id, payment_status, down_payment, remaining_amount, total")
+            .in("id", quoteIds)
+        : { data: [] as any[] };
       const qMap = new Map((quotes ?? []).map((q: any) => [q.id, q]));
 
-      return wos
-        .map(w => {
-          const q: any = w.quote_id ? qMap.get(w.quote_id) : null;
-          const status = q?.payment_status ?? "aguardando";
-          const total = Number(q?.total ?? w.total ?? 0);
-          const paid = Number(q?.down_payment ?? 0);
-          const remaining = Number(q?.remaining_amount ?? total - paid);
-          return {
-            id: w.id,
-            quote_id: w.quote_id,
-            clientName: w.clients?.name ?? "—",
-            description: w.description ?? "—",
-            delivered_at: w.delivered_at,
-            total,
-            paid,
-            remaining,
-            payment_status: status,
-          };
-        })
-        .filter(r => r.payment_status !== "pago_total" && r.payment_status !== "concluido_pago" && r.remaining > 0.01);
+      return wos.map(w => {
+        const q: any = w.quote_id ? qMap.get(w.quote_id) : null;
+        const status = q?.payment_status ?? "aguardando";
+        const total = Number(q?.total ?? w.total ?? 0);
+        const paid = Number(q?.down_payment ?? 0);
+        const remaining = Number(q?.remaining_amount ?? total - paid);
+        return {
+          id: w.id,
+          quote_id: w.quote_id,
+          clientName: w.clients?.name ?? "—",
+          description: w.description ?? "—",
+          reference_date: w.delivered_at ?? w.completed_at ?? w.created_at,
+          wo_status: w.status,
+          total,
+          paid,
+          remaining,
+          payment_status: status,
+        };
+      });
     },
   });
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      if (dateRange && !isInRange(r.delivered_at, dateRange)) return false;
+      if (dateRange && !isInRange(r.reference_date, dateRange)) return false;
+      if (payFilter === "pagos" && !(r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
+      if (payFilter === "abertos" && (r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
+      if (payFilter !== "todos" && payFilter !== "pagos" && payFilter !== "abertos" && r.payment_status !== payFilter) return false;
       if (search) {
         const t = search.toLowerCase();
         if (!r.clientName.toLowerCase().includes(t) && !r.description.toLowerCase().includes(t)) return false;
       }
       return true;
     });
-  }, [rows, search, dateRange]);
+  }, [rows, search, dateRange, payFilter]);
 
   const totalRemaining = filtered.reduce((s, r) => s + r.remaining, 0);
   const totalValue = filtered.reduce((s, r) => s + r.total, 0);
@@ -118,7 +131,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
       startY: (doc as any).lastAutoTable.finalY + 6,
       head: [["Entrega", "Cliente", "Serviço", "Total", "Pago", "Em aberto", "Status"]],
       body: filtered.map(r => [
-        r.delivered_at ? formatDateBR(r.delivered_at) : "—",
+        r.reference_date ? formatDateBR(r.reference_date) : "—",
         r.clientName,
         r.description.length > 40 ? r.description.slice(0, 37) + "..." : r.description,
         fmt(r.total),
@@ -143,7 +156,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
     const body = filtered
       .map(r =>
         [
-          r.delivered_at ? formatDateBR(r.delivered_at) : "",
+          r.reference_date ? formatDateBR(r.reference_date) : "",
           `"${r.clientName.replace(/"/g, '""')}"`,
           `"${r.description.replace(/"/g, '""')}"`,
           r.total.toFixed(2),
@@ -166,7 +179,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4">
         <div className="rounded-lg border p-4 flex-1 min-w-[180px]">
-          <p className="text-sm text-muted-foreground">Serviços não pagos</p>
+          <p className="text-sm text-muted-foreground">Serviços</p>
           <p className="text-2xl font-bold">{filtered.length}</p>
         </div>
         <div className="rounded-lg border p-4 flex-1 min-w-[180px]">
@@ -188,6 +201,18 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar cliente ou serviço..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
+        <select
+          value={payFilter}
+          onChange={e => setPayFilter(e.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="todos">Todos</option>
+          <option value="abertos">Com saldo em aberto</option>
+          <option value="pagos">Pagos</option>
+          <option value="aguardando">Sem pagamento</option>
+          <option value="entrada_pendente">Entrada pendente</option>
+          <option value="pagamento_parcial">Parcial</option>
+        </select>
         <Button variant="outline" onClick={exportPDF} disabled={filtered.length === 0}>
           <FileDown className="h-4 w-4 mr-2" /> PDF
         </Button>
@@ -200,37 +225,39 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Entrega</TableHead>
+              <TableHead>Data</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Serviço</TableHead>
+              <TableHead>OS</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="text-right">Pago</TableHead>
               <TableHead className="text-right">Em aberto</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Pagamento</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
             )}
             {!isLoading && filtered.map(r => {
               const s = statusLabel[r.payment_status] ?? { label: r.payment_status, color: "" };
               return (
                 <TableRow key={r.id}>
-                  <TableCell>{r.delivered_at ? formatDateBR(r.delivered_at) : "—"}</TableCell>
+                  <TableCell>{r.reference_date ? formatDateBR(r.reference_date) : "—"}</TableCell>
                   <TableCell className="font-medium">{r.clientName}</TableCell>
-                  <TableCell className="max-w-[280px] truncate">{r.description}</TableCell>
+                  <TableCell className="max-w-[260px] truncate">{r.description}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{woStatusLabel[r.wo_status] ?? r.wo_status}</TableCell>
                   <TableCell className="text-right">{fmt(r.total)}</TableCell>
                   <TableCell className="text-right text-green-600">{fmt(r.paid)}</TableCell>
-                  <TableCell className="text-right font-semibold text-red-600">{fmt(r.remaining)}</TableCell>
+                  <TableCell className={`text-right font-semibold ${r.remaining > 0.01 ? "text-red-600" : "text-muted-foreground"}`}>{fmt(r.remaining)}</TableCell>
                   <TableCell><Badge className={s.color}>{s.label}</Badge></TableCell>
                 </TableRow>
               );
             })}
             {!isLoading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                 <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                Nenhum serviço entregue com pagamento em aberto no período.
+                Nenhum serviço encontrado no período.
               </TableCell></TableRow>
             )}
           </TableBody>
