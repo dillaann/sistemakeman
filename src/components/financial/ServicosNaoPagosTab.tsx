@@ -89,13 +89,16 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
   const filtered = useMemo(() => {
     return rows.filter(r => {
       if (dateRange && !isInRange(r.reference_date, dateRange)) return false;
+      if (payFilter === "pagos" && !(r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
+      if (payFilter === "abertos" && (r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
+      if (payFilter !== "todos" && payFilter !== "pagos" && payFilter !== "abertos" && r.payment_status !== payFilter) return false;
       if (search) {
         const t = search.toLowerCase();
         if (!r.clientName.toLowerCase().includes(t) && !r.description.toLowerCase().includes(t)) return false;
       }
       return true;
     });
-  }, [rows, search, dateRange]);
+  }, [rows, search, dateRange, payFilter]);
 
   const totalRemaining = filtered.reduce((s, r) => s + r.remaining, 0);
   const totalValue = filtered.reduce((s, r) => s + r.total, 0);
