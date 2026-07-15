@@ -169,17 +169,21 @@ Deno.serve(async (req) => {
     const values = [
       [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
       header,
-      ...rows.map((r) => [
-        r.created_at,
-        r.name,
-        r.phone,
-        r.status,
-        r.description,
-        r.completed_at,
-        r.total,
-        cobradoMap.get(r.id) || "Não",
-        r.id,
-      ]),
+      ...rows.map((r) => {
+        const existing = cobradoMap.get(r.id);
+        const cobrado = existing || (r.status === "Entregue" ? "Sim" : "Não");
+        return [
+          r.created_at,
+          r.name,
+          r.phone,
+          r.status,
+          r.description,
+          r.completed_at,
+          r.total,
+          cobrado,
+          r.id,
+        ];
+      }),
     ];
 
     // Clear existing content - use single quotes for sheet names with spaces
