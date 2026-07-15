@@ -179,7 +179,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4">
         <div className="rounded-lg border p-4 flex-1 min-w-[180px]">
-          <p className="text-sm text-muted-foreground">Serviços não pagos</p>
+          <p className="text-sm text-muted-foreground">Serviços</p>
           <p className="text-2xl font-bold">{filtered.length}</p>
         </div>
         <div className="rounded-lg border p-4 flex-1 min-w-[180px]">
@@ -201,6 +201,18 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar cliente ou serviço..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
+        <select
+          value={payFilter}
+          onChange={e => setPayFilter(e.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="todos">Todos</option>
+          <option value="abertos">Com saldo em aberto</option>
+          <option value="pagos">Pagos</option>
+          <option value="aguardando">Sem pagamento</option>
+          <option value="entrada_pendente">Entrada pendente</option>
+          <option value="pagamento_parcial">Parcial</option>
+        </select>
         <Button variant="outline" onClick={exportPDF} disabled={filtered.length === 0}>
           <FileDown className="h-4 w-4 mr-2" /> PDF
         </Button>
