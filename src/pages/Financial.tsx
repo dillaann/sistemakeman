@@ -58,6 +58,9 @@ const Financial = () => {
           <TabsTrigger value="desp_rec" className="flex items-center gap-1 text-xs">
             <Scale className="h-4 w-4" /> Despesas x Receitas
           </TabsTrigger>
+          <TabsTrigger value="nao_pagos" className="flex items-center gap-1 text-xs">
+            <AlertCircle className="h-4 w-4" /> Não Pagos
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
