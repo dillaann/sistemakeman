@@ -20,7 +20,8 @@ interface Row {
   quote_id: string | null;
   clientName: string;
   description: string;
-  delivered_at: string | null;
+  reference_date: string | null;
+  wo_status: string;
   total: number;
   paid: number;
   remaining: number;
