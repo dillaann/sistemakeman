@@ -171,7 +171,8 @@ Deno.serve(async (req) => {
       header,
       ...rows.map((r) => {
         const existing = cobradoMap.get(r.id);
-        const cobrado = r.status === "Entregue" ? "Sim" : existing || "Não";
+        // Preserva o que já está na planilha. Só define valor inicial para linhas novas.
+        const cobrado = existing !== undefined ? existing : (r.status === "Entregue" ? "Sim" : "Não");
         return [
           r.created_at,
           r.name,
