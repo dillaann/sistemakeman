@@ -47,42 +47,41 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
   const [search, setSearch] = useState("");
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["servicos-nao-pagos"],
+    queryKey: ["servicos-todos-pagamentos"],
     queryFn: async (): Promise<Row[]> => {
       const wos = await fetchAllRows<any>(() =>
         supabase
           .from("work_orders")
-          .select("id, quote_id, description, delivered_at, total, client_id, status, clients(name)")
-          .eq("status", "entregue")
+          .select("id, quote_id, description, delivered_at, completed_at, created_at, total, client_id, status, clients(name)")
       );
       const quoteIds = wos.map(w => w.quote_id).filter(Boolean);
-      if (quoteIds.length === 0) return [];
-      const { data: quotes = [] } = await supabase
-        .from("quotes")
-        .select("id, payment_status, down_payment, remaining_amount, total")
-        .in("id", quoteIds);
+      const { data: quotes = [] } = quoteIds.length
+        ? await supabase
+            .from("quotes")
+            .select("id, payment_status, down_payment, remaining_amount, total")
+            .in("id", quoteIds)
+        : { data: [] as any[] };
       const qMap = new Map((quotes ?? []).map((q: any) => [q.id, q]));
 
-      return wos
-        .map(w => {
-          const q: any = w.quote_id ? qMap.get(w.quote_id) : null;
-          const status = q?.payment_status ?? "aguardando";
-          const total = Number(q?.total ?? w.total ?? 0);
-          const paid = Number(q?.down_payment ?? 0);
-          const remaining = Number(q?.remaining_amount ?? total - paid);
-          return {
-            id: w.id,
-            quote_id: w.quote_id,
-            clientName: w.clients?.name ?? "—",
-            description: w.description ?? "—",
-            delivered_at: w.delivered_at,
-            total,
-            paid,
-            remaining,
-            payment_status: status,
-          };
-        })
-        .filter(r => r.payment_status !== "pago_total" && r.payment_status !== "concluido_pago" && r.remaining > 0.01);
+      return wos.map(w => {
+        const q: any = w.quote_id ? qMap.get(w.quote_id) : null;
+        const status = q?.payment_status ?? "aguardando";
+        const total = Number(q?.total ?? w.total ?? 0);
+        const paid = Number(q?.down_payment ?? 0);
+        const remaining = Number(q?.remaining_amount ?? total - paid);
+        return {
+          id: w.id,
+          quote_id: w.quote_id,
+          clientName: w.clients?.name ?? "—",
+          description: w.description ?? "—",
+          reference_date: w.delivered_at ?? w.completed_at ?? w.created_at,
+          wo_status: w.status,
+          total,
+          paid,
+          remaining,
+          payment_status: status,
+        };
+      });
     },
   });
 
