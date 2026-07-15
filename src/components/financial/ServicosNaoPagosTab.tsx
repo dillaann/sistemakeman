@@ -225,18 +225,19 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Entrega</TableHead>
+              <TableHead>Data</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Serviço</TableHead>
+              <TableHead>OS</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="text-right">Pago</TableHead>
               <TableHead className="text-right">Em aberto</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Pagamento</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
             )}
             {!isLoading && filtered.map(r => {
               const s = statusLabel[r.payment_status] ?? { label: r.payment_status, color: "" };
@@ -244,18 +245,19 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
                 <TableRow key={r.id}>
                   <TableCell>{r.reference_date ? formatDateBR(r.reference_date) : "—"}</TableCell>
                   <TableCell className="font-medium">{r.clientName}</TableCell>
-                  <TableCell className="max-w-[280px] truncate">{r.description}</TableCell>
+                  <TableCell className="max-w-[260px] truncate">{r.description}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{woStatusLabel[r.wo_status] ?? r.wo_status}</TableCell>
                   <TableCell className="text-right">{fmt(r.total)}</TableCell>
                   <TableCell className="text-right text-green-600">{fmt(r.paid)}</TableCell>
-                  <TableCell className="text-right font-semibold text-red-600">{fmt(r.remaining)}</TableCell>
+                  <TableCell className={`text-right font-semibold ${r.remaining > 0.01 ? "text-red-600" : "text-muted-foreground"}`}>{fmt(r.remaining)}</TableCell>
                   <TableCell><Badge className={s.color}>{s.label}</Badge></TableCell>
                 </TableRow>
               );
             })}
             {!isLoading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                 <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                Nenhum serviço entregue com pagamento em aberto no período.
+                Nenhum serviço encontrado no período.
               </TableCell></TableRow>
             )}
           </TableBody>
