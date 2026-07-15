@@ -171,8 +171,9 @@ Deno.serve(async (req) => {
       header,
       ...rows.map((r) => {
         const existing = cobradoMap.get(r.id);
-        // Preserva o que já está na planilha. Só define valor inicial para linhas novas.
-        const cobrado = existing !== undefined ? existing : (r.status === "Entregue" ? "Sim" : "Não");
+        // Preserva exatamente o que já está na planilha e deixa linhas novas em branco.
+        // A coluna "Cobrado?" agora fica 100% sob responsabilidade do bot/manual.
+        const cobrado = cobradoMap.has(r.id) ? existing ?? "" : "";
         return [
           r.created_at,
           r.name,
