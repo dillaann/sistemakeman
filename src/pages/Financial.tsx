@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
 import DespesasReceitasTab from "@/components/financial/DespesasReceitasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
@@ -10,6 +10,7 @@ import MovimentacoesTab from "@/components/financial/MovimentacoesTab";
 import NotasFiscaisTab from "@/components/financial/NotasFiscaisTab";
 import ContasPagarTab from "@/components/financial/ContasPagarTab";
 import ContasReceberTab from "@/components/financial/ContasReceberTab";
+import ServicosNaoPagosTab from "@/components/financial/ServicosNaoPagosTab";
 
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
@@ -29,7 +30,7 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-10">
           <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
             <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
@@ -57,6 +58,9 @@ const Financial = () => {
           <TabsTrigger value="desp_rec" className="flex items-center gap-1 text-xs">
             <Scale className="h-4 w-4" /> Despesas x Receitas
           </TabsTrigger>
+          <TabsTrigger value="nao_pagos" className="flex items-center gap-1 text-xs">
+            <AlertCircle className="h-4 w-4" /> Não Pagos
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
@@ -68,6 +72,7 @@ const Financial = () => {
         <TabsContent value="notas"><NotasFiscaisTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="movimentacao"><MovimentacaoTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="desp_rec"><DespesasReceitasTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="nao_pagos"><ServicosNaoPagosTab dateRange={dateRange} /></TabsContent>
       </Tabs>
     </div>
   );

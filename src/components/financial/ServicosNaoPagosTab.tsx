@@ -1,0 +1,241 @@
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Search, FileDown, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { formatDateBR } from "@/lib/utils";
+import { isInRange } from "@/components/MonthFilter";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+const fmt = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+interface Row {
+  id: string;
+  quote_id: string | null;
+  clientName: string;
+  description: string;
+  delivered_at: string | null;
+  total: number;
+  paid: number;
+  remaining: number;
+  payment_status: string;
+}
+
+const statusLabel: Record<string, { label: string; color: string }> = {
+  aguardando: { label: "Sem pagamento", color: "bg-red-500/10 text-red-700 border-red-500/20" },
+  entrada_pendente: { label: "Entrada pendente", color: "bg-orange-500/10 text-orange-700 border-orange-500/20" },
+  pagamento_parcial: { label: "Parcial", color: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
+};
+
+export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
+  const [search, setSearch] = useState("");
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["servicos-nao-pagos"],
+    queryFn: async (): Promise<Row[]> => {
+      const wos = await fetchAllRows<any>(() =>
+        supabase
+          .from("work_orders")
+          .select("id, quote_id, description, delivered_at, total, client_id, status, clients(name)")
+          .eq("status", "entregue")
+      );
+      const quoteIds = wos.map(w => w.quote_id).filter(Boolean);
+      if (quoteIds.length === 0) return [];
+      const { data: quotes = [] } = await supabase
+        .from("quotes")
+        .select("id, payment_status, down_payment, remaining_amount, total")
+        .in("id", quoteIds);
+      const qMap = new Map((quotes ?? []).map((q: any) => [q.id, q]));
+
+      return wos
+        .map(w => {
+          const q: any = w.quote_id ? qMap.get(w.quote_id) : null;
+          const status = q?.payment_status ?? "aguardando";
+          const total = Number(q?.total ?? w.total ?? 0);
+          const paid = Number(q?.down_payment ?? 0);
+          const remaining = Number(q?.remaining_amount ?? total - paid);
+          return {
+            id: w.id,
+            quote_id: w.quote_id,
+            clientName: w.clients?.name ?? "—",
+            description: w.description ?? "—",
+            delivered_at: w.delivered_at,
+            total,
+            paid,
+            remaining,
+            payment_status: status,
+          };
+        })
+        .filter(r => r.payment_status !== "pago_total" && r.payment_status !== "concluido_pago" && r.remaining > 0.01);
+    },
+  });
+
+  const filtered = useMemo(() => {
+    return rows.filter(r => {
+      if (dateRange && !isInRange(r.delivered_at, dateRange)) return false;
+      if (search) {
+        const t = search.toLowerCase();
+        if (!r.clientName.toLowerCase().includes(t) && !r.description.toLowerCase().includes(t)) return false;
+      }
+      return true;
+    });
+  }, [rows, search, dateRange]);
+
+  const totalRemaining = filtered.reduce((s, r) => s + r.remaining, 0);
+  const totalValue = filtered.reduce((s, r) => s + r.total, 0);
+  const totalPaid = filtered.reduce((s, r) => s + r.paid, 0);
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    const w = doc.internal.pageSize.getWidth();
+    doc.setFontSize(14).setFont("helvetica", "bold");
+    doc.text("Serviços Entregues Não Pagos", w / 2, 15, { align: "center" });
+    doc.setFontSize(9).setFont("helvetica", "normal");
+    doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, w / 2, 22, { align: "center" });
+
+    autoTable(doc, {
+      startY: 28,
+      head: [["Indicador", "Valor"]],
+      body: [
+        ["Serviços não pagos", String(filtered.length)],
+        ["Valor total dos serviços", fmt(totalValue)],
+        ["Total já pago", fmt(totalPaid)],
+        ["Total em aberto", fmt(totalRemaining)],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [41, 128, 185], fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 1: { halign: "right" } },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 6,
+      head: [["Entrega", "Cliente", "Serviço", "Total", "Pago", "Em aberto", "Status"]],
+      body: filtered.map(r => [
+        r.delivered_at ? formatDateBR(r.delivered_at) : "—",
+        r.clientName,
+        r.description.length > 40 ? r.description.slice(0, 37) + "..." : r.description,
+        fmt(r.total),
+        fmt(r.paid),
+        fmt(r.remaining),
+        statusLabel[r.payment_status]?.label ?? r.payment_status,
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [41, 128, 185], fontSize: 8 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: {
+        3: { halign: "right" },
+        4: { halign: "right" },
+        5: { halign: "right" },
+      },
+    });
+    doc.save(`servicos_nao_pagos_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const exportCSV = () => {
+    const header = "Entrega,Cliente,Serviço,Total,Pago,Em Aberto,Status\n";
+    const body = filtered
+      .map(r =>
+        [
+          r.delivered_at ? formatDateBR(r.delivered_at) : "",
+          `"${r.clientName.replace(/"/g, '""')}"`,
+          `"${r.description.replace(/"/g, '""')}"`,
+          r.total.toFixed(2),
+          r.paid.toFixed(2),
+          r.remaining.toFixed(2),
+          statusLabel[r.payment_status]?.label ?? r.payment_status,
+        ].join(",")
+      )
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + header + body], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `servicos_nao_pagos_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4">
+        <div className="rounded-lg border p-4 flex-1 min-w-[180px]">
+          <p className="text-sm text-muted-foreground">Serviços não pagos</p>
+          <p className="text-2xl font-bold">{filtered.length}</p>
+        </div>
+        <div className="rounded-lg border p-4 flex-1 min-w-[180px]">
+          <p className="text-sm text-muted-foreground">Valor total</p>
+          <p className="text-2xl font-bold">{fmt(totalValue)}</p>
+        </div>
+        <div className="rounded-lg border p-4 flex-1 min-w-[180px]">
+          <p className="text-sm text-muted-foreground">Já recebido</p>
+          <p className="text-2xl font-bold text-green-600">{fmt(totalPaid)}</p>
+        </div>
+        <div className="rounded-lg border border-red-300 p-4 flex-1 min-w-[180px]">
+          <p className="text-sm text-red-600 font-medium">Em aberto</p>
+          <p className="text-2xl font-bold text-red-700">{fmt(totalRemaining)}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Buscar cliente ou serviço..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
+        </div>
+        <Button variant="outline" onClick={exportPDF} disabled={filtered.length === 0}>
+          <FileDown className="h-4 w-4 mr-2" /> PDF
+        </Button>
+        <Button variant="outline" onClick={exportCSV} disabled={filtered.length === 0}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+        </Button>
+      </div>
+
+      <div className="border rounded-lg overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Entrega</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Serviço</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Pago</TableHead>
+              <TableHead className="text-right">Em aberto</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+            )}
+            {!isLoading && filtered.map(r => {
+              const s = statusLabel[r.payment_status] ?? { label: r.payment_status, color: "" };
+              return (
+                <TableRow key={r.id}>
+                  <TableCell>{r.delivered_at ? formatDateBR(r.delivered_at) : "—"}</TableCell>
+                  <TableCell className="font-medium">{r.clientName}</TableCell>
+                  <TableCell className="max-w-[280px] truncate">{r.description}</TableCell>
+                  <TableCell className="text-right">{fmt(r.total)}</TableCell>
+                  <TableCell className="text-right text-green-600">{fmt(r.paid)}</TableCell>
+                  <TableCell className="text-right font-semibold text-red-600">{fmt(r.remaining)}</TableCell>
+                  <TableCell><Badge className={s.color}>{s.label}</Badge></TableCell>
+                </TableRow>
+              );
+            })}
+            {!isLoading && filtered.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                Nenhum serviço entregue com pagamento em aberto no período.
+              </TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
