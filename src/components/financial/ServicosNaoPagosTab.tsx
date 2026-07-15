@@ -31,6 +31,15 @@ const statusLabel: Record<string, { label: string; color: string }> = {
   aguardando: { label: "Sem pagamento", color: "bg-red-500/10 text-red-700 border-red-500/20" },
   entrada_pendente: { label: "Entrada pendente", color: "bg-orange-500/10 text-orange-700 border-orange-500/20" },
   pagamento_parcial: { label: "Parcial", color: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
+  pago_total: { label: "Pago", color: "bg-green-500/10 text-green-700 border-green-500/20" },
+  concluido_pago: { label: "Concluído e pago", color: "bg-green-500/10 text-green-700 border-green-500/20" },
+};
+
+const woStatusLabel: Record<string, string> = {
+  aguardando: "Aguardando",
+  em_producao: "Em produção",
+  aguardando_instalacao: "Aguardando instalação",
+  entregue: "Entregue",
 };
 
 export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
