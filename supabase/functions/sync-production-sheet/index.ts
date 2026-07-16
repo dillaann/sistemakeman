@@ -75,14 +75,17 @@ Deno.serve(async (req) => {
         delivered_at,
         created_at,
         quote_id,
+        origem_venda,
         clients(name, phone)
       `)
+      .eq("origem_venda", "marketing")
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
 
     const woIds = (woData ?? []).map((wo: any) => wo.id);
     const itemsMap = new Map<string, any[]>();
+    const paidMap = new Map<string, number>();
     if (woIds.length > 0) {
       const { data: items, error: itemsErr } = await supabase
         .from("work_order_items")
@@ -94,6 +97,17 @@ Deno.serve(async (req) => {
         list.push(item);
         itemsMap.set(item.work_order_id, list);
       });
+
+      const { data: txs, error: txErr } = await supabase
+        .from("financial_transactions")
+        .select("work_order_id, amount, status, type")
+        .in("work_order_id", woIds)
+        .eq("type", "a_receber")
+        .eq("status", "pago");
+      if (txErr) throw txErr;
+      (txs ?? []).forEach((t: any) => {
+        paidMap.set(t.work_order_id, (paidMap.get(t.work_order_id) || 0) + Number(t.amount || 0));
+      });
     }
 
     const rows = (woData ?? [])
@@ -104,6 +118,15 @@ Deno.serve(async (req) => {
         const services = (itemsMap.get(wo.id) || [])
           .map((item: any) => `${Number(item.quantity || 1)}x ${item.description || "Serviço"}`)
           .join("; ");
+        const total = Number(wo.total || 0);
+        const paid = Number(paidMap.get(wo.id) || 0);
+        const remaining = Math.max(total - paid, 0);
+        let paymentStatus = "Não pago";
+        if (total > 0 && paid >= total) paymentStatus = "Pago integral";
+        else if (paid > 0) {
+          const pct = Math.round((paid / total) * 100);
+          paymentStatus = `Parcial (${pct}%)`;
+        }
 
         return {
           id: wo.id,
@@ -113,9 +136,13 @@ Deno.serve(async (req) => {
           description: services || wo.description || "—",
           created_at: createdAt,
           completed_at: formatDateBR(wo.delivered_at || wo.completed_at),
-          total: wo.total || 0,
+          total,
+          paid,
+          remaining,
+          paymentStatus,
         };
       });
+
 
     console.log(`Syncing ${rows.length} rows to Google Sheets`);
 
