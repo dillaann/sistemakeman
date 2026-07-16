@@ -75,14 +75,17 @@ Deno.serve(async (req) => {
         delivered_at,
         created_at,
         quote_id,
+        origem_venda,
         clients(name, phone)
       `)
+      .eq("origem_venda", "marketing")
       .order("created_at", { ascending: false });
     
     if (woErr) throw woErr;
 
     const woIds = (woData ?? []).map((wo: any) => wo.id);
     const itemsMap = new Map<string, any[]>();
+    const paidMap = new Map<string, number>();
     if (woIds.length > 0) {
       const { data: items, error: itemsErr } = await supabase
         .from("work_order_items")
@@ -94,6 +97,17 @@ Deno.serve(async (req) => {
         list.push(item);
         itemsMap.set(item.work_order_id, list);
       });
+
+      const { data: txs, error: txErr } = await supabase
+        .from("financial_transactions")
+        .select("work_order_id, amount, status, type")
+        .in("work_order_id", woIds)
+        .eq("type", "a_receber")
+        .eq("status", "pago");
+      if (txErr) throw txErr;
+      (txs ?? []).forEach((t: any) => {
+        paidMap.set(t.work_order_id, (paidMap.get(t.work_order_id) || 0) + Number(t.amount || 0));
+      });
     }
 
     const rows = (woData ?? [])
@@ -104,6 +118,15 @@ Deno.serve(async (req) => {
         const services = (itemsMap.get(wo.id) || [])
           .map((item: any) => `${Number(item.quantity || 1)}x ${item.description || "Serviço"}`)
           .join("; ");
+        const total = Number(wo.total || 0);
+        const paid = Number(paidMap.get(wo.id) || 0);
+        const remaining = Math.max(total - paid, 0);
+        let paymentStatus = "Não pago";
+        if (total > 0 && paid >= total) paymentStatus = "Pago integral";
+        else if (paid > 0) {
+          const pct = Math.round((paid / total) * 100);
+          paymentStatus = `Parcial (${pct}%)`;
+        }
 
         return {
           id: wo.id,
@@ -113,9 +136,13 @@ Deno.serve(async (req) => {
           description: services || wo.description || "—",
           created_at: createdAt,
           completed_at: formatDateBR(wo.delivered_at || wo.completed_at),
-          total: wo.total || 0,
+          total,
+          paid,
+          remaining,
+          paymentStatus,
         };
       });
+
 
     console.log(`Syncing ${rows.length} rows to Google Sheets`);
 
@@ -127,8 +154,9 @@ Deno.serve(async (req) => {
 
     // Ordem das colunas (o bot lê estes cabeçalhos):
     // A: Data/Hora Pedido | B: Nome | C: Telefone | D: Status | E: Serviços
-    // F: Conclusão/Entrega | G: Valor Total | H: Cobrado? | I: ID (referência oculta)
-    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total", "Cobrado?", "ID"];
+    // F: Conclusão/Entrega | G: Valor Total | H: Cobrado? | I: Pagamento
+    // J: Valor Pago | K: Valor Restante | L: ID (referência oculta)
+    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total", "Cobrado?", "Pagamento", "Valor Pago", "Valor Restante", "ID"];
 
     // Preserva a coluna "Cobrado?" já marcada pelo bot: lê a planilha atual e
     // monta um mapa ID -> valor de "Cobrado?" antes de reescrever tudo.
@@ -141,7 +169,6 @@ Deno.serve(async (req) => {
       if (readRes.ok) {
         const existing = await readRes.json();
         const existingValues: any[][] = existing.values || [];
-        // Encontra a linha de cabeçalho (a que contém "ID")
         const headerRowIdx = existingValues.findIndex((r) => Array.isArray(r) && r.includes("ID"));
         if (headerRowIdx >= 0) {
           const hRow = existingValues[headerRowIdx];
@@ -171,8 +198,6 @@ Deno.serve(async (req) => {
       header,
       ...rows.map((r) => {
         const existing = cobradoMap.get(r.id);
-        // Preserva o valor já existente na planilha (Sim/Não definido pelo bot ou manual).
-        // Linhas novas recebem "Não" como padrão; o bot altera para "Sim" quando cobrar.
         const cobrado = cobradoMap.has(r.id) ? existing ?? "Não" : "Não";
         return [
           r.created_at,
@@ -183,10 +208,14 @@ Deno.serve(async (req) => {
           r.completed_at,
           r.total,
           cobrado,
+          r.paymentStatus,
+          r.paid,
+          r.remaining,
           r.id,
         ];
       }),
     ];
+
 
     // Clear existing content - use single quotes for sheet names with spaces
     const clearRes = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000:clear`, {
