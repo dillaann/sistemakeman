@@ -24,6 +24,7 @@ import Marketing from "@/pages/Marketing";
 import ServiceCalculator from "@/pages/ServiceCalculator";
 import Receipts from "@/pages/Receipts";
 import Painting from "@/pages/Painting";
+import Warehouse from "@/pages/Warehouse";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const DefaultRedirect = () => {
   if (userRole === "vendedor") return <Navigate to="/vendas" replace />;
   if (userRole === "compras") return <Navigate to="/compras" replace />;
   if (userRole === "marketing") return <Navigate to="/marketing" replace />;
+  if (userRole === "almoxarifado") return <Navigate to="/almoxarifado" replace />;
   return <Dashboard />;
 };
 
@@ -98,6 +100,7 @@ const App = () => (
                 <Route path="orcamentos" element={<RoleGuard allowed={["admin", "vendedor"]}><Quotes /></RoleGuard>} />
                 <Route path="producao" element={<RoleGuard allowed={["admin", "vendedor", "producao"]}><Production /></RoleGuard>} />
                 <Route path="pintura" element={<RoleGuard allowed={["admin", "producao"]}><Painting /></RoleGuard>} />
+                <Route path="almoxarifado" element={<RoleGuard allowed={["admin", "almoxarifado"]}><Warehouse /></RoleGuard>} />
                 <Route path="ordens" element={<RoleGuard allowed={["admin", "producao", "financeiro", "vendedor", "compras"]}><WorkOrders /></RoleGuard>} />
                 <Route path="financeiro" element={<RoleGuard allowed={["admin", "financeiro"]}><Financial /></RoleGuard>} />
                 <Route path="faturamento" element={<RoleGuard allowed={["admin", "financeiro"]}><Billing /></RoleGuard>} />

@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone, Calculator, Paintbrush,
+  Factory, UserCog, LogOut, Moon, Sun, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone, Calculator, Paintbrush, Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import logoKeman from "@/assets/logo-keman-brand.png";
 
-type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras" | "marketing";
+type AppRole = "admin" | "funcionario" | "financeiro" | "producao" | "vendedor" | "compras" | "marketing" | "almoxarifado";
 
 type MenuItem = { title: string; url: string; icon: any; roles: AppRole[] };
 type MenuGroup = { label: string; items: MenuItem[] };
@@ -45,6 +45,7 @@ const menuGroups: MenuGroup[] = [
       { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor", "compras"] },
       { title: "Produção", url: "/producao", icon: Factory, roles: ["admin", "producao"] },
       { title: "Pintura", url: "/pintura", icon: Paintbrush, roles: ["admin", "producao"] },
+      { title: "Almoxarifado", url: "/almoxarifado", icon: Package, roles: ["admin", "almoxarifado"] },
       { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
     ],
   },

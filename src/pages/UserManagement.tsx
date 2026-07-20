@@ -21,6 +21,9 @@ const roleLabels: Record<string, string> = {
   financeiro: "Financeiro",
   producao: "Produção",
   vendedor: "Vendedor",
+  compras: "Compras",
+  marketing: "Marketing",
+  almoxarifado: "Almoxarifado",
 };
 
 const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
@@ -29,6 +32,9 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
   financeiro: "outline",
   producao: "outline",
   vendedor: "outline",
+  compras: "outline",
+  marketing: "outline",
+  almoxarifado: "outline",
 };
 
 const UserManagement = () => {
@@ -175,6 +181,7 @@ const UserManagement = () => {
               <SelectItem value="vendedor">Vendedor</SelectItem>
               <SelectItem value="compras">Compras</SelectItem>
               <SelectItem value="marketing">Marketing</SelectItem>
+              <SelectItem value="almoxarifado">Almoxarifado</SelectItem>
             </SelectContent>
           </Select>
         </TableCell>
@@ -257,6 +264,7 @@ const UserManagement = () => {
                     <SelectItem value="vendedor">Vendedor</SelectItem>
                     <SelectItem value="compras">Compras</SelectItem>
                     <SelectItem value="marketing">Marketing</SelectItem>
+                    <SelectItem value="almoxarifado">Almoxarifado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -351,6 +359,7 @@ const UserManagement = () => {
                           <SelectItem value="vendedor">Vendedor</SelectItem>
                           <SelectItem value="compras">Compras</SelectItem>
                           <SelectItem value="marketing">Marketing</SelectItem>
+                          <SelectItem value="almoxarifado">Almoxarifado</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
