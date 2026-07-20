@@ -44,6 +44,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor", "compras"] },
       { title: "Produção", url: "/producao", icon: Factory, roles: ["admin", "producao"] },
+      { title: "Pintura", url: "/pintura", icon: Paintbrush, roles: ["admin", "producao"] },
       { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
     ],
   },
