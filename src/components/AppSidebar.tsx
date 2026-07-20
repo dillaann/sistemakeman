@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard, Users, FileText, ClipboardList, DollarSign,
-  Factory, UserCog, LogOut, Moon, Sun, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone, Calculator,
+  Factory, UserCog, LogOut, Moon, Sun, Briefcase, Receipt, BarChart3, Shield, ShoppingBag, ShoppingCart, Megaphone, Calculator, Paintbrush,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Ordens de Serviço", url: "/ordens", icon: ClipboardList, roles: ["admin", "producao", "financeiro", "vendedor", "compras"] },
       { title: "Produção", url: "/producao", icon: Factory, roles: ["admin", "producao"] },
+      { title: "Pintura", url: "/pintura", icon: Paintbrush, roles: ["admin", "producao"] },
       { title: "Compras", url: "/compras", icon: ShoppingCart, roles: ["admin", "compras"] },
     ],
   },

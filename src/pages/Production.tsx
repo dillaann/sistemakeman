@@ -138,6 +138,26 @@ const Production = () => {
     },
   });
 
+  // Paint sheet status per work_order_id for Kanban badges
+  const { data: paintByWO = {} } = useQuery({
+    queryKey: ["production-paint-sheets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("paint_sheets")
+        .select("work_order_id, status, sheet_date")
+        .not("work_order_id", "is", null);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: any) => {
+        const cur = map[p.work_order_id];
+        // priority: em_pintura > aguardando > finalizado
+        const rank = (s: string) => (s === "em_pintura" ? 3 : s === "aguardando" ? 2 : 1);
+        if (!cur || rank(p.status) > rank(cur)) map[p.work_order_id] = p.status;
+      });
+      return map;
+    },
+  });
+
   // Log of approved quotes: date approved, who approved, client name
   const { data: approvalLog = [] } = useQuery({
     queryKey: ["production-approval-log"],
@@ -582,6 +602,16 @@ const Production = () => {
                             {item.items?.length > 0 && (
                               <Badge variant="secondary" className="mt-2 h-5 px-1.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
                                 <Package className="h-3 w-3 mr-1" />{item.items.length} {item.items.length === 1 ? "serviço" : "serviços"}
+                              </Badge>
+                            )}
+                            {paintByWO[item.os_id] && (
+                              <Badge variant="secondary" className={cn(
+                                "mt-2 ml-1 h-5 px-1.5 text-[10px] font-bold",
+                                paintByWO[item.os_id] === "em_pintura" && "bg-blue-500/15 text-blue-700 border-blue-500/30",
+                                paintByWO[item.os_id] === "aguardando" && "bg-amber-500/15 text-amber-700 border-amber-500/30",
+                                paintByWO[item.os_id] === "finalizado" && "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+                              )}>
+                                🎨 {paintByWO[item.os_id] === "em_pintura" ? "Pintura em andamento" : paintByWO[item.os_id] === "aguardando" ? "Pintura aguardando" : "Pintura concluída"}
                               </Badge>
                             )}
                           </div>
