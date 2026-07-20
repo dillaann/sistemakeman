@@ -2419,6 +2419,7 @@ export type Database = {
         | "vendedor"
         | "compras"
         | "marketing"
+        | "almoxarifado"
       quote_status: "pendente" | "aprovado" | "rejeitado"
       transaction_status: "pendente" | "pago" | "atrasado" | "cancelado"
       transaction_type: "a_pagar" | "a_receber"
@@ -2562,6 +2563,7 @@ export const Constants = {
         "vendedor",
         "compras",
         "marketing",
+        "almoxarifado",
       ],
       quote_status: ["pendente", "aprovado", "rejeitado"],
       transaction_status: ["pendente", "pago", "atrasado", "cancelado"],
