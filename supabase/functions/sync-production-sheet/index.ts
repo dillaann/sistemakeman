@@ -51,7 +51,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { client_id: _ignored } = await req.json().catch(() => ({ client_id: null }));
+    const body = await req.json().catch(() => ({}));
+    const backfillDelivered: boolean = !!body?.backfill_delivered;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const GOOGLE_SHEETS_API_KEY = Deno.env.get("GOOGLE_SHEETS_API_KEY");
@@ -158,86 +159,82 @@ Deno.serve(async (req) => {
     // J: Valor Pago | K: Valor Restante | L: ID (referência oculta)
     const header = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total", "Cobrado?", "Pagamento", "Valor Pago", "Valor Restante", "ID"];
 
-    // Preserva a coluna "Cobrado?" já marcada pelo bot: lê a planilha atual e
-    // monta um mapa ID -> valor de "Cobrado?" antes de reescrever tudo.
-    const cobradoMap = new Map<string, string>();
-    try {
-      const readRes = await fetch(
-        `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000`,
-        { method: "GET", headers: ghHeaders },
-      );
-      if (readRes.ok) {
-        const existing = await readRes.json();
-        const existingValues: any[][] = existing.values || [];
-        const headerRowIdx = existingValues.findIndex((r) => Array.isArray(r) && r.includes("ID"));
-        if (headerRowIdx >= 0) {
-          const hRow = existingValues[headerRowIdx];
-          const idCol = hRow.indexOf("ID");
-          const cobradoCol = hRow.indexOf("Cobrado?");
-          if (idCol >= 0 && cobradoCol >= 0) {
-            for (let i = headerRowIdx + 1; i < existingValues.length; i++) {
-              const dataRow = existingValues[i];
-              const rowId = (dataRow[idCol] || "").toString().trim();
-              const cobrado = (dataRow[cobradoCol] || "").toString().trim();
-              if (rowId && cobrado) cobradoMap.set(rowId, cobrado);
-            }
-          }
-        }
-      } else {
-        console.error(`Falha ao ler planilha existente (${readRes.status}): ${await readRes.text()}`);
-      }
-      console.log(`Marcações 'Cobrado?' preservadas: ${cobradoMap.size}`);
-    } catch (readErr) {
-      console.error("Aviso: não foi possível ler marcações existentes de 'Cobrado?':", readErr);
-    }
+    // A coluna H ("Cobrado?") é 100% controlada pelo bot externo.
+    // A sync NUNCA lê nem escreve nessa coluna — só limpa/escreve A:G e I:L.
 
+    const titleRow = [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`];
 
-
-    const values = [
-      [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
-      header,
-      ...rows.map((r) => {
-        const existing = cobradoMap.get(r.id);
-        const cobrado = cobradoMap.has(r.id) ? existing ?? "Não" : "Não";
-        return [
-          r.created_at,
-          r.name,
-          r.phone,
-          r.status,
-          r.description,
-          r.completed_at,
-          r.total,
-          cobrado,
-          r.paymentStatus,
-          r.paid,
-          r.remaining,
-          r.id,
-        ];
-      }),
+    // Bloco esquerdo (A:G) — 7 colunas
+    const leftHeader = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total"];
+    const leftValues: any[][] = [
+      titleRow,
+      leftHeader,
+      ...rows.map((r) => [r.created_at, r.name, r.phone, r.status, r.description, r.completed_at, r.total]),
     ];
 
+    // Bloco direito (I:L) — 4 colunas
+    const rightHeader = ["Pagamento", "Valor Pago", "Valor Restante", "ID"];
+    const rightValues: any[][] = [
+      [""], // linha 1 (título só ocupa A)
+      rightHeader,
+      ...rows.map((r) => [r.paymentStatus, r.paid, r.remaining, r.id]),
+    ];
 
-    // Clear existing content - use single quotes for sheet names with spaces
-    const clearRes = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:Z10000:clear`, {
+    // Limpa apenas A:G e I:L — coluna H permanece intocada
+    const clearLeft = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:G10000:clear`, {
       method: "POST",
       headers: ghHeaders,
     });
-    if (!clearRes.ok) {
-      throw new Error(`Erro ao limpar planilha (${clearRes.status}): ${await clearRes.text()}`);
+    if (!clearLeft.ok) {
+      throw new Error(`Erro ao limpar A:G (${clearLeft.status}): ${await clearLeft.text()}`);
+    }
+    const clearRight = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!I1:L10000:clear`, {
+      method: "POST",
+      headers: ghHeaders,
+    });
+    if (!clearRight.ok) {
+      throw new Error(`Erro ao limpar I:L (${clearRight.status}): ${await clearRight.text()}`);
     }
 
-    // Write new values - use single quotes for sheet names with spaces
-    const writeRes = await fetch(
-      `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1?valueInputOption=USER_ENTERED`,
-      { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values }) },
+    // Garante header H2 = "Cobrado?" sem tocar em H3+ (dados do bot)
+    await fetch(
+      `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!H2?valueInputOption=USER_ENTERED`,
+      { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values: [["Cobrado?"]] }) },
     );
-    if (!writeRes.ok) {
-      throw new Error(`Erro ao escrever planilha (${writeRes.status}): ${await writeRes.text()}`);
+
+    const writeLeft = await fetch(
+      `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1?valueInputOption=USER_ENTERED`,
+      { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values: leftValues }) },
+    );
+    if (!writeLeft.ok) {
+      throw new Error(`Erro ao escrever A:G (${writeLeft.status}): ${await writeLeft.text()}`);
+    }
+    const writeRight = await fetch(
+      `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!I1?valueInputOption=USER_ENTERED`,
+      { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values: rightValues }) },
+    );
+    if (!writeRight.ok) {
+      throw new Error(`Erro ao escrever I:L (${writeRight.status}): ${await writeRight.text()}`);
     }
 
+    // Backfill one-shot: marca "Sim" em H para todas as OS entregues.
+    // Só roda quando body.backfill_delivered === true.
+    let backfilled = 0;
+    if (backfillDelivered) {
+      // Dados começam na linha 3 (linha 1 = título, linha 2 = header)
+      const hValues: any[][] = rows.map((r) => [r.status === "Entregue" ? "Sim" : ""]);
+      const backfillRes = await fetch(
+        `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!H3?valueInputOption=USER_ENTERED`,
+        { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values: hValues }) },
+      );
+      if (!backfillRes.ok) {
+        throw new Error(`Erro no backfill de H (${backfillRes.status}): ${await backfillRes.text()}`);
+      }
+      backfilled = hValues.filter((v) => v[0] === "Sim").length;
+    }
 
     return new Response(
-      JSON.stringify({ success: true, count: rows.length, url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit` }),
+      JSON.stringify({ success: true, count: rows.length, backfilled, url: `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit` }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
