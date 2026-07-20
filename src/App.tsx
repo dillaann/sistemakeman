@@ -23,6 +23,7 @@ import Purchases from "@/pages/Purchases";
 import Marketing from "@/pages/Marketing";
 import ServiceCalculator from "@/pages/ServiceCalculator";
 import Receipts from "@/pages/Receipts";
+import Painting from "@/pages/Painting";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
