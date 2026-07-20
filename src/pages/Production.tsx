@@ -138,6 +138,26 @@ const Production = () => {
     },
   });
 
+  // Paint sheet status per work_order_id for Kanban badges
+  const { data: paintByWO = {} } = useQuery({
+    queryKey: ["production-paint-sheets"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("paint_sheets")
+        .select("work_order_id, status, sheet_date")
+        .not("work_order_id", "is", null);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: any) => {
+        const cur = map[p.work_order_id];
+        // priority: em_pintura > aguardando > finalizado
+        const rank = (s: string) => (s === "em_pintura" ? 3 : s === "aguardando" ? 2 : 1);
+        if (!cur || rank(p.status) > rank(cur)) map[p.work_order_id] = p.status;
+      });
+      return map;
+    },
+  });
+
   // Log of approved quotes: date approved, who approved, client name
   const { data: approvalLog = [] } = useQuery({
     queryKey: ["production-approval-log"],
