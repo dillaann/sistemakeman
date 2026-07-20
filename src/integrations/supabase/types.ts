@@ -1015,6 +1015,128 @@ export type Database = {
           },
         ]
       }
+      paint_sheet_counters: {
+        Row: {
+          last_number: number
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          year: number
+        }
+        Update: {
+          last_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      paint_sheet_items: {
+        Row: {
+          color: string | null
+          created_at: string
+          height: number | null
+          id: string
+          item_number: number
+          part_name: string | null
+          quantity: number | null
+          sheet_id: string
+          width: number | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          item_number: number
+          part_name?: string | null
+          quantity?: number | null
+          sheet_id: string
+          width?: number | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          height?: number | null
+          id?: string
+          item_number?: number
+          part_name?: string | null
+          quantity?: number | null
+          sheet_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paint_sheet_items_sheet_id_fkey"
+            columns: ["sheet_id"]
+            isOneToOne: false
+            referencedRelation: "paint_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paint_sheets: {
+        Row: {
+          attachment_url: string | null
+          client_name: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          responsible: string | null
+          sheet_date: string
+          sheet_number: string
+          status: string
+          updated_at: string
+          work_order_id: string | null
+        }
+        Insert: {
+          attachment_url?: string | null
+          client_name: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          responsible?: string | null
+          sheet_date?: string
+          sheet_number: string
+          status?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Update: {
+          attachment_url?: string | null
+          client_name?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          responsible?: string | null
+          sheet_date?: string
+          sheet_number?: string
+          status?: string
+          updated_at?: string
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paint_sheets_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paint_sheets_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders_production"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production: {
         Row: {
           created_at: string
@@ -2285,6 +2407,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_paint_sheet_number: { Args: { _date?: string }; Returns: string }
       next_purchase_order_number: { Args: { _date?: string }; Returns: string }
     }
     Enums: {
