@@ -143,5 +143,5 @@ export async function parsePDF(file: File): Promise<ParsedStatementEntry[]> {
         raw: { line: r.desc, source: "pdf" },
       } satisfies ParsedStatementEntry;
     })
-    .filter((x): x is ParsedStatementEntry => x != null);
+    .filter((x): x is NonNullable<typeof x> => x != null);
 }
