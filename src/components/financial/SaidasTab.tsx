@@ -1,4 +1,4 @@
-import { compareDateStrings, formatDateBR, localDateString } from "@/lib/utils";
+import { compareDateStrings, formatDateBR, formatDateTimeBR, localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
