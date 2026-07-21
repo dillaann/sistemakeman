@@ -317,7 +317,8 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Emissão <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("created_at")}>Cadastrado em <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
@@ -330,6 +331,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             {filtered.map(t => (
               <TableRow key={t.id} className={`${statusColors[t.status] || ""} ${t.status === "cancelado" ? "opacity-50" : ""}`}>
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTimeBR(t.created_at)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">
                   {t.description}
                   {t.exclude_from_totals && (
@@ -353,7 +355,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma saída encontrada.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma saída encontrada.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
