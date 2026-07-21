@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { parseOFX } from "@/lib/bank-reconciliation/parsers/ofx";
 import { parseCSVFile } from "@/lib/bank-reconciliation/parsers/csv";
 import { parseXLSXFile } from "@/lib/bank-reconciliation/parsers/xlsx";
+import { parsePDF } from "@/lib/bank-reconciliation/parsers/pdf";
 import { guessColumnMap, type ColumnMap } from "@/lib/bank-reconciliation/parsers/tabular";
 import type { ParsedStatementEntry } from "@/lib/bank-reconciliation/types";
 import { Upload } from "lucide-react";
@@ -31,7 +32,7 @@ const COL_LABEL: Record<keyof ColumnMap, string> = {
 export function ImportDialog({ open, onOpenChange, accounts, onCreated }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [accountId, setAccountId] = useState<string>("");
+  const account = accounts[0] ?? null;
   const [file, setFile] = useState<File | null>(null);
   const [entries, setEntries] = useState<ParsedStatementEntry[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -48,7 +49,7 @@ export function ImportDialog({ open, onOpenChange, accounts, onCreated }: Props)
   }, [entries]);
 
   const reset = () => {
-    setAccountId(""); setFile(null); setEntries([]); setHeaders([]); setMap(null); setCsvText(""); setXlsxFile(null); setBalance("");
+    setFile(null); setEntries([]); setHeaders([]); setMap(null); setCsvText(""); setXlsxFile(null); setBalance("");
   };
 
   const handleFile = async (f: File) => {
@@ -70,8 +71,12 @@ export function ImportDialog({ open, onOpenChange, accounts, onCreated }: Props)
         setXlsxFile(f);
         const { entries: es, headers: hs, map: m } = await parseXLSXFile(f);
         setHeaders(hs); setMap(m); setEntries(es);
+      } else if (name.endsWith(".pdf")) {
+        const parsed = await parsePDF(f);
+        setEntries(parsed);
+        if (parsed.length === 0) toast({ title: "Nenhuma transação detectada no PDF", description: "Se o extrato for uma imagem escaneada, exporte em texto (OFX/CSV/PDF nativo).", variant: "destructive" });
       } else {
-        toast({ title: "Formato não suportado", description: "Use OFX, CSV ou XLSX.", variant: "destructive" });
+        toast({ title: "Formato não suportado", description: "Use PDF, OFX, CSV ou XLSX.", variant: "destructive" });
       }
     } catch (err) {
       toast({ title: "Erro ao ler arquivo", description: (err as Error).message, variant: "destructive" });
@@ -89,14 +94,14 @@ export function ImportDialog({ open, onOpenChange, accounts, onCreated }: Props)
     }
   };
 
-  const canImport = accountId && file && entries.length > 0 && !loading;
+  const canImport = !!account && !!file && entries.length > 0 && !loading;
 
   const doImport = async () => {
-    if (!canImport || !file) return;
+    if (!canImport || !file || !account) return;
     setLoading(true);
     try {
       const { data: session, error: sErr } = await supabase.from("bank_reconciliation_sessions").insert({
-        account_id: accountId,
+        account_id: account.id,
         file_name: file.name,
         file_type: file.name.split(".").pop()?.toLowerCase() ?? "unknown",
         period_start: period?.start,
@@ -125,7 +130,6 @@ export function ImportDialog({ open, onOpenChange, accounts, onCreated }: Props)
         external_id: e.external_id ?? null,
         raw: e.raw ?? null,
       }));
-      // Chunk to avoid payload limits
       for (let i = 0; i < rows.length; i += 500) {
         const { error } = await supabase.from("bank_statement_entries").insert(rows.slice(i, i + 500) as any);
         if (error) throw error;
@@ -152,18 +156,13 @@ export function ImportDialog({ open, onOpenChange, accounts, onCreated }: Props)
           <DialogTitle className="flex items-center gap-2"><Upload className="h-5 w-5" /> Importar Extrato Bancário</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <Label>Conta bancária *</Label>
-            <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
-              <SelectContent>
-                {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="text-sm bg-muted/40 rounded p-3">
+            Conta: <strong>{account?.name ?? "—"}</strong> <span className="text-muted-foreground">(CREDCREA)</span>
           </div>
           <div>
-            <Label>Arquivo (OFX, CSV ou XLSX)</Label>
-            <Input type="file" accept=".ofx,.csv,.xlsx,.xls" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} />
+            <Label>Arquivo (PDF, OFX, CSV ou XLSX)</Label>
+            <Input type="file" accept=".pdf,.ofx,.csv,.xlsx,.xls" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} />
+            <p className="text-xs text-muted-foreground mt-1">Para PDFs, use o extrato exportado direto do banco (não fotos/escaneados).</p>
           </div>
           <div>
             <Label>Saldo final do extrato (opcional)</Label>
