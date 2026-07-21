@@ -329,8 +329,19 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             {paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[150px]" placeholder="De" />
-        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" placeholder="Até" />
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Emissão:</Label>
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[145px]" />
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[145px]" />
+        </div>
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Cadastro:</Label>
+          <Input type="date" value={createdFrom} onChange={e => setCreatedFrom(e.target.value)} className="w-[145px]" />
+          <Input type="date" value={createdTo} onChange={e => setCreatedTo(e.target.value)} className="w-[145px]" />
+        </div>
+        {(catFilter !== "all" || pmFilter !== "all" || dateFrom || dateTo || createdFrom || createdTo || search) && (
+          <Button variant="ghost" size="sm" onClick={() => { setCatFilter("all"); setPmFilter("all"); setDateFrom(""); setDateTo(""); setCreatedFrom(""); setCreatedTo(""); setSearch(""); }}>Limpar</Button>
+        )}
       </div>
 
       <div className="border rounded-lg overflow-auto">
