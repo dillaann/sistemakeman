@@ -237,7 +237,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     setOpen(true);
   };
 
-  const toggleSort = (field: "due_date" | "amount") => {
+  const toggleSort = (field: "due_date" | "amount" | "created_at") => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
   };
