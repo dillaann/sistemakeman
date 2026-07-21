@@ -54,9 +54,12 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   
   const [catFilter, setCatFilter] = useState("all");
   const [pmFilter, setPmFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [sortField, setSortField] = useState<"due_date" | "amount" | "created_at">("due_date");
   const [sortAsc, setSortAsc] = useState(false);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -97,8 +100,14 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
       if (dateRange && !isInRange(refDate, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
       if (dateTo && refDate > dateTo) return false;
+      if (createdFrom || createdTo) {
+        const createdDay = t.created_at ? String(t.created_at).slice(0, 10) : "";
+        if (createdFrom && createdDay < createdFrom) return false;
+        if (createdTo && createdDay > createdTo) return false;
+      }
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
@@ -108,13 +117,17 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         const amountDiff = Number(a.amount) - Number(b.amount);
         return sortAsc ? amountDiff : -amountDiff;
       }
+      if (sortField === "created_at") {
+        const diff = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        return sortAsc ? diff : -diff;
+      }
       const dateA = a.paid_date ?? a.due_date;
       const dateB = b.paid_date ?? b.due_date;
       const dateDiff = compareDateStrings(dateA, dateB);
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, pmFilter, statusFilter, dateFrom, dateTo, createdFrom, createdTo, search, sortField, sortAsc, dateRange]);
 
   const total = filtered.filter(t => t.status === "pago" && !t.exclude_from_totals).reduce((s, t) => s + Number(t.amount), 0);
 
@@ -186,7 +199,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     setOpen(true);
   };
 
-  const toggleSort = (field: "due_date" | "amount") => {
+  const toggleSort = (field: "due_date" | "amount" | "created_at") => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
   };
