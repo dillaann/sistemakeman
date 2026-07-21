@@ -80,6 +80,216 @@ export type Database = {
           },
         ]
       }
+      bank_reconciliation_actions: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          notes: string | null
+          session_id: string
+          statement_entry_id: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          session_id: string
+          statement_entry_id?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          session_id?: string
+          statement_entry_id?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_reconciliation_actions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "bank_reconciliation_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliation_actions_statement_entry_id_fkey"
+            columns: ["statement_entry_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statement_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliation_actions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_reconciliation_sessions: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          file_name: string
+          file_type: string
+          id: string
+          imported_by: string | null
+          notes: string | null
+          period_end: string | null
+          period_start: string | null
+          statement_balance: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          file_name: string
+          file_type: string
+          id?: string
+          imported_by?: string | null
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          statement_balance?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          file_name?: string
+          file_type?: string
+          id?: string
+          imported_by?: string | null
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          statement_balance?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_reconciliation_sessions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statement_entries: {
+        Row: {
+          account: string | null
+          agency: string | null
+          amount: number
+          bank: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          counterparty_document: string | null
+          counterparty_name: string | null
+          created_at: string
+          description: string | null
+          direction: string
+          document_number: string | null
+          entry_date: string
+          entry_time: string | null
+          external_id: string | null
+          id: string
+          match_score: number | null
+          matched_transaction_id: string | null
+          pix_key: string | null
+          raw: Json | null
+          session_id: string
+          status: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          account?: string | null
+          agency?: string | null
+          amount: number
+          bank?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          counterparty_document?: string | null
+          counterparty_name?: string | null
+          created_at?: string
+          description?: string | null
+          direction: string
+          document_number?: string | null
+          entry_date: string
+          entry_time?: string | null
+          external_id?: string | null
+          id?: string
+          match_score?: number | null
+          matched_transaction_id?: string | null
+          pix_key?: string | null
+          raw?: Json | null
+          session_id: string
+          status?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account?: string | null
+          agency?: string | null
+          amount?: number
+          bank?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          counterparty_document?: string | null
+          counterparty_name?: string | null
+          created_at?: string
+          description?: string | null
+          direction?: string
+          document_number?: string | null
+          entry_date?: string
+          entry_time?: string | null
+          external_id?: string | null
+          id?: string
+          match_score?: number | null
+          matched_transaction_id?: string | null
+          pix_key?: string | null
+          raw?: Json | null
+          session_id?: string
+          status?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_entries_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "bank_reconciliation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
