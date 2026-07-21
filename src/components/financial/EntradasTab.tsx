@@ -71,9 +71,12 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   
   const [catFilter, setCatFilter] = useState("all");
   const [pmFilter, setPmFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [sortField, setSortField] = useState<"due_date" | "amount" | "created_at">("due_date");
   const [sortAsc, setSortAsc] = useState(false);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
