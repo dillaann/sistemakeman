@@ -348,7 +348,8 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Emissão <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("created_at")}>Cadastrado em <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
@@ -361,6 +362,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             {filtered.map(t => (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTimeBR(t.created_at)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
@@ -374,7 +376,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma entrada encontrada.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma entrada encontrada.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
