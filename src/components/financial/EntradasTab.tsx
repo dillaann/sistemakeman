@@ -1,4 +1,4 @@
-import { compareDateStrings, formatDateBR, localDateString } from "@/lib/utils";
+import { compareDateStrings, formatDateBR, formatDateTimeBR, localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,9 +71,12 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   
   const [catFilter, setCatFilter] = useState("all");
   const [pmFilter, setPmFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [sortField, setSortField] = useState<"due_date" | "amount" | "created_at">("due_date");
   const [sortAsc, setSortAsc] = useState(false);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -141,6 +144,11 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
       if (dateTo && refDate > dateTo) return false;
+      if (createdFrom || createdTo) {
+        const createdDay = t.created_at ? String(t.created_at).slice(0, 10) : "";
+        if (createdFrom && createdDay < createdFrom) return false;
+        if (createdTo && createdDay > createdTo) return false;
+      }
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
@@ -150,11 +158,15 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         const amountDiff = Number(a.amount) - Number(b.amount);
         return sortAsc ? amountDiff : -amountDiff;
       }
+      if (sortField === "created_at") {
+        const diff = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        return sortAsc ? diff : -diff;
+      }
       const dateDiff = compareDateStrings(a.paid_date ?? a.due_date, b.paid_date ?? b.due_date);
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, createdFrom, createdTo, search, sortField, sortAsc, dateRange]);
 
   // Regime de caixa: soma os recebimentos que entraram no período.
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
@@ -225,7 +237,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
     setOpen(true);
   };
 
-  const toggleSort = (field: "due_date" | "amount") => {
+  const toggleSort = (field: "due_date" | "amount" | "created_at") => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
   };
@@ -317,15 +329,27 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             {paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[150px]" placeholder="De" />
-        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" placeholder="Até" />
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Emissão:</Label>
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[145px]" />
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[145px]" />
+        </div>
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Cadastro:</Label>
+          <Input type="date" value={createdFrom} onChange={e => setCreatedFrom(e.target.value)} className="w-[145px]" />
+          <Input type="date" value={createdTo} onChange={e => setCreatedTo(e.target.value)} className="w-[145px]" />
+        </div>
+        {(catFilter !== "all" || pmFilter !== "all" || dateFrom || dateTo || createdFrom || createdTo || search) && (
+          <Button variant="ghost" size="sm" onClick={() => { setCatFilter("all"); setPmFilter("all"); setDateFrom(""); setDateTo(""); setCreatedFrom(""); setCreatedTo(""); setSearch(""); }}>Limpar</Button>
+        )}
       </div>
 
       <div className="border rounded-lg overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Emissão <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("created_at")}>Cadastrado em <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
@@ -338,6 +362,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
             {filtered.map(t => (
               <TableRow key={t.id} className={t.status === "cancelado" ? "opacity-50" : ""}>
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTimeBR(t.created_at)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">{enrichDescription(t.description, t.client_id)}</TableCell>
                 <TableCell>{t.category ?? "—"}</TableCell>
                 <TableCell className="font-semibold">{fmt(Number(t.amount))}</TableCell>
@@ -351,7 +376,7 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma entrada encontrada.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma entrada encontrada.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

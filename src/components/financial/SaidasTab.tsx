@@ -1,4 +1,4 @@
-import { compareDateStrings, formatDateBR, localDateString } from "@/lib/utils";
+import { compareDateStrings, formatDateBR, formatDateTimeBR, localDateString } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,9 +54,12 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   
   const [catFilter, setCatFilter] = useState("all");
   const [pmFilter, setPmFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [sortField, setSortField] = useState<"due_date" | "amount">("due_date");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [sortField, setSortField] = useState<"due_date" | "amount" | "created_at">("due_date");
   const [sortAsc, setSortAsc] = useState(false);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -97,8 +100,14 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
       if (dateRange && !isInRange(refDate, dateRange)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
       if (dateTo && refDate > dateTo) return false;
+      if (createdFrom || createdTo) {
+        const createdDay = t.created_at ? String(t.created_at).slice(0, 10) : "";
+        if (createdFrom && createdDay < createdFrom) return false;
+        if (createdTo && createdDay > createdTo) return false;
+      }
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
@@ -108,13 +117,17 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         const amountDiff = Number(a.amount) - Number(b.amount);
         return sortAsc ? amountDiff : -amountDiff;
       }
+      if (sortField === "created_at") {
+        const diff = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        return sortAsc ? diff : -diff;
+      }
       const dateA = a.paid_date ?? a.due_date;
       const dateB = b.paid_date ?? b.due_date;
       const dateDiff = compareDateStrings(dateA, dateB);
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, pmFilter, statusFilter, dateFrom, dateTo, createdFrom, createdTo, search, sortField, sortAsc, dateRange]);
 
   const total = filtered.filter(t => t.status === "pago" && !t.exclude_from_totals).reduce((s, t) => s + Number(t.amount), 0);
 
@@ -186,7 +199,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     setOpen(true);
   };
 
-  const toggleSort = (field: "due_date" | "amount") => {
+  const toggleSort = (field: "due_date" | "amount" | "created_at") => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
   };
@@ -275,15 +288,37 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             {paymentMethods.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[150px]" />
-        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[150px]" />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="pago">Pago</SelectItem>
+            <SelectItem value="atrasado">Atrasado</SelectItem>
+            <SelectItem value="cancelado">Cancelado</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Emissão:</Label>
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-[145px]" />
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-[145px]" />
+        </div>
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground whitespace-nowrap">Cadastro:</Label>
+          <Input type="date" value={createdFrom} onChange={e => setCreatedFrom(e.target.value)} className="w-[145px]" />
+          <Input type="date" value={createdTo} onChange={e => setCreatedTo(e.target.value)} className="w-[145px]" />
+        </div>
+        {(catFilter !== "all" || pmFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo || createdFrom || createdTo || search) && (
+          <Button variant="ghost" size="sm" onClick={() => { setCatFilter("all"); setPmFilter("all"); setStatusFilter("all"); setDateFrom(""); setDateTo(""); setCreatedFrom(""); setCreatedTo(""); setSearch(""); }}>Limpar</Button>
+        )}
       </div>
 
       <div className="border rounded-lg overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Data <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Emissão <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("created_at")}>Cadastrado em <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("amount")}>Valor <ArrowUpDown className="inline h-3 w-3" /></TableHead>
@@ -296,6 +331,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
             {filtered.map(t => (
               <TableRow key={t.id} className={`${statusColors[t.status] || ""} ${t.status === "cancelado" ? "opacity-50" : ""}`}>
                 <TableCell>{formatDateBR(t.paid_date ?? t.due_date)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTimeBR(t.created_at)}</TableCell>
                 <TableCell className="font-medium max-w-[250px] truncate">
                   {t.description}
                   {t.exclude_from_totals && (
@@ -319,7 +355,7 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhuma saída encontrada.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma saída encontrada.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
