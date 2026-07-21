@@ -40,6 +40,13 @@ export function formatDateBR(value?: string | Date | null): string {
   return parsed ? parsed.toLocaleDateString("pt-BR") : "";
 }
 
+export function formatDateTimeBR(value?: string | Date | null): string {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export function compareDateStrings(a?: string | null, b?: string | null): number {
   if (!a && !b) return 0;
   if (!a) return -1;
