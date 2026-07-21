@@ -127,7 +127,7 @@ export function ImportDialog({ open, onOpenChange, accounts, onCreated }: Props)
       }));
       // Chunk to avoid payload limits
       for (let i = 0; i < rows.length; i += 500) {
-        const { error } = await supabase.from("bank_statement_entries").insert(rows.slice(i, i + 500));
+        const { error } = await supabase.from("bank_statement_entries").insert(rows.slice(i, i + 500) as any);
         if (error) throw error;
       }
       await supabase.from("bank_reconciliation_actions").insert({
