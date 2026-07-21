@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle, Repeat } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
 import DespesasReceitasTab from "@/components/financial/DespesasReceitasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
@@ -11,6 +11,7 @@ import NotasFiscaisTab from "@/components/financial/NotasFiscaisTab";
 import ContasPagarTab from "@/components/financial/ContasPagarTab";
 import ContasReceberTab from "@/components/financial/ContasReceberTab";
 import ServicosNaoPagosTab from "@/components/financial/ServicosNaoPagosTab";
+import ReconciliationTab from "@/components/financial/reconciliation/ReconciliationTab";
 
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
@@ -30,7 +31,7 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-10">
+        <TabsList className="grid w-full grid-cols-11">
           <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
             <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
@@ -48,6 +49,9 @@ const Financial = () => {
           </TabsTrigger>
           <TabsTrigger value="movimentacoes" className="flex items-center gap-1 text-xs">
             <ArrowRightLeft className="h-4 w-4" /> Movimentações
+          </TabsTrigger>
+          <TabsTrigger value="conciliacao" className="flex items-center gap-1 text-xs">
+            <Repeat className="h-4 w-4" /> Conciliação
           </TabsTrigger>
           <TabsTrigger value="notas" className="flex items-center gap-1 text-xs">
             <FileText className="h-4 w-4" /> Notas Fiscais
@@ -69,6 +73,7 @@ const Financial = () => {
         <TabsContent value="contas_receber"><ContasReceberTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="contas"><ContasTab /></TabsContent>
         <TabsContent value="movimentacoes"><MovimentacoesTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="conciliacao"><ReconciliationTab /></TabsContent>
         <TabsContent value="notas"><NotasFiscaisTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="movimentacao"><MovimentacaoTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="desp_rec"><DespesasReceitasTab dateRange={dateRange} /></TabsContent>
