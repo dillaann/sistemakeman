@@ -1,107 +1,117 @@
-# Módulo de Almoxarifado
+# Módulo de Conciliação Bancária Inteligente
 
-Novo módulo completo de gestão de estoque com perfil de acesso próprio, integrações com Compras/Produção e alertas.
+Nova aba **Conciliação** dentro de `/financeiro`. Nenhuma ação altera dados sem confirmação explícita do usuário — essa regra é aplicada em cada botão e em cada mutação.
 
-## 1. Novo perfil de acesso
+## Escopo desta entrega (Fase 1)
 
-- Adicionar `almoxarifado` ao enum `app_role` no Postgres.
-- Atualizar tipos TS (`AppRole`) em `AuthContext.tsx`, `AppSidebar.tsx`, `RoleGuard` e página de Usuários (`UserManagement.tsx`) — incluir opção "Almoxarifado" no seletor de cargos.
-- Conta nova continua pendente (fluxo já existente); admin atribui o cargo.
-- Escopo de acesso: apenas `/almoxarifado` e `/pintura`. Sem financeiro/RH/vendas/DRE.
+Entrego um MVP funcional e sólido, priorizando o núcleo do fluxo. Recursos avançados de auditoria detalhada e aprendizado ficam sinalizados como Fase 2 para não inflar o primeiro release.
 
-## 2. Banco de dados (migration única)
+Incluído agora:
+- Upload e parsing de **OFX, CSV e XLSX** (PDF/TXT fica para Fase 2 — exigem OCR/heurísticas e alto risco de erro silencioso).
+- Motor de matching com pontuação configurável.
+- 5 abas: Resumo, Conciliados (sugeridos), Pendentes, Somente no Extrato, Somente no Sistema.
+- Confirmação obrigatória em toda ação (conciliar, criar, editar, excluir, ignorar).
+- Histórico de ações da sessão de conciliação.
 
-**Tabelas novas (todas em `public` com RLS + GRANTs):**
+Fase 2 (não nesta entrega, apenas registrado):
+- Parsing de PDF e TXT.
+- Aprendizado adaptativo de pesos por padrão de descrição.
+- Registro de IP por ação e histórico global auditável fora da sessão.
 
-- `inventory_items`
-  - code (texto, único — gerado auto `ALM-0001` via counter se vazio)
-  - name, category (enum textual com CHECK), unit, current_qty (numeric), min_qty (numeric), location, notes
-  - unit_price (numeric, atualizado por compras)
-  - active (bool)
-- `inventory_item_counters` (year int PK, last_number int) + função `next_inventory_code()`.
-- `inventory_movements`
-  - item_id (FK cascade), type ('entrada'|'saida'|'devolucao'|'ajuste'), quantity, movement_date
-  - reason (texto), work_order_id (FK opcional), client_name, responsible, notes
-  - purchase_id (FK opcional para vincular a compras)
-  - created_by
-- `inventory_receipts` (recebimento de compras)
-  - purchase_id (FK), item_id (FK), expected_qty, received_qty, status ('aguardando'|'parcial'|'recebido'), received_at, received_by
-- `inventory_requests` (pedidos da Produção → Almoxarifado)
-  - work_order_id, item_id, requested_qty, delivered_qty, status ('pendente'|'atendido'|'faltando'|'compra_solicitada'), requested_by, fulfilled_by, notes
-- `inventory_counts` (inventário físico)
-  - count_date, responsible, notes, status ('em_andamento'|'finalizado')
-- `inventory_count_items`
-  - count_id (FK cascade), item_id, system_qty, physical_qty, difference, adjustment_reason ('quebra'|'perda'|'erro'|'furto'|'outro')
+## Estrutura de dados
 
-**Triggers:**
-- Atualizar `current_qty` em `inventory_items` após INSERT/UPDATE/DELETE em `inventory_movements` (entrada/devolução soma, saída subtrai, ajuste define diferença conforme sinal).
-- Ao finalizar um `inventory_count`, gerar movimentações de ajuste automaticamente.
+Novas tabelas em `public`:
 
-**RLS:** admin e almoxarifado com acesso total (via `has_role`). Produção pode SELECT em itens e criar `inventory_requests`. Compras pode SELECT em itens.
+- `bank_reconciliation_sessions` — uma sessão por upload de extrato.
+  - Campos-chave: `account_id` (FK `financial_accounts`), `file_name`, `period_start`, `period_end`, `statement_balance`, `imported_by`, `status` (`aberta` | `fechada`).
+- `bank_statement_entries` — linhas do extrato importado.
+  - Campos-chave: `session_id`, `entry_date`, `entry_time`, `type` (pix/ted/doc/boleto/tarifa/…), `amount`, `direction` (`entrada` | `saida`), `description`, `counterparty_name`, `counterparty_document`, `pix_key`, `bank`, `agency`, `account`, `document_number`, `external_id`, `raw` (jsonb), `status` (`pendente` | `conciliado` | `ignorado` | `adicionado`), `matched_transaction_id` (FK `financial_transactions`, nullable), `match_score`, `confirmed_by`, `confirmed_at`.
+- `bank_reconciliation_actions` — log da sessão.
+  - Campos-chave: `session_id`, `actor_id`, `action` (`import` | `confirm_match` | `unmatch` | `create_transaction` | `edit_transaction` | `delete_transaction` | `ignore` | `restore`), `statement_entry_id`, `transaction_id`, `before` (jsonb), `after` (jsonb).
 
-## 3. Menu lateral e rotas
+Regras:
+- RLS habilitada; policies para `admin` e `financeiro`.
+- GRANT para `authenticated` e `service_role`.
+- Trigger de `updated_at`.
+- Sem CASCADE para `financial_transactions` (para não apagar lançamento real ao remover uma sessão).
 
-`AppSidebar.tsx`: adicionar em Operacional:
-- `{ title: "Almoxarifado", url: "/almoxarifado", icon: Warehouse, roles: ["admin","almoxarifado"] }`
+## Motor de matching (client-side, TypeScript)
 
-`App.tsx`: rota `/almoxarifado` com `RoleGuard allowed={["admin","almoxarifado"]}`.
+`src/lib/bank-reconciliation/matching.ts`:
+- Entrada: lista de `bank_statement_entries` da sessão + `financial_transactions` do período (±N dias, N configurável, default 3).
+- Para cada linha do extrato, calcula score contra cada transação candidata:
+  - Valor igual (tolerância R$0,01): +50; diferente: descarta candidato.
+  - Mesmo direction (entrada/saida): obrigatório.
+  - Mesma data: +20; ±1 dia: +12; ±2: +6; além: -50.
+  - Nome via fuzzy (Dice/Levenshtein normalizado em `src/lib/bank-reconciliation/fuzzy.ts`): 0..+15.
+  - CPF/CNPJ igual: +100.
+  - Chave PIX igual: +100.
+  - Documento igual: +80.
+  - Mesmo banco: +5.
+  - Descrição similar (tokens PIX/TED/…): 0..+10.
+  - Já usado por outra linha: -20.
+- Classificação:
+  - `>= 90` e melhor candidato com folga ≥ 20 → **Sugerido conciliado** (aguarda confirmação).
+  - `40..89` → **Pendente** com top-3 candidatos.
+  - `< 40` ou sem candidato → **Somente no Extrato**.
+- Transações do período sem nenhuma linha correspondente → **Somente no Sistema**.
 
-Para almoxarifado, também liberar Pintura (`roles: [...,"almoxarifado"]` no item Pintura). Nenhuma outra aba.
+Pesos ficam num objeto exportado para futuro ajuste.
 
-## 4. Página `src/pages/Warehouse.tsx`
+## Parsers
 
-Tabs:
-1. **Painel** — cards: total de itens, itens abaixo do mínimo (vermelho), zerados (vermelho escuro), entradas/saídas do mês, tabela "Últimas movimentações do dia".
-2. **Itens** — lista com filtros (categoria, busca, status estoque), botão "Novo Item", editar/excluir.
-3. **Movimentações** — lista filtrável por período/tipo/item, botão "Nova Movimentação".
-4. **Recebimentos** — lista de `inventory_receipts` pendentes vindos de compras, com botão "Confirmar recebimento" (parcial/total).
-5. **Solicitações** — pedidos da produção pendentes; botão "Atender" (gera saída) ou "Solicitar compra".
-6. **Inventário** — lista de inventários; iniciar novo, contar itens, finalizar (gera ajustes).
-7. **Relatórios** — extrato por item/período, consumo por OS, top itens do mês, exportar PDF/Excel (xlsx + jspdf).
+`src/lib/bank-reconciliation/parsers/`:
+- `ofx.ts`: parser leve de SGML OFX (`<STMTTRN>` → data, valor, tipo, memo, fitid, checknum).
+- `csv.ts`: usa PapaParse com detecção de cabeçalho e mapeamento inteligente (Data, Valor, Descrição, Documento, Tipo). Permite ao usuário confirmar o mapeamento de colunas antes de importar.
+- `xlsx.ts`: usa `xlsx` (SheetJS) já disponível no projeto; mesmo mapeamento assistido.
 
-Componentes em `src/components/warehouse/`:
-- `ItemDialog.tsx`, `MovementDialog.tsx`, `ReceiveDialog.tsx`, `RequestDialog.tsx`, `CountDialog.tsx`, `WarehouseReportDialog.tsx`.
+Cada parser devolve `BankStatementEntry[]` normalizado.
 
-## 5. Integração com Compras
+Dependências novas: `papaparse` (+ types). `xlsx` já é usado no projeto; se não, adicionar.
 
-- No fluxo de marcar compra como paga/recebida em `PurchaseOrders`/`purchases`, criar linhas `inventory_receipts` (status `aguardando`) para cada item comprado (via trigger ou lógica no componente que já muda o status).
-- Ao confirmar recebimento no Almoxarifado, criar `inventory_movements` de entrada com `purchase_id` e atualizar `unit_price` do item pelo preço da compra. Status vira `parcial` ou `recebido`.
-- Sincronização com catálogo de Materiais: se o item da compra não existir em `inventory_items`, cria automaticamente; se existir, atualiza `unit_price`.
+## UI
 
-## 6. Integração com Produção
+Nova aba **Conciliação** em `src/pages/Financial.tsx` (ícone `Repeat`).
 
-- Botão "Solicitar Materiais" no card do Kanban (`Production.tsx`) para role `producao`/`admin` — abre dialog que cria `inventory_requests` vinculadas à OS.
-- Badge no card da OS:
-  - "Materiais pendentes" (âmbar) se houver `inventory_requests` `pendente`/`faltando`
-  - "Materiais entregues" (verde) se todas `atendido`
-- Se saldo insuficiente ao atender, marcar `faltando` + criar `purchase_requests` (usa tabela existente) automaticamente.
+Componentes em `src/components/financial/reconciliation/`:
+- `ReconciliationTab.tsx` — container: seletor de conta + botão "Nova conciliação".
+- `ImportDialog.tsx` — wizard: escolher conta → upload → (para CSV/XLSX) mapear colunas → preview → confirmar importação.
+- `SessionView.tsx` — sessão aberta com sub-abas:
+  - **Resumo**: cards com totais (entradas, saídas, conciliado, pendente, saldo extrato, saldo sistema, diferença).
+  - **Sugeridos**: pares extrato↔lançamento com badge de score, botões `Confirmar` / `Rejeitar` / `Trocar correspondência`.
+  - **Pendentes**: linha do extrato + top-3 candidatos, botão `Escolher` por candidato.
+  - **Somente no Extrato**: linha + botão `Adicionar ao financeiro` (abre `NewTransactionFromEntryDialog` pré-preenchido) e `Ignorar`.
+  - **Somente no Sistema**: transação + botões `Marcar conciliado manualmente`, `Editar`, `Excluir`, `Ignorar`.
+  - **Histórico**: ações da sessão.
+- `ConfirmActionDialog.tsx` — modal genérico exibindo antes/depois. Todo botão destrutivo ou de criação passa por aqui.
 
-## 7. Alertas no menu
+Estados visuais: 🟢 conciliado, 🟡 pendente, 🔴 divergência de valor destacada, 🔵 novo no extrato, cinza para ignorados.
 
-- Badge numérica no item "Almoxarifado" do sidebar (admin e almoxarifado): soma de itens abaixo do mínimo + zerados + recebimentos aguardando + solicitações pendentes. Query em `AppSidebar.tsx` similar ao badge de pending users.
+## Fluxo de confirmação (regra invariante)
 
-## 8. Relatórios
+Toda mutação (`confirm_match`, `create_transaction`, `edit_transaction`, `delete_transaction`, `ignore`, `restore`) passa por `ConfirmActionDialog` que:
+1. Mostra resumo humano da ação.
+2. Mostra diff antes/depois quando aplicável.
+3. Só ao clicar "Confirmar" chama a mutação (React Query) e grava em `bank_reconciliation_actions`.
 
-- Extrato de movimentações (filtro período + item) → PDF (jspdf-autotable) e Excel (xlsx).
-- Consumo por OS: agrupa saídas por `work_order_id`.
-- Top itens do mês: agrupa saídas por item.
+## Permissões
+
+- Rota `/financeiro` já restrita a `admin` e `financeiro` — a nova aba herda.
+- Policies das novas tabelas: `SELECT/INSERT/UPDATE/DELETE` para usuários com `has_role(auth.uid(), 'admin')` ou `has_role(auth.uid(), 'financeiro')`.
 
 ## Detalhes técnicos
 
-- Ordem de execução:
-  1. Migration (enum role, tabelas, counter, funções, triggers, RLS, grants)
-  2. Atualizar tipos e AuthContext/Sidebar/RoleGuard/UserManagement para o novo cargo
-  3. Página `Warehouse.tsx` + subcomponentes + rota
-  4. Integração de Compras (hook no fluxo de recebimento)
-  5. Integração de Produção (botão + badges no Kanban)
-  6. Alertas no sidebar + Relatórios
+- Migração única com as 3 tabelas + GRANTs + RLS + policies + trigger `updated_at`.
+- `src/lib/bank-reconciliation/` concentra parsing, fuzzy match e scoring, sem dependência de Supabase (facilita teste).
+- Testes Vitest em `src/lib/__tests__/bank-reconciliation.test.ts`: casos de score (valor exato, CPF igual, nome fuzzy, data ±2 dias, sem match).
+- Nenhum trigger no Supabase para conciliação — todas as mutações vêm de ações confirmadas na UI.
+- Datas tratadas via `parseLocalDate`/`localDateString` (regra do projeto).
+- Nada é criado/alterado em `financial_transactions` sem clique explícito na UI.
 
-- Sem alteração em módulos financeiros/RH/vendas/DRE.
-- Datas via `parseLocalDate`/`formatDateBR`/`localDateString`.
-- Tokens semânticos, dark mode, pt-BR.
+## Fora de escopo (para não confundir)
 
-## Observação
+- Não altera o módulo de Saídas/Entradas existentes.
+- Não mexe em HR, Compras, DRE.
+- Não altera nada em `financial_transactions` até o usuário confirmar dentro do módulo novo.
 
-Escopo é grande — vou executar tudo em sequência sem parar para perguntar, salvo se aparecer decisão de produto (ex: se você quiser habilitar geração automática de `purchase_requests` quando faltar estoque, ou deixar apenas sinalizado). Padrão: gerar automaticamente.
-
-Confirma para eu começar?
+Confirma para eu implementar?
