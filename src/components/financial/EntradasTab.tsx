@@ -144,6 +144,11 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (dateFrom && refDate < dateFrom) return false;
       if (dateTo && refDate > dateTo) return false;
+      if (createdFrom || createdTo) {
+        const createdDay = t.created_at ? String(t.created_at).slice(0, 10) : "";
+        if (createdFrom && createdDay < createdFrom) return false;
+        if (createdTo && createdDay > createdTo) return false;
+      }
       const text = search.toLowerCase();
       if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
@@ -153,11 +158,15 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         const amountDiff = Number(a.amount) - Number(b.amount);
         return sortAsc ? amountDiff : -amountDiff;
       }
+      if (sortField === "created_at") {
+        const diff = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+        return sortAsc ? diff : -diff;
+      }
       const dateDiff = compareDateStrings(a.paid_date ?? a.due_date, b.paid_date ?? b.due_date);
       return sortAsc ? dateDiff : -dateDiff;
     });
     return list;
-  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, search, sortField, sortAsc, dateRange]);
+  }, [transactions, catFilter, pmFilter, dateFrom, dateTo, createdFrom, createdTo, search, sortField, sortAsc, dateRange]);
 
   // Regime de caixa: soma os recebimentos que entraram no período.
   const total = filtered.filter(t => t.status !== "cancelado").reduce((s, t) => s + Number(t.amount), 0);
