@@ -97,7 +97,7 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
         .eq("sheet_id", sheet.id)
         .order("item_number")
         .then(({ data }) => {
-          const list = (data || []).map((i: any) => ({
+          const list: Item[] = (data || []).map((i: any) => ({
             id: i.id,
             item_number: i.item_number,
             part_name: i.part_name || "",
@@ -105,6 +105,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
             width: i.width != null ? String(i.width) : "",
             height: i.height != null ? String(i.height) : "",
             color: i.color || "",
+            price_per_m2: i.price_per_m2 != null ? String(i.price_per_m2) : "45",
+            unit: (i.unit === "m" ? "m" : "cm") as "cm" | "m",
           }));
           setItems(list.length ? list : [emptyItem(1)]);
         });
@@ -121,7 +123,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
     }
   }, [open, sheet]);
 
-  const addItem = () => setItems((prev) => [...prev, emptyItem(prev.length + 1)]);
+  const addItem = () => setItems((prev) => [...prev, emptyItem(prev.length + 1, defaultPrice, defaultUnit)]);
+
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx).map((it, i) => ({ ...it, item_number: i + 1 })));
   const updateItem = (idx: number, field: keyof Item, value: string) => setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
 
