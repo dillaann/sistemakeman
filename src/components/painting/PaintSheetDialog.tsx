@@ -36,10 +36,33 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
   const [status, setStatus] = useState<"aguardando" | "em_pintura" | "finalizado">("aguardando");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Item[]>([emptyItem(1)]);
+  const [unit, setUnit] = useState<"cm" | "m">("cm");
+  const [pricePerM2, setPricePerM2] = useState<string>("45");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const toM2 = (w: number, h: number) => {
+    const factor = unit === "cm" ? 1 / 10000 : 1;
+    return w * h * factor;
+  };
+  const price = Number(pricePerM2) || 0;
+  const itemCalc = (it: Item) => {
+    const q = Number(it.quantity) || 1;
+    const w = Number(it.width) || 0;
+    const h = Number(it.height) || 0;
+    const area = toM2(w, h) * q;
+    return { area, cost: area * price };
+  };
+  const totals = items.reduce(
+    (acc, it) => {
+      const { area, cost } = itemCalc(it);
+      return { area: acc.area + area, cost: acc.cost + cost };
+    },
+    { area: 0, cost: 0 },
+  );
+  const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const { data: workOrders = [] } = useQuery({
     queryKey: ["paint-workorders"],
