@@ -373,8 +373,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
               <Label>Itens</Label>
               <div className="flex flex-wrap items-end gap-2">
                 <div>
-                  <Label className="text-xs">Unidade das medidas</Label>
-                  <Select value={unit} onValueChange={(v: any) => setUnit(v)}>
+                  <Label className="text-xs">Unidade padrão</Label>
+                  <Select value={defaultUnit} onValueChange={(v: any) => setDefaultUnit(v)}>
                     <SelectTrigger className="w-28 h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cm">cm</SelectItem>
@@ -383,12 +383,12 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">R$ / m²</Label>
+                  <Label className="text-xs">R$ / m² padrão</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    value={pricePerM2}
-                    onChange={(e) => setPricePerM2(e.target.value)}
+                    value={defaultPrice}
+                    onChange={(e) => setDefaultPrice(e.target.value)}
                     className="w-24 h-9"
                   />
                 </div>
@@ -403,10 +403,12 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                   <tr>
                     <th className="p-2 text-left w-12">#</th>
                     <th className="p-2 text-left">Peça</th>
-                    <th className="p-2 text-left w-20">Qtd</th>
-                    <th className="p-2 text-left w-24">Largura ({unit})</th>
-                    <th className="p-2 text-left w-24">Altura ({unit})</th>
-                    <th className="p-2 text-left w-28">Cor</th>
+                    <th className="p-2 text-left w-16">Qtd</th>
+                    <th className="p-2 text-left w-20">Largura</th>
+                    <th className="p-2 text-left w-20">Altura</th>
+                    <th className="p-2 text-left w-20">Unid.</th>
+                    <th className="p-2 text-left w-24">Cor</th>
+                    <th className="p-2 text-left w-24">R$/m²</th>
                     <th className="p-2 text-right w-20">m²</th>
                     <th className="p-2 text-right w-28">Valor</th>
                     <th className="p-2 w-10" />
@@ -422,7 +424,17 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                         <td className="p-2"><Input value={it.quantity} onChange={(e) => updateItem(idx, "quantity", e.target.value)} /></td>
                         <td className="p-2"><Input value={it.width} onChange={(e) => updateItem(idx, "width", e.target.value)} /></td>
                         <td className="p-2"><Input value={it.height} onChange={(e) => updateItem(idx, "height", e.target.value)} /></td>
+                        <td className="p-2">
+                          <Select value={it.unit} onValueChange={(v: any) => updateItem(idx, "unit", v)}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cm">cm</SelectItem>
+                              <SelectItem value="m">m</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </td>
                         <td className="p-2"><Input value={it.color} onChange={(e) => updateItem(idx, "color", e.target.value)} /></td>
+                        <td className="p-2"><Input type="number" step="0.01" value={it.price_per_m2} onChange={(e) => updateItem(idx, "price_per_m2", e.target.value)} /></td>
                         <td className="p-2 text-right tabular-nums">{area ? area.toFixed(3) : "-"}</td>
                         <td className="p-2 text-right tabular-nums font-medium">{cost ? fmtBRL(cost) : "-"}</td>
                         <td className="p-2">
@@ -436,7 +448,7 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                 </tbody>
                 <tfoot className="bg-muted/50 border-t">
                   <tr>
-                    <td colSpan={6} className="p-2 text-right font-semibold">Totais</td>
+                    <td colSpan={8} className="p-2 text-right font-semibold">Totais</td>
                     <td className="p-2 text-right tabular-nums font-semibold">{totals.area.toFixed(3)} m²</td>
                     <td className="p-2 text-right tabular-nums font-bold text-primary">{fmtBRL(totals.cost)}</td>
                     <td />
@@ -445,9 +457,12 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
               </table>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Cálculo: largura × altura × quantidade, convertido para m² e multiplicado por R$ {price.toFixed(2)}/m².
+              Cálculo por peça: largura × altura × quantidade (convertido para m² pela unidade da peça) × R$/m² da peça.
             </p>
           </div>
+
+
+
 
 
           <div>
