@@ -1,0 +1,1 @@
+ALTER TABLE public.paint_sheet_items ADD COLUMN IF NOT EXISTS price_per_m2 NUMERIC, ADD COLUMN IF NOT EXISTS unit TEXT DEFAULT 'cm';
