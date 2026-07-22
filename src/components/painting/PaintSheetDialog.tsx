@@ -36,10 +36,33 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
   const [status, setStatus] = useState<"aguardando" | "em_pintura" | "finalizado">("aguardando");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Item[]>([emptyItem(1)]);
+  const [unit, setUnit] = useState<"cm" | "m">("cm");
+  const [pricePerM2, setPricePerM2] = useState<string>("45");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const toM2 = (w: number, h: number) => {
+    const factor = unit === "cm" ? 1 / 10000 : 1;
+    return w * h * factor;
+  };
+  const price = Number(pricePerM2) || 0;
+  const itemCalc = (it: Item) => {
+    const q = Number(it.quantity) || 1;
+    const w = Number(it.width) || 0;
+    const h = Number(it.height) || 0;
+    const area = toM2(w, h) * q;
+    return { area, cost: area * price };
+  };
+  const totals = items.reduce(
+    (acc, it) => {
+      const { area, cost } = itemCalc(it);
+      return { area: acc.area + area, cost: acc.cost + cost };
+    },
+    { area: 0, cost: 0 },
+  );
+  const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const { data: workOrders = [] } = useQuery({
     queryKey: ["paint-workorders"],
@@ -336,11 +359,33 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
 
           {/* Items */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 mb-2">
               <Label>Itens</Label>
-              <Button type="button" size="sm" variant="outline" onClick={addItem}>
-                <Plus className="h-4 w-4 mr-1" /> Item
-              </Button>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <Label className="text-xs">Unidade das medidas</Label>
+                  <Select value={unit} onValueChange={(v: any) => setUnit(v)}>
+                    <SelectTrigger className="w-28 h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cm">cm</SelectItem>
+                      <SelectItem value="m">m</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">R$ / m²</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={pricePerM2}
+                    onChange={(e) => setPricePerM2(e.target.value)}
+                    className="w-24 h-9"
+                  />
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={addItem}>
+                  <Plus className="h-4 w-4 mr-1" /> Item
+                </Button>
+              </div>
             </div>
             <div className="border rounded-md overflow-x-auto">
               <table className="w-full text-sm">
@@ -349,32 +394,51 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                     <th className="p-2 text-left w-12">#</th>
                     <th className="p-2 text-left">Peça</th>
                     <th className="p-2 text-left w-20">Qtd</th>
-                    <th className="p-2 text-left w-28">Largura</th>
-                    <th className="p-2 text-left w-28">Altura</th>
-                    <th className="p-2 text-left w-32">Cor</th>
+                    <th className="p-2 text-left w-24">Largura ({unit})</th>
+                    <th className="p-2 text-left w-24">Altura ({unit})</th>
+                    <th className="p-2 text-left w-28">Cor</th>
+                    <th className="p-2 text-right w-20">m²</th>
+                    <th className="p-2 text-right w-28">Valor</th>
                     <th className="p-2 w-10" />
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((it, idx) => (
-                    <tr key={idx} className="border-t">
-                      <td className="p-2 text-muted-foreground">{it.item_number}</td>
-                      <td className="p-2"><Input value={it.part_name} onChange={(e) => updateItem(idx, "part_name", e.target.value)} /></td>
-                      <td className="p-2"><Input value={it.quantity} onChange={(e) => updateItem(idx, "quantity", e.target.value)} /></td>
-                      <td className="p-2"><Input value={it.width} onChange={(e) => updateItem(idx, "width", e.target.value)} /></td>
-                      <td className="p-2"><Input value={it.height} onChange={(e) => updateItem(idx, "height", e.target.value)} /></td>
-                      <td className="p-2"><Input value={it.color} onChange={(e) => updateItem(idx, "color", e.target.value)} /></td>
-                      <td className="p-2">
-                        <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((it, idx) => {
+                    const { area, cost } = itemCalc(it);
+                    return (
+                      <tr key={idx} className="border-t">
+                        <td className="p-2 text-muted-foreground">{it.item_number}</td>
+                        <td className="p-2"><Input value={it.part_name} onChange={(e) => updateItem(idx, "part_name", e.target.value)} /></td>
+                        <td className="p-2"><Input value={it.quantity} onChange={(e) => updateItem(idx, "quantity", e.target.value)} /></td>
+                        <td className="p-2"><Input value={it.width} onChange={(e) => updateItem(idx, "width", e.target.value)} /></td>
+                        <td className="p-2"><Input value={it.height} onChange={(e) => updateItem(idx, "height", e.target.value)} /></td>
+                        <td className="p-2"><Input value={it.color} onChange={(e) => updateItem(idx, "color", e.target.value)} /></td>
+                        <td className="p-2 text-right tabular-nums">{area ? area.toFixed(3) : "-"}</td>
+                        <td className="p-2 text-right tabular-nums font-medium">{cost ? fmtBRL(cost) : "-"}</td>
+                        <td className="p-2">
+                          <Button type="button" size="icon" variant="ghost" onClick={() => removeItem(idx)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
+                <tfoot className="bg-muted/50 border-t">
+                  <tr>
+                    <td colSpan={6} className="p-2 text-right font-semibold">Totais</td>
+                    <td className="p-2 text-right tabular-nums font-semibold">{totals.area.toFixed(3)} m²</td>
+                    <td className="p-2 text-right tabular-nums font-bold text-primary">{fmtBRL(totals.cost)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Cálculo: largura × altura × quantidade, convertido para m² e multiplicado por R$ {price.toFixed(2)}/m².
+            </p>
           </div>
+
 
           <div>
             <Label>Observações</Label>
