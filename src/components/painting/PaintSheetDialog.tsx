@@ -255,6 +255,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
             width: i.width ? Number(i.width) : null,
             height: i.height ? Number(i.height) : null,
             color: i.color || null,
+            price_per_m2: i.price_per_m2 ? Number(i.price_per_m2) : null,
+            unit: i.unit,
           }));
         if (rows.length) {
           const { error: itemErr } = await supabase.from("paint_sheet_items").insert(rows);
