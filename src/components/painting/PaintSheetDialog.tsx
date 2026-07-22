@@ -20,9 +20,14 @@ type Item = {
   width: string;
   height: string;
   color: string;
+  price_per_m2: string;
+  unit: "cm" | "m";
 };
 
-const emptyItem = (n: number): Item => ({ item_number: n, part_name: "", quantity: "", width: "", height: "", color: "" });
+const emptyItem = (n: number, defaultPrice = "45", defaultUnit: "cm" | "m" = "cm"): Item => ({
+  item_number: n, part_name: "", quantity: "", width: "", height: "", color: "",
+  price_per_m2: defaultPrice, unit: defaultUnit,
+});
 
 export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: boolean; onOpenChange: (o: boolean) => void; sheet: any | null }) {
   const { toast } = useToast();
