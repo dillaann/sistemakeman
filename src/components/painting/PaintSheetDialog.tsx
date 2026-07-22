@@ -20,9 +20,14 @@ type Item = {
   width: string;
   height: string;
   color: string;
+  price_per_m2: string;
+  unit: "cm" | "m";
 };
 
-const emptyItem = (n: number): Item => ({ item_number: n, part_name: "", quantity: "", width: "", height: "", color: "" });
+const emptyItem = (n: number, defaultPrice = "45", defaultUnit: "cm" | "m" = "cm"): Item => ({
+  item_number: n, part_name: "", quantity: "", width: "", height: "", color: "",
+  price_per_m2: defaultPrice, unit: defaultUnit,
+});
 
 export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: boolean; onOpenChange: (o: boolean) => void; sheet: any | null }) {
   const { toast } = useToast();
@@ -36,23 +41,20 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
   const [status, setStatus] = useState<"aguardando" | "em_pintura" | "finalizado">("aguardando");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Item[]>([emptyItem(1)]);
-  const [unit, setUnit] = useState<"cm" | "m">("cm");
-  const [pricePerM2, setPricePerM2] = useState<string>("45");
+  const [defaultUnit, setDefaultUnit] = useState<"cm" | "m">("cm");
+  const [defaultPrice, setDefaultPrice] = useState<string>("45");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const toM2 = (w: number, h: number) => {
-    const factor = unit === "cm" ? 1 / 10000 : 1;
-    return w * h * factor;
-  };
-  const price = Number(pricePerM2) || 0;
   const itemCalc = (it: Item) => {
     const q = Number(it.quantity) || 1;
     const w = Number(it.width) || 0;
     const h = Number(it.height) || 0;
-    const area = toM2(w, h) * q;
+    const factor = it.unit === "cm" ? 1 / 10000 : 1;
+    const area = w * h * factor * q;
+    const price = Number(it.price_per_m2) || 0;
     return { area, cost: area * price };
   };
   const totals = items.reduce(
@@ -63,6 +65,7 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
     { area: 0, cost: 0 },
   );
   const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 
   const { data: workOrders = [] } = useQuery({
     queryKey: ["paint-workorders"],
@@ -94,7 +97,7 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
         .eq("sheet_id", sheet.id)
         .order("item_number")
         .then(({ data }) => {
-          const list = (data || []).map((i: any) => ({
+          const list: Item[] = (data || []).map((i: any) => ({
             id: i.id,
             item_number: i.item_number,
             part_name: i.part_name || "",
@@ -102,6 +105,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
             width: i.width != null ? String(i.width) : "",
             height: i.height != null ? String(i.height) : "",
             color: i.color || "",
+            price_per_m2: i.price_per_m2 != null ? String(i.price_per_m2) : "45",
+            unit: (i.unit === "m" ? "m" : "cm") as "cm" | "m",
           }));
           setItems(list.length ? list : [emptyItem(1)]);
         });
@@ -118,7 +123,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
     }
   }, [open, sheet]);
 
-  const addItem = () => setItems((prev) => [...prev, emptyItem(prev.length + 1)]);
+  const addItem = () => setItems((prev) => [...prev, emptyItem(prev.length + 1, defaultPrice, defaultUnit)]);
+
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx).map((it, i) => ({ ...it, item_number: i + 1 })));
   const updateItem = (idx: number, field: keyof Item, value: string) => setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
 
@@ -156,13 +162,15 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
       if (data?.notes) setNotes(data.notes);
       if (Array.isArray(data?.items) && data.items.length) {
         setItems(
-          data.items.map((i: any, idx: number) => ({
+          data.items.map((i: any, idx: number): Item => ({
             item_number: i.item_number ?? idx + 1,
             part_name: i.part_name ?? "",
             quantity: i.quantity != null ? String(i.quantity) : "",
             width: i.width != null ? String(i.width) : "",
             height: i.height != null ? String(i.height) : "",
             color: i.color ?? "",
+            price_per_m2: defaultPrice,
+            unit: defaultUnit,
           })),
         );
       }
@@ -247,6 +255,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
             width: i.width ? Number(i.width) : null,
             height: i.height ? Number(i.height) : null,
             color: i.color || null,
+            price_per_m2: i.price_per_m2 ? Number(i.price_per_m2) : null,
+            unit: i.unit,
           }));
         if (rows.length) {
           const { error: itemErr } = await supabase.from("paint_sheet_items").insert(rows);
@@ -363,8 +373,8 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
               <Label>Itens</Label>
               <div className="flex flex-wrap items-end gap-2">
                 <div>
-                  <Label className="text-xs">Unidade das medidas</Label>
-                  <Select value={unit} onValueChange={(v: any) => setUnit(v)}>
+                  <Label className="text-xs">Unidade padrão</Label>
+                  <Select value={defaultUnit} onValueChange={(v: any) => setDefaultUnit(v)}>
                     <SelectTrigger className="w-28 h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cm">cm</SelectItem>
@@ -373,12 +383,12 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">R$ / m²</Label>
+                  <Label className="text-xs">R$ / m² padrão</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    value={pricePerM2}
-                    onChange={(e) => setPricePerM2(e.target.value)}
+                    value={defaultPrice}
+                    onChange={(e) => setDefaultPrice(e.target.value)}
                     className="w-24 h-9"
                   />
                 </div>
@@ -393,10 +403,12 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                   <tr>
                     <th className="p-2 text-left w-12">#</th>
                     <th className="p-2 text-left">Peça</th>
-                    <th className="p-2 text-left w-20">Qtd</th>
-                    <th className="p-2 text-left w-24">Largura ({unit})</th>
-                    <th className="p-2 text-left w-24">Altura ({unit})</th>
-                    <th className="p-2 text-left w-28">Cor</th>
+                    <th className="p-2 text-left w-16">Qtd</th>
+                    <th className="p-2 text-left w-20">Largura</th>
+                    <th className="p-2 text-left w-20">Altura</th>
+                    <th className="p-2 text-left w-20">Unid.</th>
+                    <th className="p-2 text-left w-24">Cor</th>
+                    <th className="p-2 text-left w-24">R$/m²</th>
                     <th className="p-2 text-right w-20">m²</th>
                     <th className="p-2 text-right w-28">Valor</th>
                     <th className="p-2 w-10" />
@@ -412,7 +424,17 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                         <td className="p-2"><Input value={it.quantity} onChange={(e) => updateItem(idx, "quantity", e.target.value)} /></td>
                         <td className="p-2"><Input value={it.width} onChange={(e) => updateItem(idx, "width", e.target.value)} /></td>
                         <td className="p-2"><Input value={it.height} onChange={(e) => updateItem(idx, "height", e.target.value)} /></td>
+                        <td className="p-2">
+                          <Select value={it.unit} onValueChange={(v: any) => updateItem(idx, "unit", v)}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cm">cm</SelectItem>
+                              <SelectItem value="m">m</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </td>
                         <td className="p-2"><Input value={it.color} onChange={(e) => updateItem(idx, "color", e.target.value)} /></td>
+                        <td className="p-2"><Input type="number" step="0.01" value={it.price_per_m2} onChange={(e) => updateItem(idx, "price_per_m2", e.target.value)} /></td>
                         <td className="p-2 text-right tabular-nums">{area ? area.toFixed(3) : "-"}</td>
                         <td className="p-2 text-right tabular-nums font-medium">{cost ? fmtBRL(cost) : "-"}</td>
                         <td className="p-2">
@@ -426,7 +448,7 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
                 </tbody>
                 <tfoot className="bg-muted/50 border-t">
                   <tr>
-                    <td colSpan={6} className="p-2 text-right font-semibold">Totais</td>
+                    <td colSpan={8} className="p-2 text-right font-semibold">Totais</td>
                     <td className="p-2 text-right tabular-nums font-semibold">{totals.area.toFixed(3)} m²</td>
                     <td className="p-2 text-right tabular-nums font-bold text-primary">{fmtBRL(totals.cost)}</td>
                     <td />
@@ -435,9 +457,12 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
               </table>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Cálculo: largura × altura × quantidade, convertido para m² e multiplicado por R$ {price.toFixed(2)}/m².
+              Cálculo por peça: largura × altura × quantidade (convertido para m² pela unidade da peça) × R$/m² da peça.
             </p>
           </div>
+
+
+
 
 
           <div>

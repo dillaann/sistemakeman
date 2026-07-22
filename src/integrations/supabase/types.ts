@@ -1608,8 +1608,10 @@ export type Database = {
           id: string
           item_number: number
           part_name: string | null
+          price_per_m2: number | null
           quantity: number | null
           sheet_id: string
+          unit: string | null
           width: number | null
         }
         Insert: {
@@ -1619,8 +1621,10 @@ export type Database = {
           id?: string
           item_number: number
           part_name?: string | null
+          price_per_m2?: number | null
           quantity?: number | null
           sheet_id: string
+          unit?: string | null
           width?: number | null
         }
         Update: {
@@ -1630,8 +1634,10 @@ export type Database = {
           id?: string
           item_number?: number
           part_name?: string | null
+          price_per_m2?: number | null
           quantity?: number | null
           sheet_id?: string
+          unit?: string | null
           width?: number | null
         }
         Relationships: [
