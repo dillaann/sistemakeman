@@ -162,13 +162,15 @@ export default function PaintSheetDialog({ open, onOpenChange, sheet }: { open: 
       if (data?.notes) setNotes(data.notes);
       if (Array.isArray(data?.items) && data.items.length) {
         setItems(
-          data.items.map((i: any, idx: number) => ({
+          data.items.map((i: any, idx: number): Item => ({
             item_number: i.item_number ?? idx + 1,
             part_name: i.part_name ?? "",
             quantity: i.quantity != null ? String(i.quantity) : "",
             width: i.width != null ? String(i.width) : "",
             height: i.height != null ? String(i.height) : "",
             color: i.color ?? "",
+            price_per_m2: defaultPrice,
+            unit: defaultUnit,
           })),
         );
       }
