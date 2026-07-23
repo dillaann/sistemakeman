@@ -77,10 +77,7 @@ Deno.serve(async (req) => {
         created_at,
         quote_id,
         origem_venda,
-        clients(name, phone),
-        quotes(
-          seller:profiles!quotes_seller_id_fkey(full_name)
-        )
+        clients(name, phone)
       `)
       .eq("origem_venda", "marketing")
       .order("created_at", { ascending: false });
