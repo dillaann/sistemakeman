@@ -80,13 +80,8 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
   const { data: transactions = [] } = useQuery({
     queryKey: ["financial-saidas", rangeStart, rangeEnd],
     queryFn: async () => {
-      const rangeFilter = rangeStart && rangeEnd
-        ? `and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd}),and(paid_date.is.null,due_date.gte.${rangeStart},due_date.lte.${rangeEnd})`
-        : null;
-      // Paginate past the 1000-row response cap so totals reflect ALL records.
       const data = await fetchAllRows<any>(() => {
         let q = supabase.from("financial_transactions").select("*").eq("type", "a_pagar");
-        if (rangeFilter) q = q.or(rangeFilter);
         return q.order("due_date", { ascending: false });
       });
       return data;
@@ -97,7 +92,17 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
     let list = transactions.filter(t => {
       // prioritize paid_date if available, otherwise fallback to due_date
       const refDate = t.paid_date || t.due_date;
-      if (dateRange && !isInRange(refDate, dateRange)) return false;
+      const text = search.trim().toLowerCase();
+      
+      // Se houver busca por texto, ignoramos o filtro de data para encontrar o registro em qualquer período
+      if (text) {
+        const matchesSearch = t.description.toLowerCase().includes(text) || (t.category ?? "").toLowerCase().includes(text);
+        if (!matchesSearch) return false;
+      } else {
+        // Se NÃO houver busca, aplicamos o filtro de período normalmente
+        if (dateRange && !isInRange(refDate, dateRange)) return false;
+      }
+
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
       if (statusFilter !== "all" && t.status !== statusFilter) return false;
@@ -108,8 +113,6 @@ export default function SaidasTab({ dateRange }: SaidasTabProps) {
         if (createdFrom && createdDay < createdFrom) return false;
         if (createdTo && createdDay > createdTo) return false;
       }
-      const text = search.toLowerCase();
-      if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
     });
     list.sort((a, b) => {
