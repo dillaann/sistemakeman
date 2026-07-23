@@ -85,8 +85,12 @@ Deno.serve(async (req) => {
     if (woErr) throw woErr;
 
     const woIds = (woData ?? []).map((wo: any) => wo.id);
+    const quoteIds = (woData ?? []).map((wo: any) => wo.quote_id).filter(Boolean);
+    
     const itemsMap = new Map<string, any[]>();
     const paidMap = new Map<string, number>();
+    const sellersMap = new Map<string, string>();
+
     if (woIds.length > 0) {
       const { data: items, error: itemsErr } = await supabase
         .from("work_order_items")
@@ -111,10 +115,34 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (quoteIds.length > 0) {
+      const { data: quotes, error: quotesErr } = await supabase
+        .from("quotes")
+        .select("id, seller_id")
+        .in("id", quoteIds);
+      
+      if (!quotesErr && quotes) {
+        const sellerIds = quotes.map(q => q.seller_id).filter(Boolean);
+        if (sellerIds.length > 0) {
+          const { data: profiles, error: profilesErr } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", sellerIds);
+          
+          if (!profilesErr && profiles) {
+            const pMap = new Map(profiles.map(p => [p.id, p.full_name]));
+            quotes.forEach(q => {
+              if (q.seller_id) sellersMap.set(q.id, pMap.get(q.seller_id) || "—");
+            });
+          }
+        }
+      }
+    }
+
     const rows = (woData ?? [])
       .map((wo: any) => {
         const client = wo.clients;
-        const sellerName = wo.quotes?.seller?.full_name || "—";
+        const sellerName = sellersMap.get(wo.quote_id) || "—";
         const dateObj = wo.created_at ? new Date(wo.created_at) : new Date();
         const createdAt = dateObj.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
         const services = (itemsMap.get(wo.id) || [])
