@@ -128,10 +128,20 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const filtered = useMemo(() => {
     let list = transactions.filter(t => {
       if (t.status !== "pago") return false;
-      // Regime de caixa: a entrada pertence ao mês em que o pagamento foi recebido (paid_date).
       const refDate = t.paid_date;
-      if (!refDate) return false;
-      if (dateRange && !isInRange(refDate, dateRange)) return false;
+      if (t.status !== "pago" || !refDate) return false;
+      
+      const text = search.trim().toLowerCase();
+      
+      // Se houver busca por texto, ignoramos o filtro de data para encontrar o registro em qualquer período
+      if (text) {
+        const matchesSearch = t.description.toLowerCase().includes(text) || (t.category ?? "").toLowerCase().includes(text);
+        if (!matchesSearch) return false;
+      } else {
+        // Se NÃO houver busca, aplicamos o filtro de período normalmente
+        if (dateRange && !isInRange(refDate, dateRange)) return false;
+      }
+
       if (isLegacyCompetenceCarriedToApril(t)) return false;
       if (catFilter !== "all" && (t.category ?? "") !== catFilter) return false;
       if (pmFilter !== "all" && ((t as any).payment_method ?? "") !== pmFilter) return false;
@@ -142,8 +152,6 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
         if (createdFrom && createdDay < createdFrom) return false;
         if (createdTo && createdDay > createdTo) return false;
       }
-      const text = search.toLowerCase();
-      if (text && !t.description.toLowerCase().includes(text) && !(t.category ?? "").toLowerCase().includes(text)) return false;
       return true;
     });
     list.sort((a, b) => {
