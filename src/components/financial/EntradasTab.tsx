@@ -103,18 +103,11 @@ export default function EntradasTab({ dateRange }: EntradasTabProps) {
   const rangeEnd = dateRange ? localDateString(dateRange.end) : null;
 
   const { data: transactions = [] } = useQuery({
-    queryKey: ["financial-entradas", rangeStart, rangeEnd],
+    queryKey: ["financial-entradas"],
     queryFn: async () => {
-      // Regime de caixa: a entrada conta no mês em que o dinheiro entrou (paid_date).
-      const rangeFilter = rangeStart && rangeEnd
-        ? `and(paid_date.gte.${rangeStart},paid_date.lte.${rangeEnd})`
-        : null;
-      // Paginate past the 1000-row response cap so totals reflect ALL records.
-      const data = await fetchAllRows<any>(() => {
-        let q = supabase.from("financial_transactions").select("*").eq("type", "a_receber");
-        if (rangeFilter) q = q.or(rangeFilter);
-        return q.order("paid_date", { ascending: false });
-      });
+      const data = await fetchAllRows<any>(() => 
+        supabase.from("financial_transactions").select("*").eq("type", "a_receber").order("paid_date", { ascending: false })
+      );
       return data;
     },
   });
