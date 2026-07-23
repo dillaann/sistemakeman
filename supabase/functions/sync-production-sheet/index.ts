@@ -77,7 +77,10 @@ Deno.serve(async (req) => {
         created_at,
         quote_id,
         origem_venda,
-        clients(name, phone)
+        clients(name, phone),
+        quotes(
+          seller:profiles!quotes_seller_id_fkey(full_name)
+        )
       `)
       .eq("origem_venda", "marketing")
       .order("created_at", { ascending: false });
@@ -114,6 +117,7 @@ Deno.serve(async (req) => {
     const rows = (woData ?? [])
       .map((wo: any) => {
         const client = wo.clients;
+        const sellerName = wo.quotes?.seller?.full_name || "—";
         const dateObj = wo.created_at ? new Date(wo.created_at) : new Date();
         const createdAt = dateObj.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
         const services = (itemsMap.get(wo.id) || [])
@@ -141,6 +145,7 @@ Deno.serve(async (req) => {
           paid,
           remaining,
           paymentStatus,
+          sellerName,
         };
       });
 
@@ -156,11 +161,10 @@ Deno.serve(async (req) => {
     // Ordem das colunas (o bot lê estes cabeçalhos):
     // A: Data/Hora Pedido | B: Nome | C: Telefone | D: Status | E: Serviços
     // F: Conclusão/Entrega | G: Valor Total | H: Cobrado? | I: Pagamento
-    // J: Valor Pago | K: Valor Restante | L: ID (referência oculta)
-    const header = ["Data/Hora Pedido", "Nome", "Telefone", "Status", "Serviços", "Conclusão/Entrega", "Valor Total", "Cobrado?", "Pagamento", "Valor Pago", "Valor Restante", "ID"];
+    // J: Valor Pago | K: Valor Restante | L: Vendedor | M: ID (referência oculta)
 
     // A coluna H ("Cobrado?") é 100% controlada pelo bot externo.
-    // A sync NUNCA lê nem escreve nessa coluna — só limpa/escreve A:G e I:L.
+    // A sync NUNCA lê nem escreve nessa coluna — só limpa/escreve A:G e I:M.
 
     const titleRow = [`Produção Keman — atualizado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`];
 
@@ -172,15 +176,15 @@ Deno.serve(async (req) => {
       ...rows.map((r) => [r.created_at, r.name, r.phone, r.status, r.description, r.completed_at, r.total]),
     ];
 
-    // Bloco direito (I:L) — 4 colunas
-    const rightHeader = ["Pagamento", "Valor Pago", "Valor Restante", "ID"];
+    // Bloco direito (I:M) — 5 colunas
+    const rightHeader = ["Pagamento", "Valor Pago", "Valor Restante", "Vendedor", "ID"];
     const rightValues: any[][] = [
       [""], // linha 1 (título só ocupa A)
       rightHeader,
-      ...rows.map((r) => [r.paymentStatus, r.paid, r.remaining, r.id]),
+      ...rows.map((r) => [r.paymentStatus, r.paid, r.remaining, r.sellerName, r.id]),
     ];
 
-    // Limpa apenas A:G e I:L — coluna H permanece intocada
+    // Limpa apenas A:G e I:M — coluna H permanece intocada
     const clearLeft = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!A1:G10000:clear`, {
       method: "POST",
       headers: ghHeaders,
@@ -188,12 +192,12 @@ Deno.serve(async (req) => {
     if (!clearLeft.ok) {
       throw new Error(`Erro ao limpar A:G (${clearLeft.status}): ${await clearLeft.text()}`);
     }
-    const clearRight = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!I1:L10000:clear`, {
+    const clearRight = await fetch(`${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/'${SHEET_NAME}'!I1:M10000:clear`, {
       method: "POST",
       headers: ghHeaders,
     });
     if (!clearRight.ok) {
-      throw new Error(`Erro ao limpar I:L (${clearRight.status}): ${await clearRight.text()}`);
+      throw new Error(`Erro ao limpar I:M (${clearRight.status}): ${await clearRight.text()}`);
     }
 
     // Garante header H2 = "Cobrado?" sem tocar em H3+ (dados do bot)
@@ -214,7 +218,7 @@ Deno.serve(async (req) => {
       { method: "PUT", headers: ghHeaders, body: JSON.stringify({ values: rightValues }) },
     );
     if (!writeRight.ok) {
-      throw new Error(`Erro ao escrever I:L (${writeRight.status}): ${await writeRight.text()}`);
+      throw new Error(`Erro ao escrever I:M (${writeRight.status}): ${await writeRight.text()}`);
     }
 
     // Backfill one-shot: marca "Sim" em H para todas as OS entregues.
