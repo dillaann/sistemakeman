@@ -1,0 +1,1 @@
+INSERT INTO public.financial_categories (name, type) VALUES ('Investimentos', 'saida');
