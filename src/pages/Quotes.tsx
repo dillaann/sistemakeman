@@ -15,6 +15,8 @@ import { Plus, Search, Check, X, FileDown, Trash2, DollarSign, Pencil } from "lu
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { generateQuotePDF } from "@/lib/generateQuotePDF";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MonthFilter, { getDateRange, isInRange, isInRangeOrOpen, type PeriodMode } from "@/components/MonthFilter";
 
@@ -1004,6 +1006,66 @@ const Quotes = () => {
     toast({ title: "PDF gerado com sucesso!" });
   };
 
+  const handleApprovedReport = () => {
+    const approved = quotes
+      .filter((q: any) => q.status === "aprovado" && isInRange(q.issue_date, dateRange))
+      .sort((a: any, b: any) => (a.issue_date || "").localeCompare(b.issue_date || ""));
+
+    if (approved.length === 0) {
+      toast({ title: "Nenhum orçamento aprovado no período.", variant: "destructive" });
+      return;
+    }
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pw = doc.internal.pageSize.getWidth();
+    doc.setFontSize(14).setFont("helvetica", "bold");
+    doc.text("Relatório de Serviços Aprovados", pw / 2, 15, { align: "center" });
+    doc.setFontSize(9).setFont("helvetica", "normal");
+    const rangeLbl = `${formatDateBR(dateRange.start.toISOString().slice(0, 10))} a ${formatDateBR(dateRange.end.toISOString().slice(0, 10))}`;
+    doc.text(`Período: ${rangeLbl}  |  Gerado em ${new Date().toLocaleString("pt-BR")}`, pw / 2, 21, { align: "center" });
+
+    const totalGeral = approved.reduce((s: number, q: any) => s + Number(q.total || 0), 0);
+
+    const body = approved.map((q: any) => {
+      const items = (q.quote_items ?? []) as any[];
+      const desc = items.length > 0
+        ? items.map(it => `• ${it.description} (${Number(it.quantity)} ${it.unit || "un"})`).join("\n")
+        : (q.description ?? "—");
+      const seller = (q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—";
+      return [
+        q.issue_date ? formatDateBR(q.issue_date) : "—",
+        (q.clients as any)?.name ?? "—",
+        desc,
+        seller,
+        fmt(Number(q.total || 0)),
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 27,
+      head: [["Data", "Cliente", "Descrição / Itens", "Vendedor", "Total"]],
+      body,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2, valign: "top", overflow: "linebreak" },
+      headStyles: { fillColor: [26, 32, 44], textColor: 255, fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: "auto" },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 25, halign: "right" },
+      },
+      foot: [[
+        { content: `Total de serviços: ${approved.length}`, colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
+        { content: fmt(totalGeral), styles: { halign: "right", fontStyle: "bold" } },
+      ]],
+      footStyles: { fillColor: [240, 240, 240], textColor: 0 },
+    });
+
+    doc.autoPrint();
+    window.open(doc.output("bloburl"), "_blank");
+  };
+
   const filtered = quotes.filter(q => {
     if (!isInRange(q.issue_date, dateRange)) return false;
     if (creatorFilter !== "all") {
@@ -1035,6 +1097,9 @@ const Quotes = () => {
         <h1 className="text-xl md:text-2xl font-bold">Orçamentos</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+          <Button variant="outline" onClick={handleApprovedReport}>
+            <FileDown className="h-4 w-4 mr-2" />Relatório Aprovados
+          </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Novo Orçamento</Button>
