@@ -1097,6 +1097,9 @@ const Quotes = () => {
         <h1 className="text-xl md:text-2xl font-bold">Orçamentos</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <MonthFilter refDate={refDate} onRefDateChange={setRefDate} periodMode={periodMode} onPeriodModeChange={setPeriodMode} />
+          <Button variant="outline" onClick={handleApprovedReport}>
+            <FileDown className="h-4 w-4 mr-2" />Relatório Aprovados
+          </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Novo Orçamento</Button>
