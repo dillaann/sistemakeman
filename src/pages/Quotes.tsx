@@ -1006,6 +1006,66 @@ const Quotes = () => {
     toast({ title: "PDF gerado com sucesso!" });
   };
 
+  const handleApprovedReport = () => {
+    const approved = quotes
+      .filter((q: any) => q.status === "aprovado" && isInRange(q.issue_date, dateRange))
+      .sort((a: any, b: any) => (a.issue_date || "").localeCompare(b.issue_date || ""));
+
+    if (approved.length === 0) {
+      toast({ title: "Nenhum orçamento aprovado no período.", variant: "destructive" });
+      return;
+    }
+
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pw = doc.internal.pageSize.getWidth();
+    doc.setFontSize(14).setFont("helvetica", "bold");
+    doc.text("Relatório de Serviços Aprovados", pw / 2, 15, { align: "center" });
+    doc.setFontSize(9).setFont("helvetica", "normal");
+    const rangeLbl = `${formatDateBR(dateRange.start.toISOString().slice(0, 10))} a ${formatDateBR(dateRange.end.toISOString().slice(0, 10))}`;
+    doc.text(`Período: ${rangeLbl}  |  Gerado em ${new Date().toLocaleString("pt-BR")}`, pw / 2, 21, { align: "center" });
+
+    const totalGeral = approved.reduce((s: number, q: any) => s + Number(q.total || 0), 0);
+
+    const body = approved.map((q: any) => {
+      const items = (q.quote_items ?? []) as any[];
+      const desc = items.length > 0
+        ? items.map(it => `• ${it.description} (${Number(it.quantity)} ${it.unit || "un"})`).join("\n")
+        : (q.description ?? "—");
+      const seller = (q as any).seller_id ? (profilesMap[(q as any).seller_id] || "—") : "—";
+      return [
+        q.issue_date ? formatDateBR(q.issue_date) : "—",
+        (q.clients as any)?.name ?? "—",
+        desc,
+        seller,
+        fmt(Number(q.total || 0)),
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 27,
+      head: [["Data", "Cliente", "Descrição / Itens", "Vendedor", "Total"]],
+      body,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2, valign: "top", overflow: "linebreak" },
+      headStyles: { fillColor: [26, 32, 44], textColor: 255, fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: "auto" },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 25, halign: "right" },
+      },
+      foot: [[
+        { content: `Total de serviços: ${approved.length}`, colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
+        { content: fmt(totalGeral), styles: { halign: "right", fontStyle: "bold" } },
+      ]],
+      footStyles: { fillColor: [240, 240, 240], textColor: 0 },
+    });
+
+    doc.autoPrint();
+    window.open(doc.output("bloburl"), "_blank");
+  };
+
   const filtered = quotes.filter(q => {
     if (!isInRange(q.issue_date, dateRange)) return false;
     if (creatorFilter !== "all") {
