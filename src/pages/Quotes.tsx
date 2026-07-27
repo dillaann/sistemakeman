@@ -535,7 +535,9 @@ const Quotes = () => {
         }
       }
 
+      if (osFinalizada) syncMessages.push("OS finalizada sincronizada");
       return syncMessages;
+
     },
     onSuccess: (syncMessages) => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
