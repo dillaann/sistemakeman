@@ -355,13 +355,13 @@ const Quotes = () => {
       const quoteId = editQuote.id;
       const isApproved = editQuote.status === "aprovado";
 
-      // Check if approved and OS already delivered
+      // OS finalizada não bloqueia mais a edição: as alterações são sincronizadas normalmente
+      let osFinalizada = false;
       if (isApproved) {
         const { data: wo } = await supabase.from("work_orders").select("id, status").eq("quote_id", quoteId).maybeSingle();
-        if (wo && (wo.status === "aguardando_instalacao" || wo.status === "entregue")) {
-          throw new Error("Não é possível editar: a OS vinculada já está aguardando instalação/entregue.");
-        }
+        osFinalizada = !!wo && (wo.status === "aguardando_instalacao" || wo.status === "entregue");
       }
+
 
       // Calculate payment info
       const today = localDateString();
