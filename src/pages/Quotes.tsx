@@ -466,14 +466,20 @@ const Quotes = () => {
 
             const newRemaining = Math.max(newTotal - paidAmount, 0);
 
+            const pendingSum = pendingTxns.reduce((s, t) => s + Number(t.amount), 0);
+
             if (newRemaining > 0.009) {
               if (pendingTxns.length > 0) {
-                await supabase.from("financial_transactions").update({
-                  amount: newRemaining,
-                  description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
-                }).eq("id", pendingTxns[0].id);
-                for (let i = 1; i < pendingTxns.length; i++) {
-                  await supabase.from("financial_transactions").delete().eq("id", pendingTxns[i].id);
+                // Preserva parcelas/boletos já cadastrados; só ajusta se o saldo mudou
+                if (Math.abs(pendingSum - newRemaining) > 0.009) {
+                  const diff = newRemaining - pendingSum;
+                  const first = pendingTxns[0];
+                  const adjusted = Math.max(Number(first.amount) + diff, 0);
+                  if (adjusted <= 0.009 && pendingTxns.length > 1) {
+                    await supabase.from("financial_transactions").delete().eq("id", first.id);
+                  } else {
+                    await supabase.from("financial_transactions").update({ amount: adjusted }).eq("id", first.id);
+                  }
                 }
               } else {
                 await supabase.from("financial_transactions").insert({
@@ -488,11 +494,12 @@ const Quotes = () => {
                 });
               }
             } else {
-              // Fully paid — remove leftover pending placeholders
+              // Totalmente pago — remove pendências restantes
               for (const t of pendingTxns) {
                 await supabase.from("financial_transactions").delete().eq("id", t.id);
               }
             }
+
 
             // Update quote payment info
             await supabase.from("quotes").update({
