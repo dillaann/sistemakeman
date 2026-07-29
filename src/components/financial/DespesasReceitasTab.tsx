@@ -40,10 +40,14 @@ export default function DespesasReceitasTab({ dateRange: parentDateRange }: Desp
       );
       return data.filter(t => {
         const ref = t.paid_date || t.due_date;
-        // Regime de caixa: exclui saldos "Faturamento" (competência) das receitas.
-        if (t.type === "a_receber" && t.category === "Faturamento") return false;
+        // Entradas seguem a aba Entradas: exigem paid_date e excluem competência legada de abril.
+        if (t.type === "a_receber") {
+          if (!t.paid_date) return false;
+          if (t.due_date && t.due_date < "2026-04-01" && t.paid_date >= "2026-04-01" && t.paid_date < "2026-05-01") return false;
+        }
         return ref >= dateFrom && ref <= dateTo;
       });
+
     },
   });
 
