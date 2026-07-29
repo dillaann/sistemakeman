@@ -56,21 +56,30 @@ export default function MovimentacaoTab({ dateRange: parentDateRange }: Moviment
     },
   });
 
-  // Sincronizado com Entradas/Saídas (regime de caixa):
+  // Sincronizado com as abas Entradas/Saídas (regime de caixa):
   // - Conta APENAS transações pagas (status "pago")
-  // - Exclui saldos "Faturamento" (competência) das entradas
+  // - Entradas: exigem paid_date e excluem competência legada trazida para abril
+  // - Saídas: ignoram registros marcados como exclude_from_totals
+  const LEGACY_COMPETENCE_CUTOFF = "2026-04-01";
+  const isLegacyCompetenceCarriedToApril = (t: any) =>
+    Boolean(t.due_date && t.paid_date && t.due_date < LEGACY_COMPETENCE_CUTOFF && t.paid_date >= LEGACY_COMPETENCE_CUTOFF && t.paid_date < "2026-05-01");
+
   const paidTx = useMemo(
     () =>
       transactions.filter(t => {
         if (t.status !== "pago") return false;
-        if (t.type === "a_receber" && t.category === "Faturamento") return false;
+        if (t.type === "a_receber") {
+          if (!t.paid_date) return false;
+          if (isLegacyCompetenceCarriedToApril(t)) return false;
+        }
         return true;
       }),
     [transactions],
   );
 
   const totalEntradas = useMemo(() => paidTx.filter(t => t.type === "a_receber").reduce((s, t) => s + Number(t.amount), 0), [paidTx]);
-  const totalSaidas = useMemo(() => paidTx.filter(t => t.type === "a_pagar").reduce((s, t) => s + Number(t.amount), 0), [paidTx]);
+  const totalSaidas = useMemo(() => paidTx.filter(t => t.type === "a_pagar" && !t.exclude_from_totals).reduce((s, t) => s + Number(t.amount), 0), [paidTx]);
+
   const saldo = totalEntradas - totalSaidas;
 
   const chartData = useMemo(() => {
