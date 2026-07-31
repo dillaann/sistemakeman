@@ -32,12 +32,15 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-11">
+        <TabsList className="grid w-full grid-cols-12">
           <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
             <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
           <TabsTrigger value="saidas" className="flex items-center gap-1 text-xs">
             <TrendingDown className="h-4 w-4" /> Saídas
+          </TabsTrigger>
+          <TabsTrigger value="fluxo_caixa" className="flex items-center gap-1 text-xs">
+            <LineChart className="h-4 w-4" /> Fluxo de Caixa
           </TabsTrigger>
           <TabsTrigger value="contas_pagar" className="flex items-center gap-1 text-xs">
             <CreditCard className="h-4 w-4" /> A Pagar
