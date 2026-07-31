@@ -290,6 +290,27 @@ export type Database = {
           },
         ]
       }
+      cashflow_settings: {
+        Row: {
+          created_at: string
+          id: string
+          min_daily_balance: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_daily_balance?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_daily_balance?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
