@@ -32,7 +32,7 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-12">
+        <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1">
           <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
             <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
