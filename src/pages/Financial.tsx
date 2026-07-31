@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle, Repeat } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle, Repeat, LineChart } from "lucide-react";
+import CashFlowTab from "@/components/financial/cashflow/CashFlowTab";
 import EntradasTab from "@/components/financial/EntradasTab";
 import DespesasReceitasTab from "@/components/financial/DespesasReceitasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
