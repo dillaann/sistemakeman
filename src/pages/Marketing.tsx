@@ -503,7 +503,7 @@ const Marketing = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {marketingSales.map((s: any) => (
+                    {monthSales.map((s: any) => (
                       <TableRow key={s.id}>
                         <TableCell>{s.client_name || "—"}</TableCell>
                         <TableCell>{s.seller_name || "—"}</TableCell>
@@ -512,7 +512,7 @@ const Marketing = () => {
                         <TableCell><Badge variant={s.status === "concluida" ? "default" : "secondary"}>{s.status}</Badge></TableCell>
                       </TableRow>
                     ))}
-                    {marketingSales.length === 0 && (
+                    {monthSales.length === 0 && (
                       <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhuma venda de marketing encontrada</TableCell></TableRow>
                     )}
                   </TableBody>
