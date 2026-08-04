@@ -54,7 +54,7 @@ const Marketing = () => {
   useEffect(() => {
     const channel = supabase
       .channel('marketing-sales-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
         queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
       })
       .subscribe();
@@ -214,7 +214,7 @@ const Marketing = () => {
   const totalInvestedMonth = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
   const totalLeadsMonth = monthCampaigns.reduce((s: number, c: any) => s + (c.leads_generated || 0), 0);
 
-  const monthSales = marketingSales.filter((s: any) => isInRange(s.created_at, dateRange));
+  const monthSales = marketingSales.filter((s: any) => isInRange(s.created_at ? String(s.created_at).substring(0, 10) : null, dateRange));
   const totalSalesRevenue = monthSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
   const roi = totalInvestedMonth > 0 ? ((totalSalesRevenue - totalInvestedMonth) / totalInvestedMonth) * 100 : 0;
   const cac = monthSales.length > 0 ? totalInvestedMonth / monthSales.length : 0;
@@ -236,7 +236,7 @@ const Marketing = () => {
       const campaignEnd = c.end_date || c.start_date;
       return c.start_date <= rangeEnd && campaignEnd >= rangeStart;
     });
-    const mSales = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; });
+    const mSales = marketingSales.filter((s: any) => { const sd = String(s.created_at ?? '').substring(0, 10); return sd >= localDateString(d) && sd <= localDateString(mEnd); });
     const inv = mCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
     const rev = mSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
     const mRoi = inv > 0 ? ((rev - inv) / inv) * 100 : 0;
@@ -578,7 +578,7 @@ const Marketing = () => {
                     const campaignEnd = c.end_date || c.start_date;
                     return c.start_date <= rangeEnd && campaignEnd >= rangeStart;
                   }).reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
-                  const rev = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; }).reduce((s: number, sale: any) => s + Number(sale.amount), 0);
+                  const rev = marketingSales.filter((s: any) => { const sd = String(s.created_at ?? '').substring(0, 10); return sd >= localDateString(d) && sd <= localDateString(mEnd); }).reduce((s: number, sale: any) => s + Number(sale.amount), 0);
                   return { ...item, investido: inv, retorno: rev };
                 })}>
                   <CartesianGrid strokeDasharray="3 3" />
