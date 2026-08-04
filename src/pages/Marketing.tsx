@@ -54,7 +54,7 @@ const Marketing = () => {
   useEffect(() => {
     const channel = supabase
       .channel('marketing-sales-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
         queryClient.invalidateQueries({ queryKey: ["marketing-sales"] });
       })
       .subscribe();
@@ -76,46 +76,45 @@ const Marketing = () => {
     },
   });
 
+  // Fonte única de verdade (idêntica à aba Vendas): orçamentos APROVADOS
+  // com origem_venda = "marketing", datados por approved_at (fallback issue_date/created_at).
   const { data: marketingSales = [] } = useQuery({
     queryKey: ["marketing-sales"],
     queryFn: async () => {
-      const { data: salesData, error: salesError } = await supabase
-        .from("sales")
-        .select("*")
+      const { data: quotesData, error: quotesError } = await supabase
+        .from("quotes")
+        .select("*, clients(name)")
+        .eq("status", "aprovado")
         .eq("origem_venda", "marketing")
-        .order("created_at", { ascending: false });
+        .order("approved_at", { ascending: false });
 
-      if (salesError) throw salesError;
-      if (!salesData?.length) return [];
+      if (quotesError) throw quotesError;
+      if (!quotesData?.length) return [];
 
-      const clientIds = Array.from(new Set(salesData.map((sale: any) => sale.client_id).filter(Boolean)));
-      const sellerIds = Array.from(new Set(salesData.map((sale: any) => sale.seller_id).filter(Boolean)));
+      const sellerIds = Array.from(new Set(quotesData.map((q: any) => q.seller_id).filter(Boolean)));
+      const profilesResult = sellerIds.length
+        ? await supabase.rpc("get_team_display_names").then((r: any) => ({
+            data: (r.data ?? []).filter((p: any) => sellerIds.includes(p.id)),
+            error: r.error,
+          }))
+        : { data: [], error: null };
 
-      const [clientsResult, profilesResult] = await Promise.all([
-        clientIds.length
-          ? supabase.from("clients").select("id, name").in("id", clientIds)
-          : Promise.resolve({ data: [], error: null }),
-        sellerIds.length
-          ? supabase.rpc("get_team_display_names").then((r: any) => ({
-              data: (r.data ?? []).filter((p: any) => sellerIds.includes(p.id)),
-              error: r.error,
-            }))
-          : Promise.resolve({ data: [], error: null }),
-      ]);
-
-      if (clientsResult.error) throw clientsResult.error;
       if (profilesResult.error) throw profilesResult.error;
+      const profilesMap = new Map((profilesResult.data ?? []).map((p: any) => [p.id, p.full_name]));
 
-      const clientsMap = new Map((clientsResult.data ?? []).map((client: any) => [client.id, client.name]));
-      const profilesMap = new Map((profilesResult.data ?? []).map((profile: any) => [profile.id, profile.full_name]));
-
-      return salesData.map((sale: any) => ({
-        ...sale,
-        client_name: sale.client_id ? clientsMap.get(sale.client_id) ?? "—" : "—",
-        seller_name: sale.seller_id ? profilesMap.get(sale.seller_id) ?? "—" : "—",
+      return quotesData.map((q: any) => ({
+        id: q.id,
+        amount: Number(q.total ?? 0),
+        status: "aprovado",
+        client_id: q.client_id,
+        seller_id: q.seller_id,
+        created_at: q.approved_at || q.issue_date || q.created_at,
+        client_name: q.clients?.name ?? "—",
+        seller_name: q.seller_id ? profilesMap.get(q.seller_id) ?? "—" : "—",
       }));
     },
   });
+
 
   const { data: settings } = useQuery({
     queryKey: ["marketing-settings"],
@@ -215,7 +214,7 @@ const Marketing = () => {
   const totalInvestedMonth = monthCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
   const totalLeadsMonth = monthCampaigns.reduce((s: number, c: any) => s + (c.leads_generated || 0), 0);
 
-  const monthSales = marketingSales.filter((s: any) => isInRange(s.created_at, dateRange));
+  const monthSales = marketingSales.filter((s: any) => isInRange(s.created_at ? String(s.created_at).substring(0, 10) : null, dateRange));
   const totalSalesRevenue = monthSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
   const roi = totalInvestedMonth > 0 ? ((totalSalesRevenue - totalInvestedMonth) / totalInvestedMonth) * 100 : 0;
   const cac = monthSales.length > 0 ? totalInvestedMonth / monthSales.length : 0;
@@ -237,7 +236,7 @@ const Marketing = () => {
       const campaignEnd = c.end_date || c.start_date;
       return c.start_date <= rangeEnd && campaignEnd >= rangeStart;
     });
-    const mSales = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; });
+    const mSales = marketingSales.filter((s: any) => { const sd = String(s.created_at ?? '').substring(0, 10); return sd >= localDateString(d) && sd <= localDateString(mEnd); });
     const inv = mCampaigns.reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
     const rev = mSales.reduce((s: number, sale: any) => s + Number(sale.amount), 0);
     const mRoi = inv > 0 ? ((rev - inv) / inv) * 100 : 0;
@@ -504,7 +503,7 @@ const Marketing = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {marketingSales.map((s: any) => (
+                    {monthSales.map((s: any) => (
                       <TableRow key={s.id}>
                         <TableCell>{s.client_name || "—"}</TableCell>
                         <TableCell>{s.seller_name || "—"}</TableCell>
@@ -513,7 +512,7 @@ const Marketing = () => {
                         <TableCell><Badge variant={s.status === "concluida" ? "default" : "secondary"}>{s.status}</Badge></TableCell>
                       </TableRow>
                     ))}
-                    {marketingSales.length === 0 && (
+                    {monthSales.length === 0 && (
                       <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhuma venda de marketing encontrada</TableCell></TableRow>
                     )}
                   </TableBody>
@@ -579,7 +578,7 @@ const Marketing = () => {
                     const campaignEnd = c.end_date || c.start_date;
                     return c.start_date <= rangeEnd && campaignEnd >= rangeStart;
                   }).reduce((s: number, c: any) => s + Number(c.amount_invested), 0);
-                  const rev = marketingSales.filter((s: any) => { const sd = new Date(s.created_at); return sd >= d && sd <= mEnd; }).reduce((s: number, sale: any) => s + Number(sale.amount), 0);
+                  const rev = marketingSales.filter((s: any) => { const sd = String(s.created_at ?? '').substring(0, 10); return sd >= localDateString(d) && sd <= localDateString(mEnd); }).reduce((s: number, sale: any) => s + Number(sale.amount), 0);
                   return { ...item, investido: inv, retorno: rev };
                 })}>
                   <CartesianGrid strokeDasharray="3 3" />
