@@ -689,7 +689,8 @@ const Quotes = () => {
               type: "a_receber" as any,
               description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
               amount: dpAmount,
-              due_date: downPaymentDate,
+              // Competência (emissão) x caixa (recebimento)
+              due_date: competenceDate,
               paid_date: downPaymentDate,
               status: "pago" as any,
               category: `Faturamento - ${paymentMethod}`,
