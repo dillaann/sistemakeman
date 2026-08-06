@@ -91,12 +91,19 @@ const SellerSalesView = () => {
   });
 
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlySales = sales.filter(s => new Date(s.created_at) >= monthStart);
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlySales = sales.filter(s => new Date(s.created_at) >= currentMonthStart);
   const monthlyTotal = monthlySales.reduce((s, sale) => s + Number(sale.amount), 0);
   const monthlyCommissions = myCommissions.reduce((s, c) => s + Number(c.amount), 0);
-  const goalAmount = myGoal?.goal_amount ? Number(myGoal.goal_amount) : 0;
+  const goalAmount = myGoal?.goal_amount ? Number(myGoal.goal_amount) : 750000;
   const goalProgress = goalAmount > 0 ? Math.min((monthlyTotal / goalAmount) * 100, 100) : 0;
+
+  // Calculando vendas diárias
+  const daysInMonthSoFar = now.getDate();
+  const avgDailySales = monthlyTotal / daysInMonthSoFar;
+  const daysInMonthTotal = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const neededDailySales = goalAmount / daysInMonthTotal;
+  const isOnTrack = avgDailySales >= neededDailySales;
 
   // Per-origin totals
   const originTotals = ["marketing", "obras", "empresa"].map(o => ({
@@ -252,17 +259,35 @@ const SellerSalesView = () => {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cn(goalAmount > 0 && !isOnTrack && "border-orange-500 bg-orange-500/5")}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Meta do Mês</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <Target className={cn("h-4 w-4", goalAmount > 0 && !isOnTrack ? "text-orange-500" : "text-muted-foreground")} />
           </CardHeader>
           <CardContent>
             {goalAmount > 0 ? (
               <>
-                <div className="text-2xl font-bold">{goalProgress.toFixed(0)}%</div>
-                <Progress value={goalProgress} className="mt-2" />
-                <p className="text-xs text-muted-foreground mt-1">{fmt(monthlyTotal)} / {fmt(goalAmount)}</p>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-2xl font-bold">{goalProgress.toFixed(0)}%</div>
+                  {isOnTrack ? (
+                    <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20 text-[10px] h-5">No Ritmo</Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-500/20 text-[10px] h-5">Abaixo do Ritmo</Badge>
+                  )}
+                </div>
+                <Progress value={goalProgress} className="h-2" />
+                <div className="mt-2 space-y-1">
+                  <p className="text-[11px] text-muted-foreground flex justify-between">
+                    <span>Vendido: {fmt(monthlyTotal)}</span>
+                    <span>Meta: {fmt(goalAmount)}</span>
+                  </p>
+                  <p className="text-[11px] font-medium flex justify-between border-t pt-1 mt-1">
+                    <span>Média Diária: {fmt(avgDailySales)}</span>
+                    <span className={cn(isOnTrack ? "text-green-600" : "text-orange-600")}>
+                      Nec: {fmt(neededDailySales)}
+                    </span>
+                  </p>
+                </div>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma meta definida</p>
@@ -704,6 +729,32 @@ const AdminSalesView = () => {
     count: monthlySales.filter(s => (s as any).origem_venda === o).length,
   }));
 
+  // Calculando vendas diárias para o Admin (baseado no período filtrado)
+  const daysInPeriod = useMemo(() => {
+    const start = dateRange.start;
+    const end = dateRange.end;
+    const now = new Date();
+    
+    // Se o fim do período é no futuro, conta até hoje
+    const effectiveEnd = end > now ? now : end;
+    const diff = Math.max(1, Math.ceil((effectiveEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    return diff;
+  }, [dateRange]);
+
+  const avgDailySales = monthlyTotal / daysInPeriod;
+  const isViewingCurrentMonth = useMemo(() => {
+    const now = new Date();
+    return now >= dateRange.start && now <= dateRange.end;
+  }, [dateRange]);
+
+  const totalGoal = useMemo(() => {
+    // Busca meta total configurada ou usa fallback de 750k
+    return 750000;
+  }, []);
+
+  const neededDailySales = totalGoal / 30; // Média para 30 dias
+  const isGoalOnTrack = avgDailySales >= neededDailySales;
+
   const filtered = monthlySales.filter(s => {
     if (vendedorTypeFilter === "com_vendedor" && !s.seller_id) return false;
     if (vendedorTypeFilter === "sem_vendedor" && s.seller_id) return false;
@@ -752,29 +803,53 @@ const AdminSalesView = () => {
       </div>
 
       {/* Summary cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+        <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Vendido no Mês</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent><div className="text-2xl font-bold">{fmt(monthlyTotal)}</div></CardContent>
         </Card>
-        <Card>
+
+        {isViewingCurrentMonth && (
+          <Card className={cn("lg:col-span-1", !isGoalOnTrack && "border-orange-500 bg-orange-500/5")}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Meta Empresa</CardTitle>
+              <Target className={cn("h-4 w-4", !isGoalOnTrack ? "text-orange-500" : "text-muted-foreground")} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{((monthlyTotal / totalGoal) * 100).toFixed(0)}%</div>
+              <div className="mt-1 space-y-1">
+                <p className="text-[10px] text-muted-foreground flex justify-between">
+                  <span>Média: {fmt(avgDailySales)}/dia</span>
+                  <span className={cn(isGoalOnTrack ? "text-green-600" : "text-orange-600")}>
+                    Nec: {fmt(neededDailySales)}
+                  </span>
+                </p>
+                {!isGoalOnTrack && (
+                  <p className="text-[9px] text-orange-600 font-medium">Abaixo do ritmo necessário</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Comissões Provisionadas</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent><div className="text-2xl font-bold text-yellow-600">{fmt(totalCommPending)}</div></CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Comissões Pagas</CardTitle>
             <Check className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent><div className="text-2xl font-bold text-green-600">{fmt(totalCommPaid)}</div></CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
