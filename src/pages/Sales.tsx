@@ -467,6 +467,7 @@ const AdminSalesView = () => {
       amount: q.total,
       status: "aprovado",
       origem_venda: q.origem_venda || "empresa",
+      // Prioritize issue_date for accrual (competência) as requested
       created_at: q.issue_date || q.approved_at || q.created_at,
       clients: q.clients,
       _isFromQuote: true,
