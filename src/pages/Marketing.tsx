@@ -108,7 +108,7 @@ const Marketing = () => {
         status: "aprovado",
         client_id: q.client_id,
         seller_id: q.seller_id,
-        created_at: q.approved_at || q.issue_date || q.created_at,
+        created_at: q.issue_date || q.approved_at || q.created_at,
         client_name: q.clients?.name ?? "—",
         seller_name: q.seller_id ? profilesMap.get(q.seller_id) ?? "—" : "—",
       }));
