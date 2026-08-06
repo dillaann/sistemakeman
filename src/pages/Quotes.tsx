@@ -452,7 +452,8 @@ const Quotes = () => {
                   type: "a_receber" as any,
                   description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
                   amount: newlyReceived,
-                  due_date: dpDate || localDateString(),
+                  // Competência = data de emissão do orçamento; caixa = data do recebimento
+                  due_date: editForm.issue_date || dpDate || localDateString(),
                   paid_date: dpDate || localDateString(),
                   status: "pago" as any,
                   category: `Faturamento - ${editPayment.payment_method}`,
