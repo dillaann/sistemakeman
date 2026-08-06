@@ -452,7 +452,8 @@ const Quotes = () => {
                   type: "a_receber" as any,
                   description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
                   amount: newlyReceived,
-                  due_date: dpDate || localDateString(),
+                  // Competência = data de emissão do orçamento; caixa = data do recebimento
+                  due_date: editForm.issue_date || dpDate || localDateString(),
                   paid_date: dpDate || localDateString(),
                   status: "pago" as any,
                   category: `Faturamento - ${editPayment.payment_method}`,
@@ -486,7 +487,7 @@ const Quotes = () => {
                   type: "a_receber" as any,
                   description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
                   amount: newRemaining,
-                  due_date: localDateString(),
+                  due_date: editForm.issue_date || localDateString(),
                   status: "pendente" as any,
                   category: "Faturamento",
                   work_order_id: wo.id,
@@ -597,6 +598,8 @@ const Quotes = () => {
     try {
       const now = new Date().toISOString();
       const today = localDateString();
+      // Competência do faturamento = data de emissão do orçamento (fallback: hoje)
+      const competenceDate = ((quotes as any[]).find(q => q.id === quoteId) as any)?.issue_date || today;
       const dpAmount = paymentType === "entrada_restante" ? (parseFloat(downPayment) || 0) : 0;
       const remaining = paymentType === "entrada_restante" ? Math.max(total - dpAmount, 0) : 0;
 
@@ -686,7 +689,8 @@ const Quotes = () => {
               type: "a_receber" as any,
               description: `Entrada - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
               amount: dpAmount,
-              due_date: downPaymentDate,
+              // Competência (emissão) x caixa (recebimento)
+              due_date: competenceDate,
               paid_date: downPaymentDate,
               status: "pago" as any,
               category: `Faturamento - ${paymentMethod}`,
@@ -702,7 +706,7 @@ const Quotes = () => {
             type: "a_receber" as any,
             description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
             amount: pendingAmount,
-            due_date: localDateString(),
+            due_date: competenceDate,
             status: "pendente" as any,
             category: "Faturamento",
             work_order_id: wo.id,
@@ -874,7 +878,9 @@ const Quotes = () => {
           type: "a_receber" as any,
           description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
           amount,
-          due_date: payRegForm.date,
+          // Competência: o faturamento pertence ao mês de emissão do orçamento,
+          // mesmo quando o dinheiro entra em outro mês (caixa = paid_date).
+          due_date: (quote as any).issue_date || payRegForm.date,
           paid_date: payRegForm.date,
           status: "pago" as any,
           category: `Faturamento - ${payRegForm.method}`,

@@ -182,7 +182,8 @@ const Billing = () => {
         type: "a_receber" as any,
         description: `Recebimento - ${q.clientName} (Orçamento ${q.id.slice(0, 8)})`,
         amount,
-        due_date: payForm.date,
+        // Competência = emissão do orçamento; caixa = data do recebimento
+        due_date: (q as any).issue_date || payForm.date,
         paid_date: payForm.date,
         status: "pago" as any,
         category: `Faturamento - ${payForm.method}`,
