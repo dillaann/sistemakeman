@@ -598,6 +598,8 @@ const Quotes = () => {
     try {
       const now = new Date().toISOString();
       const today = localDateString();
+      // Competência do faturamento = data de emissão do orçamento (fallback: hoje)
+      const competenceDate = ((quotes as any[]).find(q => q.id === quoteId) as any)?.issue_date || today;
       const dpAmount = paymentType === "entrada_restante" ? (parseFloat(downPayment) || 0) : 0;
       const remaining = paymentType === "entrada_restante" ? Math.max(total - dpAmount, 0) : 0;
 
