@@ -706,7 +706,7 @@ const Quotes = () => {
             type: "a_receber" as any,
             description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
             amount: pendingAmount,
-            due_date: localDateString(),
+            due_date: competenceDate,
             status: "pendente" as any,
             category: "Faturamento",
             work_order_id: wo.id,
