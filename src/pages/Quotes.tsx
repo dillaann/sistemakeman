@@ -874,7 +874,9 @@ const Quotes = () => {
           type: "a_receber" as any,
           description: `Recebimento - ${clientName} (Orçamento ${quote.id.slice(0, 8)})`,
           amount,
-          due_date: payRegForm.date,
+          // Competência: o faturamento pertence ao mês de emissão do orçamento,
+          // mesmo quando o dinheiro entra em outro mês (caixa = paid_date).
+          due_date: (quote as any).issue_date || payRegForm.date,
           paid_date: payRegForm.date,
           status: "pago" as any,
           category: `Faturamento - ${payRegForm.method}`,
