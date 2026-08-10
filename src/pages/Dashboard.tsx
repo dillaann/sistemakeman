@@ -142,11 +142,14 @@ const Dashboard = () => {
 
   // ════════════════════════════════════════════════════════════════
   // VENDAS / FATURAMENTO (igual a Vendas Admin + Faturamento)
-  // Fonte: quotes aprovados, filtrados por approved_at no período
+  // Fonte: quotes aprovados, filtrados por competência (issue_date || approved_at)
   // ════════════════════════════════════════════════════════════════
-  const approvedInPeriod = useMemo(() => quotes.filter(q =>
-    q.status === "aprovado" && isInRange(q.approved_at, dateRange)
-  ), [quotes, dateRange]);
+  const approvedInPeriod = useMemo(() => quotes.filter(q => {
+    if (q.status !== "aprovado") return false;
+    // Usar a mesma lógica de competência da aba Vendas
+    const competitionDate = q.issue_date || q.approved_at;
+    return isInRange(competitionDate, dateRange);
+  }), [quotes, dateRange]);
 
   const totalBilled = useMemo(() => approvedInPeriod.reduce((s, q) => s + Number(q.total), 0), [approvedInPeriod]);
   const salesCount = approvedInPeriod.length;
