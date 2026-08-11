@@ -50,18 +50,19 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["servicos-todos-pagamentos"],
     queryFn: async (): Promise<Row[]> => {
-      // 1. Fetch work orders (OS)
+      // 1. Fetch work orders (OS) - fetching all to ensure nothing is missed
       const wos = await fetchAllRows<any>(() =>
         supabase
           .from("work_orders")
           .select("id, quote_id, description, delivered_at, completed_at, created_at, total, client_id, status, clients(name)")
       );
 
-      // 2. Fetch all "a_receber" transactions to link payments to OS/Quotes
+      // 1.1 Also fetch manual "a_receber" transactions that might not have a work_order_id
+      // but are definitely "services" (receivables from clients)
       const allTx = await fetchAllRows<any>(() =>
         supabase
           .from("financial_transactions")
-          .select("*")
+          .select("*, clients(name)")
           .eq("type", "a_receber")
           .neq("status", "cancelado")
       );
