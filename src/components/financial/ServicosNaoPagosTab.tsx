@@ -130,18 +130,26 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
   });
 
   const filtered = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    
     return rows.filter(r => {
-      // If there is a search term, ignore the date filter to help find specific missing records
-      if (!search && dateRange && !isInRange(r.reference_date, dateRange)) return false;
+      // Se houver busca por texto, ignoramos o filtro de data e status para encontrar o registro
+      if (text) {
+        return (
+          r.clientName.toLowerCase().includes(text) ||
+          r.description.toLowerCase().includes(text) ||
+          (r.quote_id && r.quote_id.toLowerCase().includes(text))
+        );
+      }
+
+      // Filtro de data
+      if (dateRange && !isInRange(r.reference_date, dateRange)) return false;
       
+      // Filtro de status de pagamento
       if (payFilter === "pagos" && !(r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
       if (payFilter === "abertos" && (r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
       if (payFilter !== "todos" && payFilter !== "pagos" && payFilter !== "abertos" && r.payment_status !== payFilter) return false;
       
-      if (search) {
-        const t = search.toLowerCase();
-        if (!r.clientName.toLowerCase().includes(t) && !r.description.toLowerCase().includes(t)) return false;
-      }
       return true;
     });
   }, [rows, search, dateRange, payFilter]);
