@@ -85,15 +85,17 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
         const total = Number(q?.total ?? w.total ?? 0);
         
         let status = q?.payment_status ?? "aguardando";
-        if (paid >= total && total > 0) status = "pago_total";
-        else if (paid > 0) status = "pagamento_parcial";
+        // Override status logic to be consistent with real transaction data
+        if (paid >= total - 0.01 && total > 0) status = "pago_total";
+        else if (paid > 0.01) status = "pagamento_parcial";
+        else status = "aguardando";
 
         return {
           id: w.id,
           quote_id: w.quote_id,
           clientName: w.clients?.name ?? "—",
           description: w.description ?? "—",
-          reference_date: w.delivered_at ?? w.completed_at ?? w.created_at,
+          reference_date: w.delivered_at || w.completed_at || w.created_at,
           wo_status: w.status,
           total,
           paid,
