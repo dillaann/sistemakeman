@@ -151,6 +151,40 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
     doc.save(`servicos_nao_pagos_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
+  const exportPendingReport = () => {
+    const pending = filtered.filter(r => r.payment_status !== "pago_total" && r.payment_status !== "concluido_pago");
+    if (pending.length === 0) return;
+
+    const doc = new jsPDF();
+    const w = doc.internal.pageSize.getWidth();
+    doc.setFontSize(14).setFont("helvetica", "bold");
+    doc.text("Relatório de Contas a Receber - Serviços", w / 2, 15, { align: "center" });
+    doc.setFontSize(9).setFont("helvetica", "normal");
+    doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, w / 2, 22, { align: "center" });
+
+    const total = pending.reduce((s, r) => s + r.remaining, 0);
+
+    autoTable(doc, {
+      startY: 28,
+      head: [["Entrega", "Cliente", "Serviço", "Total", "Pago", "Saldo"]],
+      body: pending.map(r => [
+        r.reference_date ? formatDateBR(r.reference_date) : "—",
+        r.clientName,
+        r.description.length > 35 ? r.description.slice(0, 32) + "..." : r.description,
+        fmt(r.total),
+        fmt(r.paid),
+        fmt(r.remaining),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [41, 128, 185], fontSize: 8 },
+      bodyStyles: { fontSize: 8 },
+      foot: [[{ content: "TOTAL A RECEBER", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } }, { content: fmt(total), styles: { halign: "right", fontStyle: "bold" } }]],
+    });
+    
+    doc.autoPrint();
+    window.open(doc.output("bloburl"), "_blank");
+  };
+
   const exportCSV = () => {
     const header = "Entrega,Cliente,Serviço,Total,Pago,Em Aberto,Status\n";
     const body = filtered
@@ -213,8 +247,11 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
           <option value="entrada_pendente">Entrada pendente</option>
           <option value="pagamento_parcial">Parcial</option>
         </select>
+        <Button variant="outline" onClick={exportPendingReport} disabled={filtered.filter(r => r.payment_status !== "pago_total" && r.payment_status !== "concluido_pago").length === 0} className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100">
+          <FileDown className="h-4 w-4 mr-2" /> Relatório a Receber
+        </Button>
         <Button variant="outline" onClick={exportPDF} disabled={filtered.length === 0}>
-          <FileDown className="h-4 w-4 mr-2" /> PDF
+          <FileDown className="h-4 w-4 mr-2" /> PDF Geral
         </Button>
         <Button variant="outline" onClick={exportCSV} disabled={filtered.length === 0}>
           <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
