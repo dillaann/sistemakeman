@@ -50,18 +50,19 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["servicos-todos-pagamentos"],
     queryFn: async (): Promise<Row[]> => {
-      // 1. Fetch work orders (OS)
+      // 1. Fetch work orders (OS) - fetching all to ensure nothing is missed
       const wos = await fetchAllRows<any>(() =>
         supabase
           .from("work_orders")
           .select("id, quote_id, description, delivered_at, completed_at, created_at, total, client_id, status, clients(name)")
       );
 
-      // 2. Fetch all "a_receber" transactions to link payments to OS/Quotes
+      // 1.1 Also fetch manual "a_receber" transactions that might not have a work_order_id
+      // but are definitely "services" (receivables from clients)
       const allTx = await fetchAllRows<any>(() =>
         supabase
           .from("financial_transactions")
-          .select("*")
+          .select("*, clients(name)")
           .eq("type", "a_receber")
           .neq("status", "cancelado")
       );
@@ -77,27 +78,15 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
       const qMap = new Map((quotes ?? []).map((q: any) => [q.id, q]));
 
       // 4. Map everything together
-      return wos.map(w => {
+      const woResults = wos.map(w => {
         const q: any = w.quote_id ? qMap.get(w.quote_id) : null;
-        
-        // Find transactions linked to this specific OS
         const osTx = allTx.filter(t => t.work_order_id === w.id);
-        
-        // Calculate paid amount from transactions
         const paid = osTx.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
-        
-        // Total should be from quote if available, else OS total
         const total = Number(q?.total ?? w.total ?? 0);
         
-        // Status determination logic
         let status = q?.payment_status ?? "aguardando";
-        if (paid >= total && total > 0) {
-          status = "pago_total";
-        } else if (paid > 0) {
-          status = "pagamento_parcial";
-        }
-
-        const remaining = Math.max(total - paid, 0);
+        if (paid >= total && total > 0) status = "pago_total";
+        else if (paid > 0) status = "pagamento_parcial";
 
         return {
           id: w.id,
@@ -108,19 +97,47 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
           wo_status: w.status,
           total,
           paid,
-          remaining,
+          remaining: Math.max(total - paid, 0),
           payment_status: status,
         };
       });
+
+      // 5. Add manual transactions not linked to work orders
+      const woIds = new Set(wos.map(w => w.id));
+      const manualTx = allTx.filter(t => !t.work_order_id || !woIds.has(t.work_order_id));
+      
+      const manualResults = manualTx.map(t => {
+        const total = Number(t.amount);
+        const paid = t.status === "pago" ? total : 0;
+        const remaining = total - paid;
+        
+        return {
+          id: t.id,
+          quote_id: null,
+          clientName: t.clients?.name ?? "—",
+          description: t.description ?? "—",
+          reference_date: t.due_date || t.created_at,
+          wo_status: "manual",
+          total,
+          paid,
+          remaining,
+          payment_status: t.status === "pago" ? "pago_total" : "aguardando",
+        };
+      });
+
+      return [...woResults, ...manualResults];
     },
   });
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      if (dateRange && !isInRange(r.reference_date, dateRange)) return false;
+      // If there is a search term, ignore the date filter to help find specific missing records
+      if (!search && dateRange && !isInRange(r.reference_date, dateRange)) return false;
+      
       if (payFilter === "pagos" && !(r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
       if (payFilter === "abertos" && (r.payment_status === "pago_total" || r.payment_status === "concluido_pago")) return false;
       if (payFilter !== "todos" && payFilter !== "pagos" && payFilter !== "abertos" && r.payment_status !== payFilter) return false;
+      
       if (search) {
         const t = search.toLowerCase();
         if (!r.clientName.toLowerCase().includes(t) && !r.description.toLowerCase().includes(t)) return false;
