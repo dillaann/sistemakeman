@@ -50,11 +50,23 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["servicos-todos-pagamentos"],
     queryFn: async (): Promise<Row[]> => {
+      // 1. Fetch work orders (OS)
       const wos = await fetchAllRows<any>(() =>
         supabase
           .from("work_orders")
           .select("id, quote_id, description, delivered_at, completed_at, created_at, total, client_id, status, clients(name)")
       );
+
+      // 2. Fetch all "a_receber" transactions to link payments to OS/Quotes
+      const allTx = await fetchAllRows<any>(() =>
+        supabase
+          .from("financial_transactions")
+          .select("*")
+          .eq("type", "a_receber")
+          .neq("status", "cancelado")
+      );
+
+      // 3. Fetch linked quotes for metadata
       const quoteIds = wos.map(w => w.quote_id).filter(Boolean);
       const { data: quotes = [] } = quoteIds.length
         ? await supabase
@@ -64,12 +76,29 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
         : { data: [] as any[] };
       const qMap = new Map((quotes ?? []).map((q: any) => [q.id, q]));
 
+      // 4. Map everything together
       return wos.map(w => {
         const q: any = w.quote_id ? qMap.get(w.quote_id) : null;
-        const status = q?.payment_status ?? "aguardando";
+        
+        // Find transactions linked to this specific OS
+        const osTx = allTx.filter(t => t.work_order_id === w.id);
+        
+        // Calculate paid amount from transactions
+        const paid = osTx.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
+        
+        // Total should be from quote if available, else OS total
         const total = Number(q?.total ?? w.total ?? 0);
-        const paid = Number(q?.down_payment ?? 0);
-        const remaining = Number(q?.remaining_amount ?? total - paid);
+        
+        // Status determination logic
+        let status = q?.payment_status ?? "aguardando";
+        if (paid >= total && total > 0) {
+          status = "pago_total";
+        } else if (paid > 0) {
+          status = "pagamento_parcial";
+        }
+
+        const remaining = Math.max(total - paid, 0);
+
         return {
           id: w.id,
           quote_id: w.quote_id,
