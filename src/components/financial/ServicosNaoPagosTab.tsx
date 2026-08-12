@@ -84,8 +84,14 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
         const paid = osTx.filter(t => t.status === "pago").reduce((s, t) => s + Number(t.amount), 0);
         const total = Number(q?.total ?? w.total ?? 0);
         
+        // Identificar a transação mais antiga (Entrada) para definir a competência no relatório
+        let referenceDate = w.created_at || w.delivered_at || w.completed_at;
+        if (osTx.length > 0) {
+          const sortedTx = [...osTx].sort((a, b) => new Date(a.due_date || a.created_at).getTime() - new Date(b.due_date || b.created_at).getTime());
+          referenceDate = sortedTx[0].due_date || sortedTx[0].created_at;
+        }
+
         let status = q?.payment_status ?? "aguardando";
-        // Override status logic to be consistent with real transaction data
         if (paid >= total - 0.01 && total > 0) status = "pago_total";
         else if (paid > 0.01) status = "pagamento_parcial";
         else status = "aguardando";
@@ -95,7 +101,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
           quote_id: w.quote_id,
           clientName: w.clients?.name ?? "—",
           description: w.description ?? "—",
-          reference_date: w.created_at || w.delivered_at || w.completed_at,
+          reference_date: referenceDate,
           wo_status: w.status,
           total,
           paid,
