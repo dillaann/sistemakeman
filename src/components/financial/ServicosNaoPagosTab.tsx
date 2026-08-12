@@ -95,7 +95,7 @@ export default function ServicosNaoPagosTab({ dateRange }: { dateRange?: { start
           quote_id: w.quote_id,
           clientName: w.clients?.name ?? "—",
           description: w.description ?? "—",
-          reference_date: w.delivered_at || w.completed_at || w.created_at,
+          reference_date: w.created_at || w.delivered_at || w.completed_at,
           wo_status: w.status,
           total,
           paid,
