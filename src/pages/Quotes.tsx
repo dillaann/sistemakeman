@@ -61,6 +61,8 @@ const Quotes = () => {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const [creatorFilter, setCreatorFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [refDate, setRefDate] = useState(new Date());
