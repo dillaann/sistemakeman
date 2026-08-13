@@ -1139,15 +1139,25 @@ const Quotes = () => {
     });
   }, [quotes, dateRange, statusFilter, paymentStatusFilter, creatorFilter, sellerFilter, search, computedPaymentStatus]);
 
-  // Unique creators present in current quote set, for filter dropdown
-  const creatorsInUse = useMemo(() => {
-    const ids = new Set<string>();
-    let hasNone = false;
+  // Creators and Sellers in use for filters
+  const { creatorsInUse, sellersInUse } = useMemo(() => {
+    const creatorIds = new Set<string>();
+    const sellerIds = new Set<string>();
+    let hasNoCreator = false;
+    let hasNoSeller = false;
+
     quotes.forEach((q: any) => {
-      if (q.created_by) ids.add(q.created_by);
-      else hasNone = true;
+      if (q.created_by) creatorIds.add(q.created_by);
+      else hasNoCreator = true;
+
+      if (q.seller_id) sellerIds.add(q.seller_id);
+      else hasNoSeller = true;
     });
-    return { ids: Array.from(ids), hasNone };
+
+    return {
+      creatorsInUse: { ids: Array.from(creatorIds), hasNone: hasNoCreator },
+      sellersInUse: { ids: Array.from(sellerIds), hasNone: hasNoSeller }
+    };
   }, [quotes]);
 
   const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
