@@ -1093,7 +1093,9 @@ const Quotes = () => {
       // 3. Filtro de Status de Pagamento
       if (paymentStatusFilter !== "all") {
         const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
-        if (pStatus !== paymentStatusFilter) return false;
+        // Map any "entrada_recebida" (legacy or from manual select) to "pagamento_parcial" for comparison
+        const normalizedStatus = pStatus === "entrada_recebida" ? "pagamento_parcial" : pStatus;
+        if (normalizedStatus !== paymentStatusFilter) return false;
       }
 
       // 4. Filtro de Criador (Lançado por)
