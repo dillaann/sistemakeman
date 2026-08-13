@@ -1081,15 +1081,29 @@ const Quotes = () => {
     window.open(doc.output("bloburl"), "_blank");
   };
 
-  const filtered = quotes.filter(q => {
-    if (!isInRange(q.issue_date, dateRange)) return false;
-    if (creatorFilter !== "all") {
-      const cb = (q as any).created_by || "__none__";
-      if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
-    }
-    return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      (q.description ?? "").toLowerCase().includes(search.toLowerCase());
-  });
+  const filtered = useMemo(() => {
+    const list = quotes.filter(q => {
+      if (!isInRange(q.issue_date, dateRange)) return false;
+      if (creatorFilter !== "all") {
+        const cb = (q as any).created_by || "__none__";
+        if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
+      }
+      return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        (q.description ?? "").toLowerCase().includes(search.toLowerCase());
+    });
+
+    return [...list].sort((a: any, b: any) => {
+      // Prioridade: Data de Aprovação (mais recente primeiro)
+      if (a.status === "aprovado" || b.status === "aprovado") {
+        if (a.status === "aprovado" && b.status === "aprovado") {
+          return new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime();
+        }
+        return a.status === "aprovado" ? -1 : 1;
+      }
+      // Fallback: Data de Criação
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [quotes, dateRange, creatorFilter, search]);
 
   // Unique creators present in current quote set, for filter dropdown
   const creatorsInUse = useMemo(() => {
