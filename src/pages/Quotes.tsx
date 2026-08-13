@@ -1086,28 +1086,58 @@ const Quotes = () => {
 
   const filtered = useMemo(() => {
     const list = quotes.filter(q => {
+      // 1. Filtro de Período (Issue Date)
       if (!isInRange(q.issue_date, dateRange)) return false;
       
+      // 2. Filtro de Status do Orçamento
       if (statusFilter !== "all" && q.status !== statusFilter) return false;
       
+      // 3. Filtro de Status de Pagamento
       if (paymentStatusFilter !== "all") {
         const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
         if (pStatus !== paymentStatusFilter) return false;
       }
 
+      // 4. Filtro de Criador (Lançado por)
       if (creatorFilter !== "all") {
         const cb = (q as any).created_by || "__none__";
-        if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
+        if (creatorFilter === "__none__") {
+          if (cb !== "__none__") return false;
+        } else if (cb !== creatorFilter) {
+          return false;
+        }
       }
-      return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        (q.description ?? "").toLowerCase().includes(search.toLowerCase());
+
+      // 5. Filtro de Vendedor Responsável
+      if (sellerFilter !== "all") {
+        const sid = (q as any).seller_id || "__none__";
+        if (sellerFilter === "__none__") {
+          if (sid !== "__none__") return false;
+        } else if (sid !== sellerFilter) {
+          return false;
+        }
+      }
+
+      // 6. Busca Textual (Cliente ou Descrição)
+      if (search.trim()) {
+        const searchLower = search.toLowerCase();
+        const clientName = (q.clients as any)?.name?.toLowerCase() || "";
+        const description = (q.description ?? "").toLowerCase();
+        if (!clientName.includes(searchLower) && !description.includes(searchLower)) {
+          return false;
+        }
+      }
+
+      return true;
     });
 
     return [...list].sort((a: any, b: any) => {
-      // Data mais recente primeiro (independente de status, conforme pedido)
-      return new Date(b.issue_date || b.created_at).getTime() - new Date(a.issue_date || a.created_at).getTime();
+      // Data de emissão (ou criação) mais recente primeiro
+      const dateA = new Date(a.issue_date || a.created_at).getTime();
+      const dateB = new Date(b.issue_date || b.created_at).getTime();
+      return dateB - dateA;
     });
-  }, [quotes, dateRange, creatorFilter, search]);
+  }, [quotes, dateRange, statusFilter, paymentStatusFilter, creatorFilter, sellerFilter, search, computedPaymentStatus]);
 
   // Unique creators present in current quote set, for filter dropdown
   const creatorsInUse = useMemo(() => {
