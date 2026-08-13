@@ -64,6 +64,7 @@ const Quotes = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const [creatorFilter, setCreatorFilter] = useState<string>("all");
+  const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
