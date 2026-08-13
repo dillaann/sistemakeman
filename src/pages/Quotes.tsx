@@ -1131,12 +1131,15 @@ const Quotes = () => {
       return true;
     });
 
-    return [...list].sort((a: any, b: any) => {
+    const sorted = [...list].sort((a: any, b: any) => {
       // Data de emissão (ou criação) mais recente primeiro
       const dateA = new Date(a.issue_date || a.created_at).getTime();
       const dateB = new Date(b.issue_date || b.created_at).getTime();
       return dateB - dateA;
     });
+
+    console.log(`Filtered quotes count: ${sorted.length} of ${quotes.length}`);
+    return sorted;
   }, [quotes, dateRange, statusFilter, paymentStatusFilter, creatorFilter, sellerFilter, search, computedPaymentStatus]);
 
   // Creators and Sellers in use for filters
