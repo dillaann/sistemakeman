@@ -1703,7 +1703,6 @@ const Quotes = () => {
                       <SelectContent>
                         <SelectItem value="aguardando">Aguardando Pagamento</SelectItem>
                         <SelectItem value="entrada_pendente">Entrada Pendente</SelectItem>
-                        <SelectItem value="entrada_recebida">Entrada Recebida</SelectItem>
                         <SelectItem value="pagamento_parcial">Parcialmente Pago</SelectItem>
                         <SelectItem value="pago_total">Pago Total</SelectItem>
                         <SelectItem value="concluido_pago">Concluído e Pago</SelectItem>
