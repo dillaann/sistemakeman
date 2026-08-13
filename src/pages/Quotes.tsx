@@ -61,6 +61,8 @@ const Quotes = () => {
   const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const [creatorFilter, setCreatorFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [refDate, setRefDate] = useState(new Date());
@@ -1084,6 +1086,14 @@ const Quotes = () => {
   const filtered = useMemo(() => {
     const list = quotes.filter(q => {
       if (!isInRange(q.issue_date, dateRange)) return false;
+      
+      if (statusFilter !== "all" && q.status !== statusFilter) return false;
+      
+      if (paymentStatusFilter !== "all") {
+        const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
+        if (pStatus !== paymentStatusFilter) return false;
+      }
+
       if (creatorFilter !== "all") {
         const cb = (q as any).created_by || "__none__";
         if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
@@ -1093,15 +1103,8 @@ const Quotes = () => {
     });
 
     return [...list].sort((a: any, b: any) => {
-      // Prioridade: Data de Aprovação (mais recente primeiro)
-      if (a.status === "aprovado" || b.status === "aprovado") {
-        if (a.status === "aprovado" && b.status === "aprovado") {
-          return new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime();
-        }
-        return a.status === "aprovado" ? -1 : 1;
-      }
-      // Fallback: Data de Criação
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      // Data mais recente primeiro (independente de status, conforme pedido)
+      return new Date(b.issue_date || b.created_at).getTime() - new Date(a.issue_date || a.created_at).getTime();
     });
   }, [quotes, dateRange, creatorFilter, search]);
 
@@ -1270,14 +1273,35 @@ const Quotes = () => {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-col md:flex-row gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar orçamentos..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
+        
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full md:w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Status</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="aprovado">Aprovado</SelectItem>
+            <SelectItem value="rejeitado">Rejeitado</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+          <SelectTrigger className="w-full md:w-48"><SelectValue placeholder="Pagamento" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Pagamentos</SelectItem>
+            {Object.entries(paymentStatusLabels).map(([val, label]) => (
+              <SelectItem key={val} value={val}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {userRole === "admin" && (creatorsInUse.ids.length > 0 || creatorsInUse.hasNone) && (
           <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-            <SelectTrigger className="md:w-64"><SelectValue placeholder="Filtrar por criador" /></SelectTrigger>
+            <SelectTrigger className="w-full md:w-64"><SelectValue placeholder="Filtrar por criador" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os criadores</SelectItem>
               {creatorsInUse.ids.map(id => (
