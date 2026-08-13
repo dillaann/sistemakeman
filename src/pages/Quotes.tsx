@@ -1340,17 +1340,37 @@ const Quotes = () => {
           </SelectContent>
         </Select>
 
-        {userRole === "admin" && (creatorsInUse.ids.length > 0 || creatorsInUse.hasNone) && (
-          <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-            <SelectTrigger className="w-full md:w-64"><SelectValue placeholder="Filtrar por criador" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os criadores</SelectItem>
-              {creatorsInUse.ids.map(id => (
-                <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
-              ))}
-              {creatorsInUse.hasNone && <SelectItem value="__none__">Não identificado</SelectItem>}
-            </SelectContent>
-          </Select>
+        {userRole === "admin" && (
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            {(creatorsInUse.ids.length > 0 || creatorsInUse.hasNone) && (
+              <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+                <SelectTrigger className="w-full md:w-48"><SelectValue placeholder="Criado por" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os criadores</SelectItem>
+                  {creatorsInUse.ids.map(id => (
+                    <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
+                  ))}
+                  {creatorsInUse.hasNone && <SelectItem value="__none__">Não identificado</SelectItem>}
+                </SelectContent>
+              </Select>
+            )}
+
+            {(sellersInUse.ids.length > 0 || sellersInUse.hasNone) && (
+              <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                <SelectTrigger className="w-full md:w-48"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os vendedores</SelectItem>
+                  {sellersInUse.ids.map(id => (
+                    <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
+                  ))}
+                  {sellersInUse.ids.length === 0 && sellers.map(s => (
+                     <SelectItem key={s.id} value={s.id}>{s.full_name || "Sem nome"}</SelectItem>
+                  ))}
+                  {sellersInUse.hasNone && <SelectItem value="__none__">Sem vendedor</SelectItem>}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         )}
       </div>
 
