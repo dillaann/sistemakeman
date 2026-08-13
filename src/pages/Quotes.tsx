@@ -1086,6 +1086,14 @@ const Quotes = () => {
   const filtered = useMemo(() => {
     const list = quotes.filter(q => {
       if (!isInRange(q.issue_date, dateRange)) return false;
+      
+      if (statusFilter !== "all" && q.status !== statusFilter) return false;
+      
+      if (paymentStatusFilter !== "all") {
+        const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
+        if (pStatus !== paymentStatusFilter) return false;
+      }
+
       if (creatorFilter !== "all") {
         const cb = (q as any).created_by || "__none__";
         if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
@@ -1095,15 +1103,8 @@ const Quotes = () => {
     });
 
     return [...list].sort((a: any, b: any) => {
-      // Prioridade: Data de Aprovação (mais recente primeiro)
-      if (a.status === "aprovado" || b.status === "aprovado") {
-        if (a.status === "aprovado" && b.status === "aprovado") {
-          return new Date(b.approved_at || b.created_at).getTime() - new Date(a.approved_at || a.created_at).getTime();
-        }
-        return a.status === "aprovado" ? -1 : 1;
-      }
-      // Fallback: Data de Criação
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      // Data mais recente primeiro (independente de status, conforme pedido)
+      return new Date(b.issue_date || b.created_at).getTime() - new Date(a.issue_date || a.created_at).getTime();
     });
   }, [quotes, dateRange, creatorFilter, search]);
 
