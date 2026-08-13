@@ -64,6 +64,7 @@ const Quotes = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const [creatorFilter, setCreatorFilter] = useState<string>("all");
+  const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [refDate, setRefDate] = useState(new Date());
   const [periodMode, setPeriodMode] = useState<PeriodMode>("month");
@@ -1085,38 +1086,81 @@ const Quotes = () => {
 
   const filtered = useMemo(() => {
     const list = quotes.filter(q => {
+      // 1. Filtro de Período (Issue Date)
       if (!isInRange(q.issue_date, dateRange)) return false;
       
+      // 2. Filtro de Status do Orçamento
       if (statusFilter !== "all" && q.status !== statusFilter) return false;
       
+      // 3. Filtro de Status de Pagamento
       if (paymentStatusFilter !== "all") {
         const pStatus = computedPaymentStatus[q.id] || (q as any).payment_status || "aguardando";
         if (pStatus !== paymentStatusFilter) return false;
       }
 
+      // 4. Filtro de Criador (Lançado por)
       if (creatorFilter !== "all") {
         const cb = (q as any).created_by || "__none__";
-        if (creatorFilter === "__none__" ? cb !== "__none__" : cb !== creatorFilter) return false;
+        if (creatorFilter === "__none__") {
+          if (cb !== "__none__") return false;
+        } else if (cb !== creatorFilter) {
+          return false;
+        }
       }
-      return (q.clients as any)?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        (q.description ?? "").toLowerCase().includes(search.toLowerCase());
+
+      // 5. Filtro de Vendedor Responsável
+      if (sellerFilter !== "all") {
+        const sid = (q as any).seller_id || "__none__";
+        if (sellerFilter === "__none__") {
+          if (sid !== "__none__") return false;
+        } else if (sid !== sellerFilter) {
+          return false;
+        }
+      }
+
+      // 6. Busca Textual (Cliente ou Descrição)
+      if (search.trim()) {
+        const searchLower = search.toLowerCase();
+        const clientName = (q.clients as any)?.name?.toLowerCase() || "";
+        const description = (q.description ?? "").toLowerCase();
+        if (!clientName.includes(searchLower) && !description.includes(searchLower)) {
+          return false;
+        }
+      }
+
+      return true;
     });
 
-    return [...list].sort((a: any, b: any) => {
-      // Data mais recente primeiro (independente de status, conforme pedido)
-      return new Date(b.issue_date || b.created_at).getTime() - new Date(a.issue_date || a.created_at).getTime();
+    const sorted = [...list].sort((a: any, b: any) => {
+      // Data de emissão (ou criação) mais recente primeiro
+      const dateA = new Date(a.issue_date || a.created_at).getTime();
+      const dateB = new Date(b.issue_date || b.created_at).getTime();
+      return dateB - dateA;
     });
-  }, [quotes, dateRange, creatorFilter, search]);
 
-  // Unique creators present in current quote set, for filter dropdown
-  const creatorsInUse = useMemo(() => {
-    const ids = new Set<string>();
-    let hasNone = false;
+    console.log(`Filtered quotes count: ${sorted.length} of ${quotes.length}`);
+    return sorted;
+  }, [quotes, dateRange, statusFilter, paymentStatusFilter, creatorFilter, sellerFilter, search, computedPaymentStatus]);
+
+  // Creators and Sellers in use for filters
+  const { creatorsInUse, sellersInUse } = useMemo(() => {
+    const creatorIds = new Set<string>();
+    const sellerIds = new Set<string>();
+    let hasNoCreator = false;
+    let hasNoSeller = false;
+
     quotes.forEach((q: any) => {
-      if (q.created_by) ids.add(q.created_by);
-      else hasNone = true;
+      if (q.created_by) creatorIds.add(q.created_by);
+      else hasNoCreator = true;
+
+      if (q.seller_id) sellerIds.add(q.seller_id);
+      else hasNoSeller = true;
     });
-    return { ids: Array.from(ids), hasNone };
+
+    return {
+      creatorsInUse: { ids: Array.from(creatorIds), hasNone: hasNoCreator },
+      sellersInUse: { ids: Array.from(sellerIds), hasNone: hasNoSeller }
+    };
   }, [quotes]);
 
   const commissionValue = approvalModal ? approvalModal.total * (commPercentage / 100) : 0;
@@ -1299,17 +1343,37 @@ const Quotes = () => {
           </SelectContent>
         </Select>
 
-        {userRole === "admin" && (creatorsInUse.ids.length > 0 || creatorsInUse.hasNone) && (
-          <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-            <SelectTrigger className="w-full md:w-64"><SelectValue placeholder="Filtrar por criador" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os criadores</SelectItem>
-              {creatorsInUse.ids.map(id => (
-                <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
-              ))}
-              {creatorsInUse.hasNone && <SelectItem value="__none__">Não identificado</SelectItem>}
-            </SelectContent>
-          </Select>
+        {userRole === "admin" && (
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            {(creatorsInUse.ids.length > 0 || creatorsInUse.hasNone) && (
+              <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+                <SelectTrigger className="w-full md:w-48"><SelectValue placeholder="Criado por" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os criadores</SelectItem>
+                  {creatorsInUse.ids.map(id => (
+                    <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
+                  ))}
+                  {creatorsInUse.hasNone && <SelectItem value="__none__">Não identificado</SelectItem>}
+                </SelectContent>
+              </Select>
+            )}
+
+            {(sellersInUse.ids.length > 0 || sellersInUse.hasNone) && (
+              <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                <SelectTrigger className="w-full md:w-48"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os vendedores</SelectItem>
+                  {sellersInUse.ids.map(id => (
+                    <SelectItem key={id} value={id}>{profilesMap[id] || "Sem nome"}</SelectItem>
+                  ))}
+                  {sellersInUse.ids.length === 0 && sellers.map(s => (
+                     <SelectItem key={s.id} value={s.id}>{s.full_name || "Sem nome"}</SelectItem>
+                  ))}
+                  {sellersInUse.hasNone && <SelectItem value="__none__">Sem vendedor</SelectItem>}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         )}
       </div>
 
