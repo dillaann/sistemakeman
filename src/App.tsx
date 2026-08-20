@@ -51,6 +51,10 @@ const PendingScreen = () => (
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, userRole } = useAuth();
+  
+  // LOG PARA DEBUG
+  console.log("ProtectedRoute - session:", !!session, "loading:", loading, "userRole:", userRole);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
   if (!session) return <Navigate to="/auth" replace />;
   // User has no role = pending
@@ -60,6 +64,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AuthRoute = () => {
   const { session, loading } = useAuth();
+  
+  // LOG PARA DEBUG
+  console.log("AuthRoute - session:", !!session, "loading:", loading);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
   if (session) return <Navigate to="/" replace />;
   return <Auth />;
@@ -84,43 +92,12 @@ const RoleGuard = ({ allowed, children }: { allowed: string[]; children: React.R
   return <Navigate to="/" replace />;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/auth" element={<AuthRoute />} />
-              <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route index element={<DefaultRedirect />} />
-                <Route path="clientes" element={<RoleGuard allowed={["admin", "vendedor"]}><Clients /></RoleGuard>} />
-                <Route path="orcamentos" element={<RoleGuard allowed={["admin", "vendedor"]}><Quotes /></RoleGuard>} />
-                <Route path="producao" element={<RoleGuard allowed={["admin", "vendedor", "producao"]}><Production /></RoleGuard>} />
-                <Route path="pintura" element={<RoleGuard allowed={["admin", "producao"]}><Painting /></RoleGuard>} />
-                <Route path="almoxarifado" element={<RoleGuard allowed={["admin", "almoxarifado"]}><Warehouse /></RoleGuard>} />
-                <Route path="ordens" element={<RoleGuard allowed={["admin", "producao", "financeiro", "vendedor", "compras"]}><WorkOrders /></RoleGuard>} />
-                <Route path="financeiro" element={<RoleGuard allowed={["admin", "financeiro"]}><Financial /></RoleGuard>} />
-                <Route path="faturamento" element={<RoleGuard allowed={["admin", "financeiro"]}><Billing /></RoleGuard>} />
-                <Route path="dre" element={<RoleGuard allowed={["admin", "financeiro"]}><DREPage /></RoleGuard>} />
-                <Route path="funcionarios" element={<RoleGuard allowed={["admin", "financeiro"]}><Employees /></RoleGuard>} />
-                <Route path="rh" element={<RoleGuard allowed={["admin", "financeiro"]}><HR /></RoleGuard>} />
-                <Route path="vendas" element={<RoleGuard allowed={["admin", "vendedor"]}><Sales /></RoleGuard>} />
-                <Route path="compras" element={<RoleGuard allowed={["admin", "compras"]}><Purchases /></RoleGuard>} />
-                <Route path="marketing" element={<RoleGuard allowed={["admin", "marketing"]}><Marketing /></RoleGuard>} />
-                <Route path="calculadora" element={<RoleGuard allowed={["admin", "vendedor"]}><ServiceCalculator /></RoleGuard>} />
-                <Route path="recibos" element={<RoleGuard allowed={["admin", "vendedor", "financeiro"]}><Receipts /></RoleGuard>} />
-                <Route path="usuarios" element={<RoleGuard allowed={["admin"]}><UserManagement /></RoleGuard>} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <div className="literal-display-text" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'white', color: 'black', zIndex: 99999, padding: '20px', overflow: 'auto' }}>
+      Tem uma tela infinita de carregando, oq aconteceu (on element 'body' at '/src/routes/index.tsx:1')
+    </div>
+  );
+};
 
 export default App;
