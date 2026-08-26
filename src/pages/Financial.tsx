@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle, Repeat } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle, Repeat, CheckCircle2 } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
 import DespesasReceitasTab from "@/components/financial/DespesasReceitasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
@@ -31,18 +31,24 @@ const Financial = () => {
       </div>
 
       <Tabs defaultValue="entradas" className="w-full">
-        <TabsList className="grid w-full grid-cols-11">
-          <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
-            <TrendingUp className="h-4 w-4" /> Entradas
+        <TabsList className="flex w-full flex-wrap h-auto justify-start gap-1">
+          <TabsTrigger value="contas_pagar" className="flex items-center gap-1 text-xs">
+            <CreditCard className="h-4 w-4" /> Contas a Pagar
+          </TabsTrigger>
+          <TabsTrigger value="contas_pagas" className="flex items-center gap-1 text-xs">
+            <CheckCircle2 className="h-4 w-4" /> Contas Pagas
           </TabsTrigger>
           <TabsTrigger value="saidas" className="flex items-center gap-1 text-xs">
             <TrendingDown className="h-4 w-4" /> Saídas
           </TabsTrigger>
-          <TabsTrigger value="contas_pagar" className="flex items-center gap-1 text-xs">
-            <CreditCard className="h-4 w-4" /> A Pagar
-          </TabsTrigger>
           <TabsTrigger value="contas_receber" className="flex items-center gap-1 text-xs">
-            <HandCoins className="h-4 w-4" /> A Receber
+            <HandCoins className="h-4 w-4" /> Contas a Receber
+          </TabsTrigger>
+          <TabsTrigger value="recebidos" className="flex items-center gap-1 text-xs">
+            <CheckCircle2 className="h-4 w-4" /> Recebidos
+          </TabsTrigger>
+          <TabsTrigger value="entradas" className="flex items-center gap-1 text-xs">
+            <TrendingUp className="h-4 w-4" /> Entradas
           </TabsTrigger>
           <TabsTrigger value="contas" className="flex items-center gap-1 text-xs">
             <Wallet className="h-4 w-4" /> Contas
@@ -68,9 +74,10 @@ const Financial = () => {
         </TabsList>
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
-        
-        <TabsContent value="contas_pagar"><ContasPagarTab dateRange={dateRange} /></TabsContent>
-        <TabsContent value="contas_receber"><ContasReceberTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="contas_pagar"><ContasPagarTab dateRange={dateRange} mode="aberto" /></TabsContent>
+        <TabsContent value="contas_pagas"><ContasPagarTab dateRange={dateRange} mode="pago" /></TabsContent>
+        <TabsContent value="contas_receber"><ContasReceberTab dateRange={dateRange} mode="aberto" /></TabsContent>
+        <TabsContent value="recebidos"><ContasReceberTab dateRange={dateRange} mode="recebido" /></TabsContent>
         <TabsContent value="contas"><ContasTab /></TabsContent>
         <TabsContent value="movimentacoes"><MovimentacoesTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="conciliacao"><ReconciliationTab /></TabsContent>

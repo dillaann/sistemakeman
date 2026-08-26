@@ -315,7 +315,7 @@ const Purchases = () => {
             .update({
               description: descParts.join(" "),
               amount: total,
-              due_date: pForm.payment_status === "pago" ? pForm.purchase_date : (pForm.due_date || pForm.purchase_date),
+              due_date: pForm.payment_status === "pago" ? pForm.purchase_date : (pForm.due_date || null),
               paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
               status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
               payment_method: pForm.payment_method,
@@ -350,7 +350,7 @@ const Purchases = () => {
           type: "a_pagar" as any,
           description: descParts.join(" "),
           amount: total,
-          due_date: pForm.payment_status === "pago" ? pForm.purchase_date : (pForm.due_date || pForm.purchase_date),
+          due_date: pForm.payment_status === "pago" ? pForm.purchase_date : (pForm.due_date || null),
           paid_date: pForm.payment_status === "pago" ? pForm.purchase_date : null,
           category: "Compras",
           status: (pForm.payment_status === "pago" ? "pago" : "pendente") as any,
