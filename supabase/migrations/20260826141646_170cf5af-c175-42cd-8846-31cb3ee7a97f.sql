@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.sync_purchase_order_payment_status() FROM PUBLIC, anon, authenticated;

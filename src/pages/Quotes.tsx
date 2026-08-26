@@ -54,6 +54,33 @@ const UNIT_OPTIONS = [
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+/** Extrai a quantidade de dias de um prazo em texto livre ("15 dias úteis", "30 dias"). */
+export function parseDeadlineDays(deadline?: string | null): number | null {
+  if (!deadline) return null;
+  const match = String(deadline).match(/(\d+)/);
+  if (!match) return null;
+  const days = parseInt(match[1], 10);
+  return Number.isFinite(days) && days > 0 ? days : null;
+}
+
+/**
+ * Data prevista da parcela do saldo.
+ * Regra: para clientes que NÃO são construtoras, usa o prazo de entrega como base
+ * e antecipa 5 dias (prazo de 30 dias → parcela em 25 dias), dando folga para
+ * cobrar produção e instalação antes do vencimento.
+ * Construtoras não têm sugestão automática (data definida manualmente).
+ */
+export function suggestBalanceDate(clientType?: string | null, deliveryDeadline?: string | null, from: Date = new Date()): string {
+  if (clientType === "construtora") return "";
+  const days = parseDeadlineDays(deliveryDeadline);
+  if (days === null) return "";
+  const target = Math.max(days - 5, 1);
+  const d = new Date(from);
+  d.setDate(d.getDate() + target);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 const Quotes = () => {
   const { toast } = useToast();
   const { user, userRole } = useAuth();
@@ -96,6 +123,8 @@ const Quotes = () => {
   const [downPaymentDate, setDownPaymentDate] = useState(localDateString());
   const [paymentMethod, setPaymentMethod] = useState("pix");
   const [collectionDate, setCollectionDate] = useState(localDateString());
+  // Parcelas do saldo (data prevista) geradas já no contas a receber
+  const [balanceDates, setBalanceDates] = useState<string[]>([""]);
 
   // Payment registration modal for approved quotes
   const [payRegDialog, setPayRegDialog] = useState<any>(null);
@@ -579,6 +608,8 @@ const Quotes = () => {
     setDownPaymentDate(localDateString());
     setPaymentMethod("pix");
     setCollectionDate(localDateString());
+    const client = clients.find((c: any) => c.id === quote.client_id) as any;
+    setBalanceDates([suggestBalanceDate(client?.client_type, (quote as any).delivery_deadline)]);
     setApprovalModal({
       open: true,
       quoteId: quote.id,
@@ -703,16 +734,24 @@ const Quotes = () => {
 
         const pendingAmount = total - dpAmount;
         if (pendingAmount > 0) {
-          await supabase.from("financial_transactions").insert({
+          // Parcelas do saldo com data prevista — já nascem no Contas a Receber.
+          // Sem data informada o lançamento fica "Sem data prevista" (nunca vencido).
+          const dates = balanceDates.length > 0 ? balanceDates : [""];
+          const count = dates.length;
+          const base = Math.floor((pendingAmount / count) * 100) / 100;
+          const rows = dates.map((d, i) => ({
             type: "a_receber" as any,
-            description: `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
-            amount: pendingAmount,
-            due_date: competenceDate,
+            description: count > 1
+              ? `Saldo ${i + 1}/${count} - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`
+              : `Saldo - ${clientName} (Orçamento ${quoteId.slice(0, 8)})`,
+            amount: i === count - 1 ? Number((pendingAmount - base * (count - 1)).toFixed(2)) : base,
+            due_date: d || null,
             status: "pendente" as any,
             category: "Faturamento",
             work_order_id: wo.id,
             client_id: clientId,
-          });
+          }));
+          await supabase.from("financial_transactions").insert(rows as any);
         }
       }
 

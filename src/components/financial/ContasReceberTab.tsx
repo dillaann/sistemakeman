@@ -31,7 +31,8 @@ const paymentMethods = [
   { value: "transferencia", label: "Transferência Bancária" },
 ];
 
-function daysUntil(dateStr: string): number {
+function daysUntil(dateStr?: string | null): number {
+  if (!dateStr) return Number.POSITIVE_INFINITY;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const d = new Date(dateStr + "T00:00:00");
@@ -46,22 +47,32 @@ interface GroupedReceivable {
   totalReceived: number;
   remaining: number;
   percentReceived: number;
-  dueDate: string;
+  dueDate: string | null;
   lastPaidDate: string | null;
-  referenceDate: string;
-  status: "recebido_total" | "vencido" | "a_receber";
+  referenceDate: string | null;
+  status: "recebido_total" | "vencido" | "a_receber" | "sem_data";
   pendingTransactionIds: string[];
   firstTransactionId: string;
 }
 
-export default function ContasReceberTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
-  const isBeforeRange = (dateStr: string) => {
-    if (!dateRange) return false;
+export type ContasReceberMode = "aberto" | "recebido";
+
+interface ContasReceberTabProps {
+  dateRange?: { start: Date; end: Date };
+  /** "aberto" = contas a receber (futuro/pendente) | "recebido" = recebidos (passado) */
+  mode?: ContasReceberMode;
+}
+
+export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasReceberTabProps) {
+  const isReceivedView = mode === "recebido";
+  const isBeforeRange = (dateStr?: string | null) => {
+    if (!dateRange || !dateStr) return false;
     const d = new Date(dateStr + "T00:00:00");
     return d < dateRange.start;
   };
-  const isInCurrentRange = (dateStr: string) => {
+  const isInCurrentRange = (dateStr?: string | null) => {
     if (!dateRange) return true;
+    if (!dateStr) return false;
     return isInRange(dateStr, dateRange);
   };
   const { toast } = useToast();
@@ -144,13 +155,14 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
         ? paidTxns.map(t => t.paid_date as string).sort().slice(-1)[0]
         : null;
       const latestDue = pendingTxns.length > 0
-        ? pendingTxns.sort((a, b) => a.due_date.localeCompare(b.due_date))[0].due_date
-        : txns[0].due_date;
+        ? pendingTxns.filter(t => !!t.due_date).sort((a, b) => (a.due_date as string).localeCompare(b.due_date as string))[0]?.due_date ?? null
+        : txns[0].due_date ?? null;
       const clientId = txns[0].client_id;
       const descTxn = pendingTxns[0] || txns[0];
 
       let status: GroupedReceivable["status"] = "a_receber";
       if (remaining <= 0) status = "recebido_total";
+      else if (!latestDue) status = "sem_data";
       else if (daysUntil(latestDue) < 0) status = "vencido";
 
       const referenceDate = status === "recebido_total" && lastPaidDate ? lastPaidDate : latestDue;
@@ -170,16 +182,17 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
       const remaining = Number(t.amount) - received;
       let status: GroupedReceivable["status"] = "a_receber";
       if (t.status === "pago") status = "recebido_total";
+      else if (!t.due_date) status = "sem_data";
       else if (daysUntil(t.due_date) < 0) status = "vencido";
 
       const lastPaidDate = t.status === "pago" ? t.paid_date : null;
-      const referenceDate = status === "recebido_total" && lastPaidDate ? lastPaidDate : t.due_date;
+      const referenceDate = status === "recebido_total" && lastPaidDate ? lastPaidDate : (t.due_date ?? null);
 
       result.push({
         workOrderId: null, clientId: t.client_id, description: t.description,
         totalValue: Number(t.amount), totalReceived: received,
         remaining: Math.max(remaining, 0), percentReceived: received > 0 ? 100 : 0,
-        dueDate: t.due_date, lastPaidDate, referenceDate, status,
+        dueDate: t.due_date ?? null, lastPaidDate, referenceDate, status,
         pendingTransactionIds: t.status !== "pago" && t.status !== "cancelado" ? [t.id] : [],
         firstTransactionId: t.id,
       });
@@ -190,11 +203,15 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
 
   const filtered = useMemo(() => {
     let list = [...grouped];
+
+    // Base separada: recebidos (passado) x a receber (em aberto)
+    list = isReceivedView
+      ? list.filter(g => g.status === "recebido_total")
+      : list.filter(g => g.status !== "recebido_total");
+
     if (dateRange && !showAllPending) {
-      list = list.filter(g => isInRange(g.referenceDate, dateRange));
-    }
-    if (showAllPending) {
-      list = list.filter(g => g.status !== "recebido_total");
+      // Sem data prevista sempre visível na visão em aberto
+      list = list.filter(g => (!g.referenceDate && !isReceivedView) || isInRange(g.referenceDate ?? "", dateRange));
     }
     if (statusFilter !== "all") {
       list = list.filter(g => g.status === statusFilter);
@@ -208,16 +225,22 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
     }
     list.sort((a, b) => {
       if (sortField === "remaining") return sortAsc ? a.remaining - b.remaining : b.remaining - a.remaining;
-      return sortAsc ? a.referenceDate.localeCompare(b.referenceDate) : b.referenceDate.localeCompare(a.referenceDate);
+      const da = a.referenceDate ?? "";
+      const db = b.referenceDate ?? "";
+      if (!da && db) return -1;
+      if (da && !db) return 1;
+      return sortAsc ? da.localeCompare(db) : db.localeCompare(da);
     });
     return list;
-  }, [grouped, statusFilter, search, sortField, sortAsc, clients, dateRange, showAllPending]);
+  }, [grouped, statusFilter, search, sortField, sortAsc, clients, dateRange, showAllPending, isReceivedView]);
 
   const openItems = grouped.filter(g => g.status !== "recebido_total");
   const totalRestante = openItems.reduce((s, g) => s + g.remaining, 0);
+  const totalSemData = openItems.filter(g => g.status === "sem_data").reduce((s, g) => s + g.remaining, 0);
   const totalVencido = openItems.filter(g => g.status === "vencido").reduce((s, g) => s + g.remaining, 0);
-  const total7d = openItems.filter(g => { const d = daysUntil(g.dueDate); return g.status !== "vencido" && d >= 0 && d <= 7; }).reduce((s, g) => s + g.remaining, 0);
-  const total30d = openItems.filter(g => { const d = daysUntil(g.dueDate); return g.status !== "vencido" && d >= 0 && d <= 30; }).reduce((s, g) => s + g.remaining, 0);
+  const total7d = openItems.filter(g => { const d = daysUntil(g.dueDate); return g.status === "a_receber" && Number.isFinite(d) && d >= 0 && d <= 7; }).reduce((s, g) => s + g.remaining, 0);
+  const total30d = openItems.filter(g => { const d = daysUntil(g.dueDate); return g.status === "a_receber" && Number.isFinite(d) && d >= 0 && d <= 30; }).reduce((s, g) => s + g.remaining, 0);
+  const totalRecebidoPeriodo = isReceivedView ? filtered.reduce((s, g) => s + g.totalReceived, 0) : 0;
 
   const doMesReceber = openItems.filter(g => isInCurrentRange(g.dueDate)).reduce((s, g) => s + g.remaining, 0);
   const acumuladoAnteriorReceber = openItems.filter(g => isBeforeRange(g.dueDate)).reduce((s, g) => s + g.remaining, 0);
@@ -250,7 +273,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
   const editMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
-        due_date: editForm.due_date,
+        due_date: editForm.due_date || null,
         description: editForm.description,
         amount: parseFloat(editForm.amount),
         category: editForm.category || null,
@@ -258,7 +281,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
         payment_method: editForm.payment_method || null,
         account_id: editForm.account_id || null,
         client_id: editForm.client_id || null,
-        paid_date: editForm.status === "pago" ? editForm.due_date : null,
+        paid_date: editForm.status === "pago" ? (editForm.due_date || localDateString()) : null,
       };
       const { error } = await supabase.from("financial_transactions").update(payload).eq("id", editTxId!);
       if (error) throw error;
@@ -295,7 +318,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
     if (!tx) return;
     setEditTxId(tx.id);
     setEditForm({
-      due_date: tx.due_date,
+      due_date: tx.due_date ?? "",
       description: tx.description,
       amount: String(tx.amount),
       category: tx.category ?? "",
@@ -317,11 +340,12 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
     recebido_total: { label: "Recebido Total", className: "bg-green-500/10 text-green-700 border-green-500/20" },
     vencido: { label: "Vencido", className: "bg-red-500/10 text-red-700 border-red-500/20" },
     a_receber: { label: "A Receber", className: "bg-blue-500/10 text-blue-700 border-blue-500/20" },
+    sem_data: { label: "Sem data prevista", className: "bg-muted text-muted-foreground border-muted" },
   };
 
   return (
     <div className="space-y-4">
-      {dateRange && (acumuladoAnteriorReceber > 0 || doMesReceber > 0) && (
+      {!isReceivedView && dateRange && (acumuladoAnteriorReceber > 0 || doMesReceber > 0) && (
         <Card className="border-blue-200 dark:border-blue-800">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-blue-600 flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Composição do Saldo em Aberto</CardTitle></CardHeader>
           <CardContent>
@@ -334,6 +358,18 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
         </Card>
       )}
 
+      {isReceivedView ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="border-green-200 dark:border-green-800">
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-green-600 flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Total Recebido no Período</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold text-green-600">{fmt(totalRecebidoPeriodo)}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Registros</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold">{filtered.length}</p></CardContent>
+          </Card>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Saldo a Receber</CardTitle></CardHeader>
@@ -351,29 +387,32 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Próximos 30 dias</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{fmt(total30d)}</p></CardContent>
         </Card>
-        <Card className="border-green-200 dark:border-green-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-green-600 flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Recebido no Mês</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-green-600">{fmt(recebidoMes)}</p></CardContent>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Sem data prevista</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-bold">{fmt(totalSemData)}</p></CardContent>
         </Card>
       </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar por descrição ou cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="a_receber">A Receber</SelectItem>
-            <SelectItem value="vencido">Vencidos</SelectItem>
-            <SelectItem value="recebido_total">Recebidos</SelectItem>
-          </SelectContent>
-        </Select>
+        {!isReceivedView && (
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="a_receber">A Receber</SelectItem>
+              <SelectItem value="vencido">Vencidos</SelectItem>
+              <SelectItem value="sem_data">Sem data prevista</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Button variant={showAllPending ? "default" : "outline"} size="sm" onClick={() => setShowAllPending(!showAllPending)} className="flex items-center gap-1">
           <Eye className="h-4 w-4" />
-          {showAllPending ? "Filtrar por mês" : "Ver todos pendentes"}
+          {showAllPending ? "Filtrar por período" : "Ver todos"}
         </Button>
       </div>
 
@@ -404,7 +443,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
               return (
                 <TableRow key={g.workOrderId || `no-wo-${idx}`} className={`${rowClass} ${g.status === "recebido_total" ? "opacity-70" : ""}`}>
                   <TableCell className={g.status === "recebido_total" ? "text-green-700 font-medium" : ""}>
-                    {formatDateBR(g.referenceDate)}
+                    {g.referenceDate ? formatDateBR(g.referenceDate) : <span className="text-muted-foreground">Sem data prevista</span>}
                     {g.status === "recebido_total" && <div className="text-[10px] text-muted-foreground">pago</div>}
                   </TableCell>
                   <TableCell className="font-medium max-w-[250px] truncate">{g.description}</TableCell>
@@ -460,7 +499,7 @@ export default function ContasReceberTab({ dateRange }: { dateRange?: { start: D
                 <Input type="number" step="0.01" min="0.01" value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} required />
                 <p className="text-[11px] text-muted-foreground mt-1">Edita apenas esta transação. Não altera o valor total do orçamento.</p>
               </div>
-              <div><Label>Vencimento *</Label><Input type="date" value={editForm.due_date} onChange={e => setEditForm({ ...editForm, due_date: e.target.value })} required /></div>
+              <div><Label>Data Prevista</Label><Input type="date" value={editForm.due_date} onChange={e => setEditForm({ ...editForm, due_date: e.target.value })} /><p className="text-xs text-muted-foreground mt-1">Opcional — sem data fica como "Sem data prevista" (nunca vencido).</p></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Cliente</Label>

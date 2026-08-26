@@ -315,6 +315,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          client_type: string
           cpf_cnpj: string | null
           created_at: string
           created_by: string | null
@@ -329,6 +330,7 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          client_type?: string
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
@@ -343,6 +345,7 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          client_type?: string
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
@@ -916,7 +919,7 @@ export type Database = {
           client_id: string | null
           created_at: string
           description: string
-          due_date: string
+          due_date: string | null
           exclude_from_totals: boolean
           id: string
           paid_date: string | null
@@ -936,7 +939,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string
           description: string
-          due_date: string
+          due_date?: string | null
           exclude_from_totals?: boolean
           id?: string
           paid_date?: string | null
@@ -956,7 +959,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string
           description?: string
-          due_date?: string
+          due_date?: string | null
           exclude_from_totals?: boolean
           id?: string
           paid_date?: string | null

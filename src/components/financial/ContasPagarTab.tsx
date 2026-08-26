@@ -30,15 +30,20 @@ const paymentMethods = [
   { value: "transferencia", label: "Transferência Bancária" },
 ];
 
-function daysUntil(dateStr: string): number {
+function daysUntil(dateStr?: string | null): number {
+  if (!dateStr) return Number.POSITIVE_INFINITY;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const d = new Date(dateStr + "T00:00:00");
   return Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function getStatus(t: { status: string; due_date: string }): "pago" | "vencido" | "a_vencer" {
+type ComputedStatus = "pago" | "vencido" | "a_vencer" | "sem_data";
+
+function getStatus(t: { status: string; due_date?: string | null }): ComputedStatus {
   if (t.status === "pago") return "pago";
+  // Regra: sem data prevista NUNCA é vencido — vencido só significa inadimplência real.
+  if (!t.due_date) return "sem_data";
   if (daysUntil(t.due_date) < 0) return "vencido";
   return "a_vencer";
 }
@@ -47,16 +52,27 @@ const statusBadge: Record<string, { label: string; className: string }> = {
   pago: { label: "Pago", className: "bg-green-500/10 text-green-700 border-green-500/20" },
   vencido: { label: "Vencido", className: "bg-red-500/10 text-red-700 border-red-500/20" },
   a_vencer: { label: "A Vencer", className: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20" },
+  sem_data: { label: "Sem data prevista", className: "bg-muted text-muted-foreground border-muted" },
 };
 
-export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
-  const isBeforeRange = (dateStr: string) => {
-    if (!dateRange) return false;
+export type ContasPagarMode = "aberto" | "pago";
+
+interface ContasPagarTabProps {
+  dateRange?: { start: Date; end: Date };
+  /** "aberto" = contas a pagar (futuro/pendente) | "pago" = contas pagas (passado) */
+  mode?: ContasPagarMode;
+}
+
+export default function ContasPagarTab({ dateRange, mode = "aberto" }: ContasPagarTabProps) {
+  const isPaidView = mode === "pago";
+  const isBeforeRange = (dateStr?: string | null) => {
+    if (!dateRange || !dateStr) return false;
     const d = new Date(dateStr + "T00:00:00");
     return d < dateRange.start;
   };
-  const isInCurrentRange = (dateStr: string) => {
+  const isInCurrentRange = (dateStr?: string | null) => {
     if (!dateRange) return true;
+    if (!dateStr) return false;
     return isInRange(dateStr, dateRange);
   };
   const { toast } = useToast();
@@ -106,13 +122,21 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
     },
   });
 
+  // Data de referência: pendente usa vencimento, pago usa a data do pagamento (regime de caixa)
+  const refDateOf = (t: any): string | null =>
+    t.status === "pago" ? (t.paid_date ?? t.due_date ?? null) : (t.due_date ?? null);
+
   const filtered = useMemo(() => {
     let list = transactions.map(t => ({ ...t, computedStatus: getStatus(t) }));
+
+    // Base separada por visão: contas pagas (passado) x contas a pagar (em aberto)
+    list = isPaidView
+      ? list.filter(t => t.computedStatus === "pago")
+      : list.filter(t => t.computedStatus !== "pago" && t.status !== "cancelado");
+
     if (dateRange && !showAllPending) {
-      list = list.filter(t => isInRange(t.due_date, dateRange));
-    }
-    if (showAllPending) {
-      list = list.filter(t => t.computedStatus !== "pago");
+      // Lançamentos sem data prevista sempre aparecem, para poderem ser definidos
+      list = list.filter(t => (!t.due_date && !isPaidView) || isInRange(refDateOf(t) ?? "", dateRange));
     }
     if (statusFilter !== "all") {
       list = list.filter(t => t.computedStatus === statusFilter);
@@ -126,16 +150,24 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
     }
     list.sort((a, b) => {
       if (sortField === "amount") return sortAsc ? Number(a.amount) - Number(b.amount) : Number(b.amount) - Number(a.amount);
-      return sortAsc ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);
+      // Sem data vai primeiro na visão em aberto (precisa de definição)
+      const da = refDateOf(a) ?? "";
+      const db = refDateOf(b) ?? "";
+      if (!da && db) return -1;
+      if (da && !db) return 1;
+      return sortAsc ? da.localeCompare(db) : db.localeCompare(da);
     });
     return list;
-  }, [transactions, statusFilter, catFilter, search, sortField, sortAsc, dateRange, showAllPending]);
+  }, [transactions, statusFilter, catFilter, search, sortField, sortAsc, dateRange, showAllPending, isPaidView]);
 
   const openItems = transactions.filter(t => t.status !== "pago" && t.status !== "cancelado");
   const totalAberto = openItems.reduce((s, t) => s + Number(t.amount), 0);
-  const totalVencido = openItems.filter(t => daysUntil(t.due_date) < 0).reduce((s, t) => s + Number(t.amount), 0);
-  const total7d = openItems.filter(t => { const d = daysUntil(t.due_date); return d >= 0 && d <= 7; }).reduce((s, t) => s + Number(t.amount), 0);
-  const total30d = openItems.filter(t => { const d = daysUntil(t.due_date); return d >= 0 && d <= 30; }).reduce((s, t) => s + Number(t.amount), 0);
+  const totalSemData = openItems.filter(t => !t.due_date).reduce((s, t) => s + Number(t.amount), 0);
+  const totalVencido = openItems.filter(t => !!t.due_date && daysUntil(t.due_date) < 0).reduce((s, t) => s + Number(t.amount), 0);
+  const total7d = openItems.filter(t => { const d = daysUntil(t.due_date); return Number.isFinite(d) && d >= 0 && d <= 7; }).reduce((s, t) => s + Number(t.amount), 0);
+  const total30d = openItems.filter(t => { const d = daysUntil(t.due_date); return Number.isFinite(d) && d >= 0 && d <= 30; }).reduce((s, t) => s + Number(t.amount), 0);
+
+  const totalPagoPeriodo = filtered.reduce((s, t) => s + Number(t.amount), 0);
 
   const doMesPagar = openItems.filter(t => isInCurrentRange(t.due_date)).reduce((s, t) => s + Number(t.amount), 0);
   const acumuladoAnteriorPagar = openItems.filter(t => isBeforeRange(t.due_date)).reduce((s, t) => s + Number(t.amount), 0);
@@ -177,7 +209,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
       const isPaid = editForm.status === "pago";
       
       const payload: any = {
-        due_date: editForm.due_date,
+        due_date: editForm.due_date || null,
         description: editForm.description,
         amount: amountNum,
         category: editForm.category || null,
@@ -195,7 +227,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
           .update({ 
             payment_status: editForm.status,
             total: amountNum,
-            due_date: editForm.due_date,
+            due_date: editForm.due_date || null,
             payment_method: editForm.payment_method
           } as any)
           .eq("id", transaction.purchase_id);
@@ -205,7 +237,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
           .update({ 
             payment_status: editForm.status,
             total: amountNum,
-            due_date: editForm.due_date,
+            due_date: editForm.due_date || null,
             payment_method: editForm.payment_method
           } as any)
           .eq("id", transaction.purchase_order_id);
@@ -249,7 +281,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
   const openEdit = (t: any) => {
     setEditId(t.id);
     setEditForm({
-      due_date: t.due_date,
+      due_date: t.due_date ?? "",
       description: t.description,
       amount: String(t.amount),
       category: t.category ?? "",
@@ -268,7 +300,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
 
   return (
     <div className="space-y-4">
-      {dateRange && (acumuladoAnteriorPagar > 0 || doMesPagar > 0) && (
+      {!isPaidView && dateRange && (acumuladoAnteriorPagar > 0 || doMesPagar > 0) && (
         <Card className="border-orange-200 dark:border-orange-800">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-orange-600 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Composição do Saldo a Pagar</CardTitle></CardHeader>
           <CardContent>
@@ -281,39 +313,58 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Total a Pagar</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-red-600">{fmt(totalAberto)}</p></CardContent>
-        </Card>
-        <Card className="border-red-200 dark:border-red-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-red-600 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Vencido</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-red-600">{fmt(totalVencido)}</p></CardContent>
-        </Card>
-        <Card className="border-yellow-200 dark:border-yellow-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-yellow-600 flex items-center gap-2"><Clock className="h-4 w-4" /> Próximos 7 dias</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-yellow-600">{fmt(total7d)}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Próximos 30 dias</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{fmt(total30d)}</p></CardContent>
-        </Card>
-      </div>
+      {isPaidView ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="border-green-200 dark:border-green-800">
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-green-600 flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Total Pago no Período</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold text-green-600">{fmt(totalPagoPeriodo)}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Lançamentos</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold">{filtered.length}</p></CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Total a Pagar</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold text-red-600">{fmt(totalAberto)}</p></CardContent>
+          </Card>
+          <Card className="border-red-200 dark:border-red-800">
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-red-600 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Vencido (inadimplência)</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold text-red-600">{fmt(totalVencido)}</p></CardContent>
+          </Card>
+          <Card className="border-yellow-200 dark:border-yellow-800">
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-yellow-600 flex items-center gap-2"><Clock className="h-4 w-4" /> Próximos 7 dias</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold text-yellow-600">{fmt(total7d)}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Próximos 30 dias</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold">{fmt(total30d)}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Sem data prevista</CardTitle></CardHeader>
+            <CardContent><p className="text-2xl font-bold">{fmt(totalSemData)}</p></CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar por descrição..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="a_vencer">A Vencer</SelectItem>
-            <SelectItem value="vencido">Vencidos</SelectItem>
-            <SelectItem value="pago">Pagos</SelectItem>
-          </SelectContent>
-        </Select>
+        {!isPaidView && (
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="a_vencer">A Vencer</SelectItem>
+              <SelectItem value="vencido">Vencidos</SelectItem>
+              <SelectItem value="sem_data">Sem data prevista</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Select value={catFilter} onValueChange={setCatFilter}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
@@ -323,7 +374,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
         </Select>
         <Button variant={showAllPending ? "default" : "outline"} size="sm" onClick={() => setShowAllPending(!showAllPending)} className="flex items-center gap-1">
           <Eye className="h-4 w-4" />
-          {showAllPending ? "Filtrar por mês" : "Ver todos pendentes"}
+          {showAllPending ? "Filtrar por período" : "Ver todos"}
         </Button>
       </div>
 
@@ -331,7 +382,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>Vencimento <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+              <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>{isPaidView ? "Pagamento" : "Vencimento"} <ArrowUpDown className="inline h-3 w-3" /></TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Conta</TableHead>
@@ -347,9 +398,10 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
                 ? "bg-red-50 dark:bg-red-950/20"
                 : (t.computedStatus === "a_vencer" && days <= 7 ? "bg-yellow-50 dark:bg-yellow-950/20" : "");
               const badge = statusBadge[t.computedStatus];
+              const refDate = t.status === "pago" ? (t.paid_date ?? t.due_date) : t.due_date;
               return (
                 <TableRow key={t.id} className={`${rowClass} ${t.computedStatus === "pago" ? "opacity-60" : ""}`}>
-                  <TableCell>{formatDateBR(t.due_date)}</TableCell>
+                  <TableCell className={refDate ? "" : "text-muted-foreground"}>{refDate ? formatDateBR(refDate) : "Sem data prevista"}</TableCell>
                   <TableCell className="font-medium max-w-[250px] truncate">{t.description}</TableCell>
                   <TableCell>{t.category ?? "—"}</TableCell>
                   <TableCell>{t.account_id ? (accounts.find(a => a.id === t.account_id)?.name ?? "—") : "—"}</TableCell>
@@ -392,7 +444,7 @@ export default function ContasPagarTab({ dateRange }: { dateRange?: { start: Dat
             <div><Label>Descrição *</Label><Input value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} required /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" min="0.01" value={editForm.amount} onChange={e => setEditForm({ ...editForm, amount: e.target.value })} required /></div>
-              <div><Label>Vencimento *</Label><Input type="date" value={editForm.due_date} onChange={e => setEditForm({ ...editForm, due_date: e.target.value })} required /></div>
+              <div><Label>Vencimento</Label><Input type="date" value={editForm.due_date} onChange={e => setEditForm({ ...editForm, due_date: e.target.value })} /><p className="text-xs text-muted-foreground mt-1">Opcional — sem data fica como "Sem data prevista" (nunca vencido).</p></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Categoria</Label>

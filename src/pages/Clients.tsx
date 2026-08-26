@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 
@@ -17,6 +19,7 @@ type Client = {
   id: string; name: string; email: string | null; phone: string | null;
   cpf_cnpj: string | null; address: string | null; city: string | null;
   state: string | null; notes: string | null; created_by?: string | null;
+  client_type?: string | null;
 };
 
 const Clients = () => {
@@ -27,7 +30,8 @@ const Clients = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", cpf_cnpj: "", address: "", city: "", state: "", notes: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", cpf_cnpj: "", address: "", city: "", state: "", notes: "", client_type: "final" });
+
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["clients"],
@@ -84,13 +88,13 @@ const Clients = () => {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", email: "", phone: "", cpf_cnpj: "", address: "", city: "", state: "", notes: "" });
+    setForm({ name: "", email: "", phone: "", cpf_cnpj: "", address: "", city: "", state: "", notes: "", client_type: "final" });
     setOpen(true);
   };
 
   const openEdit = (c: Client) => {
     setEditing(c);
-    setForm({ name: c.name, email: c.email ?? "", phone: c.phone ?? "", cpf_cnpj: c.cpf_cnpj ?? "", address: c.address ?? "", city: c.city ?? "", state: c.state ?? "", notes: c.notes ?? "" });
+    setForm({ name: c.name, email: c.email ?? "", phone: c.phone ?? "", cpf_cnpj: c.cpf_cnpj ?? "", address: c.address ?? "", city: c.city ?? "", state: c.state ?? "", notes: c.notes ?? "", client_type: c.client_type ?? "final" });
     setOpen(true);
   };
 
@@ -120,6 +124,19 @@ const Clients = () => {
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2"><Label>Nome *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
+                <div className="sm:col-span-2">
+                  <Label>Tipo de Cliente *</Label>
+                  <Select value={form.client_type} onValueChange={v => setForm({ ...form, client_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="final">Cliente Final</SelectItem>
+                      <SelectItem value="construtora">Construtora</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cliente final usa o prazo de entrega como base da data prevista das parcelas (prazo − 5 dias de folga).
+                  </p>
+                </div>
                 <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
                 <div><Label>Telefone</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
                 <div><Label>CPF/CNPJ</Label><Input value={form.cpf_cnpj} onChange={e => setForm({ ...form, cpf_cnpj: e.target.value })} /></div>
@@ -168,6 +185,7 @@ const Clients = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Cidade/UF</TableHead>
@@ -178,6 +196,11 @@ const Clients = () => {
             {filtered.map(c => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
+                <TableCell>
+                  <Badge variant={c.client_type === "construtora" ? "default" : "secondary"}>
+                    {c.client_type === "construtora" ? "Construtora" : "Cliente Final"}
+                  </Badge>
+                </TableCell>
                 <TableCell>{c.email}</TableCell>
                 <TableCell>{c.phone}</TableCell>
                 <TableCell>{[c.city, c.state].filter(Boolean).join("/")}</TableCell>
@@ -194,7 +217,7 @@ const Clients = () => {
               </TableRow>
             ))}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum cliente encontrado.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum cliente encontrado.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
