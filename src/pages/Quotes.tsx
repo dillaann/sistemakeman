@@ -1840,6 +1840,47 @@ const Quotes = () => {
                     </>
                   )}
 
+                  {approvalRemaining > 0 && (
+                    <div className="space-y-2 border-t pt-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label>Parcelas do saldo (contas a receber)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={24}
+                          className="w-20"
+                          value={balanceDates.length}
+                          onChange={e => {
+                            const n = Math.min(Math.max(parseInt(e.target.value) || 1, 1), 24);
+                            setBalanceDates(prev => {
+                              const next = [...prev];
+                              while (next.length < n) next.push("");
+                              return next.slice(0, n);
+                            });
+                          }}
+                        />
+                      </div>
+                      {balanceDates.map((d, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-24">
+                            {balanceDates.length > 1 ? `Parcela ${i + 1}` : "Data prevista"}
+                          </span>
+                          <Input type="date" value={d} onChange={e => {
+                            const v = e.target.value;
+                            setBalanceDates(prev => prev.map((x, idx) => idx === i ? v : x));
+                          }} />
+                          <span className="text-xs font-medium whitespace-nowrap">
+                            {fmt(approvalRemaining / balanceDates.length)}
+                          </span>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground">
+                        Data sugerida pelo prazo de entrega (prazo − 5 dias) para clientes finais. Sem data, o lançamento fica como "Sem data prevista" e nunca conta como vencido.
+                      </p>
+                    </div>
+                  )}
+
+
                   <div>
                     <Label>Forma de Pagamento</Label>
                     <Select value={paymentMethod} onValueChange={setPaymentMethod}>
