@@ -175,7 +175,8 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
         percentReceived: Math.min(percentReceived, 100), dueDate: latestDue,
         lastPaidDate, referenceDate, status,
         pendingTransactionIds: pendingTxns.map(t => t.id),
-        firstTransactionId: (pendingTxns[0] || txns[0]).id,
+        pendingTransactions: pendingTxns.map(t => ({ id: t.id, amount: Number(t.amount), due_date: t.due_date ?? null })),
+
       });
     }
 
