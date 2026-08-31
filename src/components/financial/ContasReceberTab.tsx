@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp, Eye, Pencil, Trash2 } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp, Eye, Pencil, Trash2, HandCoins } from "lucide-react";
 import { formatDateBR, localDateString } from "@/lib/utils";
 import { isInRange } from "@/components/MonthFilter";
 import { useAuth } from "@/contexts/AuthContext";
