@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp, Eye, Pencil, Trash2 } from "lucide-react";
+import { Search, ArrowUpDown, AlertTriangle, Clock, CheckCircle2, TrendingUp, Eye, Pencil, Trash2, HandCoins } from "lucide-react";
 import { formatDateBR, localDateString } from "@/lib/utils";
 import { isInRange } from "@/components/MonthFilter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +52,8 @@ interface GroupedReceivable {
   referenceDate: string | null;
   status: "recebido_total" | "vencido" | "a_receber" | "sem_data";
   pendingTransactionIds: string[];
+  /** Parcelas em aberto (id, valor, vencimento) para abater pagamentos avulsos. */
+  pendingTransactions: { id: string; amount: number; due_date: string | null }[];
   firstTransactionId: string;
 }
 
@@ -91,6 +93,11 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
   const [editForm, setEditForm] = useState({
     due_date: "", description: "", amount: "", category: "", status: "pendente", payment_method: "pix", account_id: "", client_id: "", notes: "",
   });
+
+  // Pagamento avulso (parcial) state
+  const [partialTarget, setPartialTarget] = useState<GroupedReceivable | null>(null);
+  const [partialForm, setPartialForm] = useState({ amount: "", date: localDateString(), payment_method: "pix" });
+
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -173,6 +180,7 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
         percentReceived: Math.min(percentReceived, 100), dueDate: latestDue,
         lastPaidDate, referenceDate, status,
         pendingTransactionIds: pendingTxns.map(t => t.id),
+        pendingTransactions: pendingTxns.map(t => ({ id: t.id, amount: Number(t.amount), due_date: t.due_date ?? null })),
         firstTransactionId: (pendingTxns[0] || txns[0]).id,
       });
     }
@@ -194,6 +202,9 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
         remaining: Math.max(remaining, 0), percentReceived: received > 0 ? 100 : 0,
         dueDate: t.due_date ?? null, lastPaidDate, referenceDate, status,
         pendingTransactionIds: t.status !== "pago" && t.status !== "cancelado" ? [t.id] : [],
+        pendingTransactions: t.status !== "pago" && t.status !== "cancelado"
+          ? [{ id: t.id, amount: Number(t.amount), due_date: t.due_date ?? null }]
+          : [],
         firstTransactionId: t.id,
       });
     }
@@ -269,6 +280,69 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
       toast({ title: "Recebimento registrado!" });
     },
   });
+
+  /**
+   * Pagamento avulso: registra uma entrada paga e abate o mesmo valor
+   * das parcelas em aberto (das mais antigas para as mais novas),
+   * mantendo o valor total do serviço intacto.
+   */
+  const partialPayment = useMutation({
+    mutationFn: async () => {
+      const g = partialTarget;
+      if (!g) throw new Error("Nenhum serviço selecionado.");
+      const value = Number(parseFloat(partialForm.amount).toFixed(2));
+      if (!Number.isFinite(value) || value <= 0) throw new Error("Informe um valor válido.");
+      if (value > g.remaining + 0.01) throw new Error(`Valor maior que o saldo em aberto (${fmt(g.remaining)}).`);
+      if (!partialForm.date) throw new Error("Informe a data do pagamento.");
+
+      // 1) Entrada paga
+      const { error: insErr } = await supabase.from("financial_transactions").insert({
+        type: "a_receber" as any,
+        status: "pago" as any,
+        description: `Pagamento avulso - ${g.description}`,
+        amount: value,
+        due_date: partialForm.date,
+        paid_date: partialForm.date,
+        payment_method: partialForm.payment_method,
+        category: "Faturamento",
+        work_order_id: g.workOrderId,
+        client_id: g.clientId,
+      } as any);
+      if (insErr) throw insErr;
+
+      // 2) Abate das parcelas em aberto (mais antigas primeiro; sem data por último)
+      const pending = [...g.pendingTransactions].sort((a, b) => {
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      });
+      let rest = value;
+      for (const p of pending) {
+        if (rest <= 0.005) break;
+        if (p.amount <= rest + 0.005) {
+          const { error } = await supabase.from("financial_transactions").delete().eq("id", p.id);
+          if (error) throw error;
+          rest = Number((rest - p.amount).toFixed(2));
+        } else {
+          const novo = Number((p.amount - rest).toFixed(2));
+          const { error } = await supabase.from("financial_transactions").update({ amount: novo }).eq("id", p.id);
+          if (error) throw error;
+          rest = 0;
+        }
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      qc.invalidateQueries({ queryKey: ["financial-entradas"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setPartialTarget(null);
+      setPartialForm({ amount: "", date: localDateString(), payment_method: "pix" });
+      toast({ title: "Pagamento avulso registrado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
 
   const editMutation = useMutation({
     mutationFn: async () => {
@@ -465,6 +539,18 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Receber
                         </Button>
                       )}
+                      {g.status !== "recebido_total" && g.pendingTransactions.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setPartialTarget(g);
+                            setPartialForm({ amount: "", date: localDateString(), payment_method: "pix" });
+                          }}
+                        >
+                          <HandCoins className="h-4 w-4 mr-1" /> Avulso
+                        </Button>
+                      )}
                       {canEdit && (
                         <Button variant="ghost" size="icon" onClick={() => openEdit(g)}>
                           <Pencil className="h-4 w-4" />
@@ -487,8 +573,62 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
         </Table>
       </div>
 
+      {/* Pagamento avulso Dialog */}
+      <Dialog open={!!partialTarget} onOpenChange={v => { if (!v) setPartialTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Registrar pagamento avulso</DialogTitle></DialogHeader>
+          {partialTarget && (
+            <form onSubmit={e => { e.preventDefault(); partialPayment.mutate(); }} className="space-y-3">
+              <div className="rounded-md border p-3 text-sm space-y-1">
+                <p className="font-medium">{partialTarget.description}</p>
+                <p className="text-muted-foreground">
+                  Total {fmt(partialTarget.totalValue)} · Recebido {fmt(partialTarget.totalReceived)} ·{" "}
+                  <span className="text-primary font-semibold">Saldo {fmt(partialTarget.remaining)}</span>
+                </p>
+              </div>
+              <div>
+                <Label>Valor recebido (R$) *</Label>
+                <Input
+                  type="number" step="0.01" min="0.01" max={partialTarget.remaining}
+                  value={partialForm.amount}
+                  onChange={e => setPartialForm({ ...partialForm, amount: e.target.value })}
+                  required
+                />
+                {partialForm.amount && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Saldo após o pagamento: {fmt(Math.max(partialTarget.remaining - (parseFloat(partialForm.amount) || 0), 0))}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Data do pagamento *</Label>
+                  <Input type="date" value={partialForm.date} onChange={e => setPartialForm({ ...partialForm, date: e.target.value })} required />
+                </div>
+                <div>
+                  <Label>Forma de pagamento</Label>
+                  <Select value={partialForm.payment_method} onValueChange={v => setPartialForm({ ...partialForm, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setPartialTarget(null)}>Cancelar</Button>
+                <Button type="submit" disabled={partialPayment.isPending}>
+                  {partialPayment.isPending ? "Registrando..." : "Registrar"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) setEditTxId(null); }}>
+
         <DialogContent>
           <DialogHeader><DialogTitle>Editar Conta a Receber</DialogTitle></DialogHeader>
           <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-3">
