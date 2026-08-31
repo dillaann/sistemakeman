@@ -176,7 +176,7 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
         lastPaidDate, referenceDate, status,
         pendingTransactionIds: pendingTxns.map(t => t.id),
         pendingTransactions: pendingTxns.map(t => ({ id: t.id, amount: Number(t.amount), due_date: t.due_date ?? null })),
-
+        firstTransactionId: (pendingTxns[0] || txns[0]).id,
       });
     }
 
