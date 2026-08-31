@@ -52,6 +52,8 @@ interface GroupedReceivable {
   referenceDate: string | null;
   status: "recebido_total" | "vencido" | "a_receber" | "sem_data";
   pendingTransactionIds: string[];
+  /** Parcelas em aberto (id, valor, vencimento) para abater pagamentos avulsos. */
+  pendingTransactions: { id: string; amount: number; due_date: string | null }[];
   firstTransactionId: string;
 }
 
