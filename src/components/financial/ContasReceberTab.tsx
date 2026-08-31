@@ -573,8 +573,62 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
         </Table>
       </div>
 
+      {/* Pagamento avulso Dialog */}
+      <Dialog open={!!partialTarget} onOpenChange={v => { if (!v) setPartialTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Registrar pagamento avulso</DialogTitle></DialogHeader>
+          {partialTarget && (
+            <form onSubmit={e => { e.preventDefault(); partialPayment.mutate(); }} className="space-y-3">
+              <div className="rounded-md border p-3 text-sm space-y-1">
+                <p className="font-medium">{partialTarget.description}</p>
+                <p className="text-muted-foreground">
+                  Total {fmt(partialTarget.totalValue)} · Recebido {fmt(partialTarget.totalReceived)} ·{" "}
+                  <span className="text-primary font-semibold">Saldo {fmt(partialTarget.remaining)}</span>
+                </p>
+              </div>
+              <div>
+                <Label>Valor recebido (R$) *</Label>
+                <Input
+                  type="number" step="0.01" min="0.01" max={partialTarget.remaining}
+                  value={partialForm.amount}
+                  onChange={e => setPartialForm({ ...partialForm, amount: e.target.value })}
+                  required
+                />
+                {partialForm.amount && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Saldo após o pagamento: {fmt(Math.max(partialTarget.remaining - (parseFloat(partialForm.amount) || 0), 0))}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Data do pagamento *</Label>
+                  <Input type="date" value={partialForm.date} onChange={e => setPartialForm({ ...partialForm, date: e.target.value })} required />
+                </div>
+                <div>
+                  <Label>Forma de pagamento</Label>
+                  <Select value={partialForm.payment_method} onValueChange={v => setPartialForm({ ...partialForm, payment_method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setPartialTarget(null)}>Cancelar</Button>
+                <Button type="submit" disabled={partialPayment.isPending}>
+                  {partialPayment.isPending ? "Registrando..." : "Registrar"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={v => { setEditOpen(v); if (!v) setEditTxId(null); }}>
+
         <DialogContent>
           <DialogHeader><DialogTitle>Editar Conta a Receber</DialogTitle></DialogHeader>
           <form onSubmit={e => { e.preventDefault(); editMutation.mutate(); }} className="space-y-3">
