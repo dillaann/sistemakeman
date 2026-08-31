@@ -197,6 +197,9 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
         remaining: Math.max(remaining, 0), percentReceived: received > 0 ? 100 : 0,
         dueDate: t.due_date ?? null, lastPaidDate, referenceDate, status,
         pendingTransactionIds: t.status !== "pago" && t.status !== "cancelado" ? [t.id] : [],
+        pendingTransactions: t.status !== "pago" && t.status !== "cancelado"
+          ? [{ id: t.id, amount: Number(t.amount), due_date: t.due_date ?? null }]
+          : [],
         firstTransactionId: t.id,
       });
     }
