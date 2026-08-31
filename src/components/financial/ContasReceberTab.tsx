@@ -281,6 +281,69 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
     },
   });
 
+  /**
+   * Pagamento avulso: registra uma entrada paga e abate o mesmo valor
+   * das parcelas em aberto (das mais antigas para as mais novas),
+   * mantendo o valor total do serviço intacto.
+   */
+  const partialPayment = useMutation({
+    mutationFn: async () => {
+      const g = partialTarget;
+      if (!g) throw new Error("Nenhum serviço selecionado.");
+      const value = Number(parseFloat(partialForm.amount).toFixed(2));
+      if (!Number.isFinite(value) || value <= 0) throw new Error("Informe um valor válido.");
+      if (value > g.remaining + 0.01) throw new Error(`Valor maior que o saldo em aberto (${fmt(g.remaining)}).`);
+      if (!partialForm.date) throw new Error("Informe a data do pagamento.");
+
+      // 1) Entrada paga
+      const { error: insErr } = await supabase.from("financial_transactions").insert({
+        type: "a_receber" as any,
+        status: "pago" as any,
+        description: `Pagamento avulso - ${g.description}`,
+        amount: value,
+        due_date: partialForm.date,
+        paid_date: partialForm.date,
+        payment_method: partialForm.payment_method,
+        category: "Faturamento",
+        work_order_id: g.workOrderId,
+        client_id: g.clientId,
+      } as any);
+      if (insErr) throw insErr;
+
+      // 2) Abate das parcelas em aberto (mais antigas primeiro; sem data por último)
+      const pending = [...g.pendingTransactions].sort((a, b) => {
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      });
+      let rest = value;
+      for (const p of pending) {
+        if (rest <= 0.005) break;
+        if (p.amount <= rest + 0.005) {
+          const { error } = await supabase.from("financial_transactions").delete().eq("id", p.id);
+          if (error) throw error;
+          rest = Number((rest - p.amount).toFixed(2));
+        } else {
+          const novo = Number((p.amount - rest).toFixed(2));
+          const { error } = await supabase.from("financial_transactions").update({ amount: novo }).eq("id", p.id);
+          if (error) throw error;
+          rest = 0;
+        }
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["financial-contas-receber"] });
+      qc.invalidateQueries({ queryKey: ["financial-entradas"] });
+      qc.invalidateQueries({ queryKey: ["financial"] });
+      setPartialTarget(null);
+      setPartialForm({ amount: "", date: localDateString(), payment_method: "pix" });
+      toast({ title: "Pagamento avulso registrado!" });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+
   const editMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
