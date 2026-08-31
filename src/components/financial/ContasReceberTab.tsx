@@ -539,6 +539,18 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Receber
                         </Button>
                       )}
+                      {g.status !== "recebido_total" && g.pendingTransactions.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setPartialTarget(g);
+                            setPartialForm({ amount: "", date: localDateString(), payment_method: "pix" });
+                          }}
+                        >
+                          <HandCoins className="h-4 w-4 mr-1" /> Avulso
+                        </Button>
+                      )}
                       {canEdit && (
                         <Button variant="ghost" size="icon" onClick={() => openEdit(g)}>
                           <Pencil className="h-4 w-4" />
