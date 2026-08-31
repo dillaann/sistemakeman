@@ -94,6 +94,11 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
     due_date: "", description: "", amount: "", category: "", status: "pendente", payment_method: "pix", account_id: "", client_id: "", notes: "",
   });
 
+  // Pagamento avulso (parcial) state
+  const [partialTarget, setPartialTarget] = useState<GroupedReceivable | null>(null);
+  const [partialForm, setPartialForm] = useState({ amount: "", date: localDateString(), payment_method: "pix" });
+
+
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
