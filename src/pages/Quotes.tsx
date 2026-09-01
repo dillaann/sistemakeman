@@ -428,8 +428,23 @@ const Quotes = () => {
       } as any).eq("id", quoteId);
       if (quoteError) throw quoteError;
 
-      // Delete old items and insert new ones
-      await supabase.from("quote_items").delete().eq("quote_id", quoteId);
+      // Remove os itens antigos e insere os novos.
+      // Verificamos o retorno: se a remoção falhar (ex.: permissão), abortamos
+      // para não duplicar itens no orçamento nem no PDF.
+      const { data: deletedItems, error: deleteItemsError } = await supabase
+        .from("quote_items")
+        .delete()
+        .eq("quote_id", quoteId)
+        .select("id");
+      if (deleteItemsError) throw deleteItemsError;
+      const { count: remainingItems } = await supabase
+        .from("quote_items")
+        .select("id", { count: "exact", head: true })
+        .eq("quote_id", quoteId);
+      if ((remainingItems ?? 0) > 0) {
+        throw new Error("Não foi possível atualizar os itens do orçamento (itens antigos não removidos). Contate o administrador.");
+      }
+      void deletedItems;
       const itemsToInsert = validItems.map(it => ({
         quote_id: quoteId,
         description: it.description,

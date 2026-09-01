@@ -1,0 +1,1 @@
+CREATE POLICY "Quote items vendedor own delete" ON public.quote_items FOR DELETE TO authenticated USING (has_role(auth.uid(),'vendedor'::app_role) AND EXISTS (SELECT 1 FROM public.quotes q WHERE q.id = quote_items.quote_id AND q.seller_id = auth.uid()));
