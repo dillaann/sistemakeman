@@ -452,7 +452,10 @@ const AdminSalesView = () => {
     queryKey: ["sellers"],
     queryFn: async () => {
       // Admins que também atuam como vendedores e devem aparecer no rank de vendas.
-      const EXTRA_SELLER_IDS = ["cc0ce84c-d39e-44b5-9709-5e55aa81f94e"]; // Dillan Martins Silva
+      const EXTRA_SELLER_IDS = [
+        "cc0ce84c-d39e-44b5-9709-5e55aa81f94e", // Dillan Martins Silva
+        "b0c6151f-89c1-4293-86b7-7cf4c8d18fa3", // Bruno Pereira da Costa
+      ];
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
       const vendedorIds = (roles ?? []).filter(r => r.role === "vendedor").map(r => r.user_id);
       const sellerIds = Array.from(new Set([...vendedorIds, ...EXTRA_SELLER_IDS]));
