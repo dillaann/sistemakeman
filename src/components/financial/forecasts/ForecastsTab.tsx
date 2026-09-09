@@ -151,6 +151,55 @@ export default function ForecastsTab() {
     onError: (e: Error) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
   });
 
+  /**
+   * Baixa da previsão: cria o lançamento real no Financeiro (Entradas ou Saídas)
+   * e marca a previsão como baixada, guardando o vínculo com a transação criada.
+   */
+  const settleMutation = useMutation({
+    mutationFn: async ({ forecast, values }: { forecast: Forecast; values: SettleValues }) => {
+      const amount = Number(values.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Informe um valor válido.");
+
+      const { data: created, error: txError } = await supabase
+        .from("financial_transactions")
+        .insert({
+          type: forecast.type === "entrada" ? "a_receber" : "a_pagar",
+          status: "pago" as const,
+          description: forecast.description,
+          amount,
+          due_date: values.date,
+          paid_date: values.date,
+          category: forecast.category || null,
+          payment_method: values.payment_method || null,
+          account_id: values.account_id || null,
+        })
+        .select("id")
+        .single();
+      if (txError) throw txError;
+
+      const { error: fcError } = await supabase
+        .from("financial_forecasts")
+        .update({
+          status: "baixado",
+          settled_at: values.date,
+          settled_transaction_id: created.id,
+          notes: values.notes.trim() || null,
+        })
+        .eq("id", forecast.id);
+      if (fcError) throw fcError;
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
+      setSettling(null);
+      toast({ title: "Baixa registrada", description: "Lançamento criado no Financeiro." });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao dar baixa", description: e.message, variant: "destructive" }),
+  });
+
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return forecasts.filter((f) => {
