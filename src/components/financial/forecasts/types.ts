@@ -10,6 +10,9 @@ export interface Forecast {
   notes: string | null;
   recurrence: ForecastRecurrence;
   series_id: string | null;
+  status: "previsto" | "baixado";
+  settled_at: string | null;
+  settled_transaction_id: string | null;
   created_at: string;
   updated_at: string;
 }

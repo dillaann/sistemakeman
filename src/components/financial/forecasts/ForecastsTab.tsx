@@ -16,8 +16,9 @@ import {
 import {
   Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Info, CheckCircle2 } from "lucide-react";
 import { ForecastDialog } from "./ForecastDialog";
+import { SettleForecastDialog, type SettleValues } from "./SettleForecastDialog";
 import type { Forecast, ForecastFormValues } from "./types";
 import { MONTH_NAMES, RECURRENCE_LABELS } from "@/lib/forecast-recurrence";
 
@@ -53,6 +54,7 @@ export default function ForecastsTab() {
   const [editing, setEditing] = useState<Forecast | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
+  const [settling, setSettling] = useState<Forecast | null>(null);
 
   const { data: forecasts = [], isLoading } = useQuery({
     queryKey: ["financial-forecasts", year],
@@ -148,6 +150,55 @@ export default function ForecastsTab() {
     },
     onError: (e: Error) => toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
   });
+
+  /**
+   * Baixa da previsão: cria o lançamento real no Financeiro (Entradas ou Saídas)
+   * e marca a previsão como baixada, guardando o vínculo com a transação criada.
+   */
+  const settleMutation = useMutation({
+    mutationFn: async ({ forecast, values }: { forecast: Forecast; values: SettleValues }) => {
+      const amount = Number(values.amount);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Informe um valor válido.");
+
+      const { data: created, error: txError } = await supabase
+        .from("financial_transactions")
+        .insert({
+          type: forecast.type === "entrada" ? "a_receber" : "a_pagar",
+          status: "pago" as const,
+          description: forecast.description,
+          amount,
+          due_date: values.date,
+          paid_date: values.date,
+          category: forecast.category || null,
+          payment_method: values.payment_method || null,
+          account_id: values.account_id || null,
+        })
+        .select("id")
+        .single();
+      if (txError) throw txError;
+
+      const { error: fcError } = await supabase
+        .from("financial_forecasts")
+        .update({
+          status: "baixado",
+          settled_at: values.date,
+          settled_transaction_id: created.id,
+          notes: values.notes.trim() || null,
+        })
+        .eq("id", forecast.id);
+      if (fcError) throw fcError;
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["financial-saidas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-entradas"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-transactions"] });
+      setSettling(null);
+      toast({ title: "Baixa registrada", description: "Lançamento criado no Financeiro." });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao dar baixa", description: e.message, variant: "destructive" }),
+  });
+
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -340,9 +391,16 @@ export default function ForecastsTab() {
                       <TableCell>
                         <div className="font-medium">{f.description}</div>
                         {f.notes && <div className="text-xs text-muted-foreground">{f.notes}</div>}
-                        {f.series_id && (
-                          <Badge variant="outline" className="mt-1 text-[10px]">{RECURRENCE_LABELS[f.recurrence]}</Badge>
-                        )}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {f.series_id && (
+                            <Badge variant="outline" className="text-[10px]">{RECURRENCE_LABELS[f.recurrence]}</Badge>
+                          )}
+                          {f.status === "baixado" && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Baixada{f.settled_at ? ` em ${formatDateBR(f.settled_at)}` : ""}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{f.category ?? "—"}</TableCell>
                       <TableCell>
@@ -353,6 +411,17 @@ export default function ForecastsTab() {
                       <TableCell className="text-right font-medium">{brl(Number(f.amount))}</TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
+                          {f.status !== "baixado" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Dar baixa"
+                              aria-label="Dar baixa"
+                              onClick={() => setSettling(f)}
+                            >
+                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => { setEditing(f); setDialogOpen(true); }}>
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -383,6 +452,14 @@ export default function ForecastsTab() {
           }
           createMutation.mutate({ values, dates });
         }}
+      />
+
+      <SettleForecastDialog
+        open={Boolean(settling)}
+        onOpenChange={(open) => !open && setSettling(null)}
+        forecast={settling}
+        isPending={settleMutation.isPending}
+        onConfirm={(values) => settling && settleMutation.mutate({ forecast: settling, values })}
       />
 
       <AlertDialog open={Boolean(pendingEdit)} onOpenChange={(open) => !open && setPendingEdit(null)}>

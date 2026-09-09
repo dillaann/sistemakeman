@@ -923,6 +923,9 @@ export type Database = {
           notes: string | null
           recurrence: string
           series_id: string | null
+          settled_at: string | null
+          settled_transaction_id: string | null
+          status: string
           type: string
           updated_at: string
         }
@@ -937,6 +940,9 @@ export type Database = {
           notes?: string | null
           recurrence?: string
           series_id?: string | null
+          settled_at?: string | null
+          settled_transaction_id?: string | null
+          status?: string
           type: string
           updated_at?: string
         }
@@ -951,10 +957,21 @@ export type Database = {
           notes?: string | null
           recurrence?: string
           series_id?: string | null
+          settled_at?: string | null
+          settled_transaction_id?: string | null
+          status?: string
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "financial_forecasts_settled_transaction_id_fkey"
+            columns: ["settled_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       financial_transactions: {
         Row: {
