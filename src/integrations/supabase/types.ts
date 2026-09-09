@@ -911,6 +911,51 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_forecasts: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          forecast_date: string
+          id: string
+          notes: string | null
+          recurrence: string
+          series_id: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          forecast_date: string
+          id?: string
+          notes?: string | null
+          recurrence?: string
+          series_id?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          forecast_date?: string
+          id?: string
+          notes?: string | null
+          recurrence?: string
+          series_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_transactions: {
         Row: {
           account_id: string | null
