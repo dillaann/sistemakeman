@@ -54,6 +54,7 @@ export default function ForecastsTab() {
   const [editing, setEditing] = useState<Forecast | null>(null);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
+  const [settling, setSettling] = useState<Forecast | null>(null);
 
   const { data: forecasts = [], isLoading } = useQuery({
     queryKey: ["financial-forecasts", year],
