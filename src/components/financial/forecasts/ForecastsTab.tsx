@@ -411,6 +411,17 @@ export default function ForecastsTab() {
                       <TableCell className="text-right font-medium">{brl(Number(f.amount))}</TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
+                          {f.status !== "baixado" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Dar baixa"
+                              aria-label="Dar baixa"
+                              onClick={() => setSettling(f)}
+                            >
+                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" onClick={() => { setEditing(f); setDialogOpen(true); }}>
                             <Pencil className="h-4 w-4" />
                           </Button>
