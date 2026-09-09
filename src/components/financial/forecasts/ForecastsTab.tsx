@@ -454,6 +454,14 @@ export default function ForecastsTab() {
         }}
       />
 
+      <SettleForecastDialog
+        open={Boolean(settling)}
+        onOpenChange={(open) => !open && setSettling(null)}
+        forecast={settling}
+        isPending={settleMutation.isPending}
+        onConfirm={(values) => settling && settleMutation.mutate({ forecast: settling, values })}
+      />
+
       <AlertDialog open={Boolean(pendingEdit)} onOpenChange={(open) => !open && setPendingEdit(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
