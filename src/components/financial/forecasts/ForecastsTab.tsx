@@ -391,9 +391,16 @@ export default function ForecastsTab() {
                       <TableCell>
                         <div className="font-medium">{f.description}</div>
                         {f.notes && <div className="text-xs text-muted-foreground">{f.notes}</div>}
-                        {f.series_id && (
-                          <Badge variant="outline" className="mt-1 text-[10px]">{RECURRENCE_LABELS[f.recurrence]}</Badge>
-                        )}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {f.series_id && (
+                            <Badge variant="outline" className="text-[10px]">{RECURRENCE_LABELS[f.recurrence]}</Badge>
+                          )}
+                          {f.status === "baixado" && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              Baixada{f.settled_at ? ` em ${formatDateBR(f.settled_at)}` : ""}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{f.category ?? "—"}</TableCell>
                       <TableCell>
