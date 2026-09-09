@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle, Repeat, CheckCircle2 } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Wallet, ArrowRightLeft, FileText, CreditCard, HandCoins, Scale, AlertCircle, Repeat, CheckCircle2, CalendarClock } from "lucide-react";
 import EntradasTab from "@/components/financial/EntradasTab";
 import DespesasReceitasTab from "@/components/financial/DespesasReceitasTab";
 import SaidasTab from "@/components/financial/SaidasTab";
@@ -12,6 +12,8 @@ import ContasPagarTab from "@/components/financial/ContasPagarTab";
 import ContasReceberTab from "@/components/financial/ContasReceberTab";
 import ServicosNaoPagosTab from "@/components/financial/ServicosNaoPagosTab";
 import ReconciliationTab from "@/components/financial/reconciliation/ReconciliationTab";
+import ForecastsTab from "@/components/financial/forecasts/ForecastsTab";
+
 
 import MonthFilter, { getDateRange, type PeriodMode } from "@/components/MonthFilter";
 
@@ -71,7 +73,11 @@ const Financial = () => {
           <TabsTrigger value="nao_pagos" className="flex items-center gap-1 text-xs">
             <AlertCircle className="h-4 w-4" /> Serviços
           </TabsTrigger>
+          <TabsTrigger value="previsoes" className="flex items-center gap-1 text-xs">
+            <CalendarClock className="h-4 w-4" /> Previsões
+          </TabsTrigger>
         </TabsList>
+
         <TabsContent value="entradas"><EntradasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="saidas"><SaidasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="contas_pagar"><ContasPagarTab dateRange={dateRange} mode="aberto" /></TabsContent>
@@ -85,6 +91,8 @@ const Financial = () => {
         <TabsContent value="movimentacao"><MovimentacaoTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="desp_rec"><DespesasReceitasTab dateRange={dateRange} /></TabsContent>
         <TabsContent value="nao_pagos"><ServicosNaoPagosTab dateRange={dateRange} /></TabsContent>
+        <TabsContent value="previsoes"><ForecastsTab /></TabsContent>
+
       </Tabs>
     </div>
   );
