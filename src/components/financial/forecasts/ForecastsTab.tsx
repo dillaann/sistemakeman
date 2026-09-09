@@ -16,8 +16,9 @@ import {
 import {
   Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Info, CheckCircle2 } from "lucide-react";
 import { ForecastDialog } from "./ForecastDialog";
+import { SettleForecastDialog, type SettleValues } from "./SettleForecastDialog";
 import type { Forecast, ForecastFormValues } from "./types";
 import { MONTH_NAMES, RECURRENCE_LABELS } from "@/lib/forecast-recurrence";
 
