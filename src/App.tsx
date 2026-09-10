@@ -97,7 +97,7 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route index element={<DefaultRedirect />} />
                 <Route path="clientes" element={<RoleGuard allowed={["admin", "vendedor"]}><Clients /></RoleGuard>} />
-                <Route path="orcamentos" element={<RoleGuard allowed={["admin", "vendedor"]}><Quotes /></RoleGuard>} />
+                <Route path="orcamentos" element={<RoleGuard allowed={["admin", "vendedor", "producao"]}><Quotes /></RoleGuard>} />
                 <Route path="producao" element={<RoleGuard allowed={["admin", "vendedor", "producao"]}><Production /></RoleGuard>} />
                 <Route path="pintura" element={<RoleGuard allowed={["admin", "producao"]}><Painting /></RoleGuard>} />
                 <Route path="almoxarifado" element={<RoleGuard allowed={["admin", "almoxarifado"]}><Warehouse /></RoleGuard>} />
