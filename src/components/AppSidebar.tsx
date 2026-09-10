@@ -33,7 +33,7 @@ const menuGroups: MenuGroup[] = [
     label: "Comercial",
     items: [
       { title: "Clientes", url: "/clientes", icon: Users, roles: ["admin", "vendedor"] },
-      { title: "Orçamentos", url: "/orcamentos", icon: FileText, roles: ["admin", "vendedor"] },
+      { title: "Orçamentos", url: "/orcamentos", icon: FileText, roles: ["admin", "vendedor", "producao"] },
       { title: "Vendas", url: "/vendas", icon: ShoppingBag, roles: ["admin", "vendedor"] },
       { title: "Calculadora", url: "/calculadora", icon: Calculator, roles: ["admin", "vendedor"] },
       { title: "Recibos", url: "/recibos", icon: Receipt, roles: ["admin", "vendedor", "financeiro"] },
