@@ -209,8 +209,24 @@ export default function ContasReceberTab({ dateRange, mode = "aberto" }: ContasR
       });
     }
 
+    if (isReceivedView) {
+      // Regime de caixa (igual à aba Entradas): cada recebimento conta na sua
+      // própria data de pagamento, inclusive parciais de serviços ainda em aberto.
+      const LEGACY_CUTOFF = "2026-04-01";
+      return transactions
+        .filter(t => t.status === "pago" && t.paid_date)
+        .filter(t => !(t.due_date && t.due_date < LEGACY_CUTOFF && t.paid_date >= LEGACY_CUTOFF && t.paid_date < "2026-05-01"))
+        .map(t => ({
+          workOrderId: t.work_order_id ?? null, clientId: t.client_id, description: t.description,
+          totalValue: Number(t.amount), totalReceived: Number(t.amount), remaining: 0, percentReceived: 100,
+          dueDate: t.due_date ?? null, lastPaidDate: t.paid_date, referenceDate: t.paid_date,
+          status: "recebido_total" as const, pendingTransactionIds: [], pendingTransactions: [],
+          firstTransactionId: t.id,
+        }));
+    }
+
     return result;
-  }, [transactions, clients]);
+  }, [transactions, clients, isReceivedView]);
 
   const filtered = useMemo(() => {
     let list = [...grouped];
