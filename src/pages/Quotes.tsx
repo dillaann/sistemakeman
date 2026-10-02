@@ -1466,6 +1466,11 @@ const Quotes = () => {
                   {paymentStatusLabels[pStatus] || "Aguardando"}
                 </Badge>
               )}
+              {(q as any).approved_at && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  Aprovado em: <span className="font-medium text-foreground">{formatDateBR(String((q as any).approved_at).slice(0, 10))}</span>
+                </p>
+              )}
               <div className="flex gap-1 flex-wrap">
                 <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(q)}><FileDown className="h-4 w-4 mr-1" />PDF</Button>
                 {(userRole === "admin" || userRole === "financeiro" || (userRole === "vendedor" && (q as any).seller_id === user?.id)) && (
@@ -1504,6 +1509,7 @@ const Quotes = () => {
               <TableHead>Vendedor</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>Data Emissão</TableHead>
+              <TableHead>Aprovado em</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
@@ -1530,6 +1536,7 @@ const Quotes = () => {
                   <TableCell className="text-sm text-muted-foreground">{sellerName}</TableCell>
                   <TableCell><Badge variant="outline">{{ marketing: "Marketing", obras: "Obras", empresa: "Empresa" }[(q as any).origem_venda] || "—"}</Badge></TableCell>
                   <TableCell className="text-sm">{(q as any).issue_date ? formatDateBR((q as any).issue_date) : formatDateBR(q.created_at)}</TableCell>
+                  <TableCell className="text-sm">{(q as any).approved_at ? formatDateBR(String((q as any).approved_at).slice(0, 10)) : "—"}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.description}</TableCell>
                   <TableCell>{fmt(Number(q.total))}</TableCell>
                   <TableCell><Badge className={statusColors[q.status]}>{statusLabels[q.status]}</Badge></TableCell>
